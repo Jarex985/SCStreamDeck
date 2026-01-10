@@ -1,0 +1,121 @@
+﻿using System.Text.RegularExpressions;
+using BarRaider.SdTools;
+using SCStreamDeck.SCCore.Logging;
+
+namespace SCStreamDeck.SCCore.Common;
+
+/// <summary>
+///     Reads and parses RSI Launcher configuration files and logs to extract Star Citizen installation paths.
+/// </summary>
+internal sealed partial class RsiLauncherConfigReader
+{
+    private string? _rsiLauncherDirectory;
+
+    // Regex for parsing log files
+    // Excludes commas to prevent matching comma-separated path lists as single path
+    [GeneratedRegex(@"([A-Za-z]:\\[^\""<>|,\r\n]+?\\StarCitizen)", RegexOptions.IgnoreCase)]
+    private static partial Regex StarCitizenPathRegex();
+
+    /// <summary>
+    ///     Gets the RSI Launcher directory path, or null if not found.
+    /// </summary>
+    private string? GetRsiLauncherDirectory()
+    {
+        if (_rsiLauncherDirectory != null) return _rsiLauncherDirectory;
+
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var launcherPath = Path.Combine(appData, "rsilauncher");
+
+        if (!Directory.Exists(launcherPath))
+        {
+            Logger.Instance.LogMessage(TracingLevel.ERROR,
+                $"[RsiLauncherConfigReader] {ErrorMessages.RsiLauncherDirNotFound}");
+            return null;
+        }
+
+        if (!SecurePathValidator.TryNormalizePath(launcherPath, out var normalized)) return _rsiLauncherDirectory;
+        _rsiLauncherDirectory = normalized;
+
+        return _rsiLauncherDirectory;
+    }
+
+    /// <summary>
+    ///     Finds RSI Launcher log files, ordered by most recent.
+    /// </summary>
+    /// <param name="maxCount">Maximum number of log files to return.</param>
+    public IEnumerable<string> FindLogFiles(int maxCount = 3)
+    {
+        var launcherDir = GetRsiLauncherDirectory();
+        if (launcherDir == null) yield break;
+
+        var logsDir = Path.Combine(launcherDir, "logs");
+        if (!Directory.Exists(logsDir))
+        {
+            Logger.Instance.LogMessage(TracingLevel.ERROR,
+                $"[RsiLauncherConfigReader] {ErrorMessages.RsiLauncherLogsNotFound}");
+            yield break;
+        }
+
+        var logFiles = Directory.GetFiles(logsDir, "*.log").OrderByDescending(File.GetLastWriteTime).Take(maxCount);
+        foreach (var logFile in logFiles) yield return logFile;
+    }
+
+    /// <summary>
+    ///     Extracts Star Citizen installation root paths from a log file (e.g., "F:\Roberts Space Industries").
+    ///     Returns only unique root paths without duplicates.
+    /// </summary>
+    public static async Task<HashSet<string>> ExtractPathsFromLogAsync(string logFilePath,
+        CancellationToken cancellationToken = default)
+    {
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (!File.Exists(logFilePath)) return paths;
+
+        try
+        {
+            var content = await File.ReadAllTextAsync(logFilePath, cancellationToken).ConfigureAwait(false);
+            ExtractPathsFromContent(content, paths);
+        }
+
+        catch (IOException ex)
+        {
+            Logger.Instance.LogMessage(TracingLevel.ERROR,
+                $"[RsiLauncherConfigReader] {ErrorMessages.FileReadFailed} '{Path.GetFileName(logFilePath)}': {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.Instance.LogMessage(TracingLevel.ERROR,
+                $"[RsiLauncherConfigReader] {ErrorMessages.FileAccessDenied} '{Path.GetFileName(logFilePath)}': {ex.Message}");
+        }
+
+        return paths;
+    }
+
+    /// <summary>
+    ///     Extracts Star Citizen paths from log content.
+    /// </summary>
+    private static void ExtractPathsFromContent(string content, HashSet<string> paths)
+    {
+        foreach (var rawPath in StarCitizenPathRegex().Matches(content).Select(m => m.Value))
+        {
+            if (!SecurePathValidator.TryNormalizePath(rawPath, out var path)) continue;
+            AddNormalizedRootPath(path, paths);
+        }
+    }
+
+    /// <summary>
+    ///     Adds the normalized root path to the collection if valid.
+    /// </summary>
+    private static void AddNormalizedRootPath(string starCitizenPath, HashSet<string> paths)
+    {
+        if (!starCitizenPath.EndsWith("StarCitizen", StringComparison.OrdinalIgnoreCase)) return;
+
+        var rootPath = Path.GetDirectoryName(starCitizenPath);
+        if (string.IsNullOrWhiteSpace(rootPath) ||
+            !SecurePathValidator.TryNormalizePath(rootPath, out var normalizedRoot))
+            return;
+
+        normalizedRoot = normalizedRoot.Trim().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        paths.Add(normalizedRoot);
+    }
+}

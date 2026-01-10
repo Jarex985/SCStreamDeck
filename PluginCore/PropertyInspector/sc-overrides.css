@@ -1,0 +1,149 @@
+/* 
+ *  StarCitizen StreamDeck - Property Inspector overrides
+ *  Keep all layout tweaks here so we don't modify easy-pi/src/sdpi.css directly.
+ */
+
+.sc-wide {
+    display: grid !important;
+    grid-template-columns: 94px 1fr !important;
+    column-gap: 5px !important;
+    align-items: center;
+    max-width: none !important;
+    width: 100%;
+    padding-left: 0px;
+    padding-right: 8px;
+    box-sizing: border-box;
+}
+
+/* Try to match Stream Deck's built-in text field vertical alignment */
+.sc-wide input[type="text"],
+.sc-wide select {
+    height: 28px !important;
+    line-height: 28px !important;
+    padding: 0 6px !important;
+    text-indent: 0 !important;
+    box-sizing: border-box !important;
+    vertical-align: middle;
+}
+
+/* Additional specificity for the custom search input in StaticButton */
+.sc-wide input#functionSearch {
+    height: 28px !important;
+    line-height: 28px !important;
+    padding: 0 6px !important;
+    font-size: 10pt !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.25pt !important;
+}
+
+/* Unify control typography inside our full-width rows (overrides sdpi.css .win rules) */
+.sc-wide > .sdpi-item-value input,
+.sc-wide > .sdpi-item-value select,
+.sc-wide > .sdpi-item-value textarea {
+    font-size: 10pt !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.25pt !important;
+}
+
+/* Ensure the value column actually uses the available width */
+.sc-wide > .sdpi-item-value {
+    width: 100%;
+    min-width: 0;
+    margin-right: 0 !important;
+    display: block;
+    min-height: 28px;
+    line-height: 28px;
+}
+
+/* Make selects/inputs fill the value column */
+.sc-wide > .sdpi-item-value select,
+.sc-wide > .sdpi-item-value input,
+.sc-wide > .sdpi-item-value textarea {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+
+/* Ensure nested containers (like .sc-search-wrap) also use full width and align properly */
+.sc-wide > .sdpi-item-value > .sc-search-wrap {
+    width: 100%;
+    display: block;
+}
+
+/* Reset line-height only where needed (avoid affecting dropdown/list layout) */
+.sc-wide > .sdpi-item-value > .sc-search-wrap {
+    line-height: normal;
+}
+
+/* Better vertical centering for labels (match Stream Deck's native Title row) */
+.sc-wide > .sdpi-item-label {
+    display: block;
+    text-align: right;
+    padding-right: 5px !important;
+    height: 28px;
+    line-height: 28px !important;
+
+    /* Slight optical nudge upwards (font metrics can otherwise look a bit low) */
+    transform: translateY(-4px);
+    font-weight: normal !important;
+}
+
+/* Shared styles for function details panels */
+.hidden {
+    display: none !important;
+}
+.hint {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+}
+
+/* Function details panel */
+#functionDetails {
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.sc-details {
+    padding: 8px 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 6px;
+    font-size: 11px;
+    line-height: 1.35;
+}
+.sc-details-title {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+.sc-details-desc {
+    color: #bbb;
+    margin-bottom: 8px;
+    white-space: pre-wrap;
+}
+.sc-details-grid {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    column-gap: 10px;
+    row-gap: 6px;
+    align-items: start;
+}
+.sc-details-device {
+    color: #bbb;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+.sc-details-bindings {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.sc-details-unbound {
+    color: #999;
+    font-style: italic;
+}
+.sc-details-meta {
+    margin-top: 8px;
+    color: #888;
+}

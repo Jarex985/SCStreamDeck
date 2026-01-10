@@ -1,0 +1,41 @@
+.sdpi-info-label {
+    display: inline-block;
+    user-select: none;
+    position: absolute;
+    height: 15px;
+    width: auto;
+    text-align: center;
+    border-radius: 4px;
+    min-width: 44px;
+    max-width: 80px;
+    background: white;
+    font-size: 11px;
+    color: black;
+    z-index: 1000;
+    box-shadow: 0px 0px 12px rgba(0,0,0,.8);
+    padding: 2px;
+}
+
+.sdpi-info-label.hidden {
+    opacity: 0;
+    transition: opacity 0.25s linear;
+}
+
+.sdpi-info-label.shown {
+    position: absolute;
+    opacity: 1;
+    transition: opacity 0.25s ease-out;
+}
+
+.rangeLabel {
+    position: relative;
+    font-weight: normal;
+    margin-top: 22px;
+    left:-200px;
+    min-width:200px;
+    text-align:center;
+}
+
+.percent::after {
+    content: "%";
+}

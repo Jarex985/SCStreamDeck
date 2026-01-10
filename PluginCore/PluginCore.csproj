@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0-windows</TargetFramework>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <LangVersion>12</LangVersion>
+        <AssemblyName>com.jarex985.scstreamdeck</AssemblyName>
+        <RootNamespace>SCStreamDeck</RootNamespace>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <AssemblyTitle>SC Stream Deck</AssemblyTitle>
+        <AssemblyDescription>Plugin that provides bindable actions for Star Citizen via Stream Deck.</AssemblyDescription>
+        <AssemblyCompany>Jarex985</AssemblyCompany>
+        <AssemblyProduct>SC Stream Deck</AssemblyProduct>
+        <AssemblyCopyright>Copyright 2025 Jarex985</AssemblyCopyright>
+        <AssemblyVersion>1.0.0.0</AssemblyVersion>
+        <FileVersion>1.0.0.0</FileVersion>
+        <ComVisible>false</ComVisible>
+        <AnalysisLevel>latest</AnalysisLevel>
+        <AnalysisMode>Recommended</AnalysisMode>
+        <NoWarn>NU1701</NoWarn>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+        <OutputPath>bin\Debug\com.jarex985.scstreamdeck.sdPlugin\</OutputPath>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+        <OutputPath>bin\Release\com.jarex985.scstreamdeck.sdPlugin\</OutputPath>
+    </PropertyGroup>
+
+    <!-- External Libraries -->
+    <ItemGroup>
+        <ProjectReference Include="..\InputSimulatorPlus\WindowsInput\WindowsInput.csproj"/>
+        <PackageReference Include="CommandLineParser" Version="2.9.1" />
+        <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.101">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.1" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.1" />
+        <PackageReference Include="Microsoft.Win32.SystemEvents" Version="10.0.1" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+        <PackageReference Include="NLog" Version="6.0.7" />
+        <PackageReference Include="SharpZipLibP4k" Version="1.4.2" />
+        <PackageReference Include="StreamDeck-Tools" Version="6.3.2"/>
+        <PackageReference Include="System.Drawing.Common" Version="10.0.1" />
+        <PackageReference Include="ZstdSharp.Port" Version="0.8.7" />
+    </ItemGroup>
+    
+    <!-- Manifest & Property Inspector -->
+    <ItemGroup>
+        <None Include="manifest.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <Content Include="PropertyInspector\**\*.*">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+    <!-- Plugin Images -->
+    <ItemGroup>
+        <Content Include="Images\categoryIcon%402x.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Images\categoryIcon.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Images\icon%402x.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Images\icon.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Images\pluginAction%402x.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Images\pluginAction.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Images\pluginIcon%402x.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Images\pluginIcon.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+</Project>
