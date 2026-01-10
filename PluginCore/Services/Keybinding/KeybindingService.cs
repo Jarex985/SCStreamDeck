@@ -42,7 +42,7 @@ public sealed class KeybindingService(
     public async Task<bool> ExecuteAsync(KeybindingExecutionContext context, CancellationToken cancellationToken = default) =>
         await _executorService.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
-    public bool TryGetAction(string actionName, out KeybindingAction? action) =>
+    public bool TryGetAction(string? actionName, out KeybindingAction? action) =>
         _loaderService.TryGetAction(actionName, out action);
 
     public IReadOnlyList<KeybindingAction> GetAllActions() => _loaderService.GetAllActions();

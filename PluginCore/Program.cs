@@ -16,8 +16,6 @@ internal static class Program
         // Initialize SCCore DI container & Pre-initialize services before StreamDeck connection
         IServiceProvider serviceProvider = ServiceConfiguration.BuildAndInitialize();
         IInitializationService initService = serviceProvider.GetRequiredService<IInitializationService>();
-
-        // Initialize button services for dependency injection
         SCActionBase.InitializeServices(serviceProvider);
 
         try
@@ -26,7 +24,8 @@ internal static class Program
 
             if (!result.IsSuccess)
             {
-                Logger.Instance.LogMessage(TracingLevel.WARN, $"[Program] Pre-initialization failed: {result.ErrorMessage}");
+                Logger.Instance.LogMessage(TracingLevel.WARN,
+                    $"[Program] Pre-initialization failed: {result.ErrorMessage}");
             }
         }
         catch (Exception ex)

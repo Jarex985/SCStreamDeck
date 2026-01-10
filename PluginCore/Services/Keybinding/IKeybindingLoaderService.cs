@@ -20,7 +20,7 @@ public interface IKeybindingLoaderService
     /// <summary>
     ///     Tries to get a keybinding action by name.
     /// </summary>
-    bool TryGetAction(string actionName, out KeybindingAction? action);
+    bool TryGetAction(string? actionName, out KeybindingAction? action);
 
     /// <summary>
     ///     Gets all loaded keybinding actions.

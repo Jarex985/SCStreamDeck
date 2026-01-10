@@ -92,7 +92,7 @@ internal sealed class UserOverrideParser
         }
     }
 
-    private UserOverrides ParseXml(string xmlText)
+    private static UserOverrides ParseXml(string xmlText)
     {
         Dictionary<string, string?> keyboard = new(StringComparer.OrdinalIgnoreCase);
         Dictionary<string, string?> mouse = new(StringComparer.OrdinalIgnoreCase);

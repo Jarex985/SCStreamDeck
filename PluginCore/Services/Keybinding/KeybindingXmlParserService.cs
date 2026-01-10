@@ -133,15 +133,15 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
     /// </summary>
     /// <param name="xmlReader">The XML reader positioned at an action element</param>
     /// <param name="mapName">The current action map name</param>
-    /// <param name="mapUILabel">The current action map UI label</param>
-    /// <param name="mapUICategory">The current action map UI category</param>
+    /// <param name="mapUiLabel">The current action map UI label</param>
+    /// <param name="mapUiCategory">The current action map UI category</param>
     /// <param name="activationModes">Dictionary of activation mode metadata</param>
     /// <returns>Parsed action data or null if invalid</returns>
     private KeybindingActionData? ParseAction(
         XmlReader xmlReader,
         string mapName,
-        string mapUILabel,
-        string mapUICategory,
+        string mapUiLabel,
+        string mapUiCategory,
         Dictionary<string, ActivationModeMetadata> activationModes)
     {
         string actionName = xmlReader.GetAttribute("name") ?? string.Empty;
@@ -187,9 +187,9 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
             Name = actionName,
             Label = uiLabel,
             Description = uiDescription,
-            Category = mapUICategory,
+            Category = mapUiCategory,
             MapName = mapName,
-            MapLabel = mapUILabel,
+            MapLabel = mapUiLabel,
             ActivationMode = activationMode,
             Bindings = new InputBindings
             {

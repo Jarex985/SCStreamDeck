@@ -42,13 +42,8 @@ public abstract class SCActionBase : KeyAndEncoderBase
             Settings = payload.Settings.ToObject<FunctionSettings>() ?? new FunctionSettings();
         }
 
-        if (s_serviceProvider == null)
-        {
-            throw new InvalidOperationException("SCActionBase services not initialized. Call InitializeServices first.");
-        }
-
-        KeybindingService = s_serviceProvider.GetRequiredService<IKeybindingService>();
-        InitializationService = s_serviceProvider.GetRequiredService<IInitializationService>();
+        InitializationService = s_serviceProvider!.GetRequiredService<IInitializationService>();
+        KeybindingService = s_serviceProvider!.GetRequiredService<IKeybindingService>();
         Connection.OnPropertyInspectorDidAppear += OnPropertyInspectorDidAppear;
         Connection.OnSendToPlugin += OnSendToPlugin;
 
@@ -79,7 +74,7 @@ public abstract class SCActionBase : KeyAndEncoderBase
             {
                 Connection.SendToPropertyInspectorAsync(new JObject
                 {
-                    ["functionsLoaded"] = false, ["functions"] = new JArray(), ["status"] = "Keybindings not loaded yet"
+                    ["functionsLoaded"] = false, ["functions"] = new JArray()
                 });
                 return;
             }
@@ -91,16 +86,16 @@ public abstract class SCActionBase : KeyAndEncoderBase
             Connection.SendToPropertyInspectorAsync(new JObject
             {
                 ["functionsLoaded"] = true,
-                ["functions"] = groups,
-                ["status"] = $"Loaded {allActions.Count} keybindings from SCCore"
+                ["functions"] = groups
             });
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"{GetType().Name}: SendPropertyInspectorUpdate failed: {ex.Message}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR,
+                $"{GetType().Name}: SendPropertyInspectorUpdate failed: {ex.Message}");
             Connection.SendToPropertyInspectorAsync(new JObject
             {
-                ["functionsLoaded"] = false, ["functions"] = new JArray(), ["status"] = $"Error: {ex.Message}"
+                ["functionsLoaded"] = false, ["functions"] = new JArray()
             });
         }
     }
@@ -182,7 +177,7 @@ public abstract class SCActionBase : KeyAndEncoderBase
     #region Dial and Touchpad Methods
 
     /// <summary>
-    ///     Called when the dial is rotated. Not used for buttons.
+    ///     Called when the dial is rotated. Not used for keys.
     /// </summary>
     public override void DialRotate(DialRotatePayload payload)
     {
@@ -190,7 +185,7 @@ public abstract class SCActionBase : KeyAndEncoderBase
     }
 
     /// <summary>
-    ///     Called when the dial is pressed down. Not used for buttons.
+    ///     Called when the dial is pressed down. Not used for keys.
     /// </summary>
     public override void DialDown(DialPayload payload)
     {
@@ -198,7 +193,7 @@ public abstract class SCActionBase : KeyAndEncoderBase
     }
 
     /// <summary>
-    ///     Called when the dial is released. Not used for buttons.
+    ///     Called when the dial is released. Not used for keys.
     /// </summary>
     public override void DialUp(DialPayload payload)
     {
@@ -206,7 +201,7 @@ public abstract class SCActionBase : KeyAndEncoderBase
     }
 
     /// <summary>
-    ///     Called when the touchpad is pressed. Not used for buttons.
+    ///     Called when the touchpad is pressed. Not used for keys.
     /// </summary>
     public override void TouchPress(TouchpadPressPayload payload)
     {
