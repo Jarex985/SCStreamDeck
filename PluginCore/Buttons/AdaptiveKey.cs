@@ -1,6 +1,5 @@
 ﻿using BarRaider.SdTools;
 using SCStreamDeck.SCCore.Buttons.Base;
-using SCStreamDeck.SCCore.Buttons.Settings;
 using SCStreamDeck.SCCore.Common;
 using SCStreamDeck.SCCore.Models;
 
@@ -12,45 +11,28 @@ namespace SCStreamDeck.SCCore.Buttons;
 ///     Adaptive Star Citizen button.
 ///     Automatically adjusts behavior based on action activation modes.
 /// </summary>
-[PluginActionId("com.jarex985.scstreamdeck.adaptivebutton")]
-public sealed class AdaptiveButton : SCButtonBase
+[PluginActionId("com.jarex985.scstreamdeck.adaptivekey")]
+public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload) : SCActionBase(connection, payload)
 {
-    private FunctionSettings _settings;
-
-    public AdaptiveButton(SDConnection connection, InitialPayload payload) : base(connection, payload)
-    {
-        ArgumentNullException.ThrowIfNull(payload);
-
-        // Load settings from payload
-        if (payload.Settings == null || payload.Settings.Count == 0)
-        {
-            _settings = new FunctionSettings();
-        }
-        else
-        {
-            _settings = payload.Settings.ToObject<FunctionSettings>() ?? new FunctionSettings();
-        }
-    }
-
     protected override void ExecuteButtonAction(bool isKeyDown)
     {
-        if (string.IsNullOrWhiteSpace(_settings.Function))
+        if (string.IsNullOrWhiteSpace(Settings.Function))
         {
-            Logger.Instance.LogMessage(TracingLevel.WARN, "AdaptiveButton: No function configured");
+            Logger.Instance.LogMessage(TracingLevel.WARN, $"{GetType().Name}: No function configured");
             return;
         }
 
         if (!IsReady)
         {
             Logger.Instance.LogMessage(TracingLevel.WARN,
-                "AdaptiveButton: Not ready - initialization in progress");
+                $"{GetType().Name}: Not ready - initialization in progress");
             return;
         }
 
-        if (!KeybindingService.TryGetAction(_settings.Function, out KeybindingAction? action) || action == null)
+        if (!KeybindingService.TryGetAction(Settings.Function, out KeybindingAction? action) || action == null)
         {
             Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"AdaptiveButton: Function '{_settings.Function}' not found");
+                $"{GetType().Name}: Function '{Settings.Function}' not found");
             return;
         }
 
@@ -74,13 +56,13 @@ public sealed class AdaptiveButton : SCButtonBase
         if (string.IsNullOrWhiteSpace(executableBinding))
         {
             Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"AdaptiveButton: Function '{_settings.Function}' not bound to executable input");
+                $"{GetType().Name}: Function '{Settings.Function}' not bound to executable input");
             return;
         }
 
         KeybindingExecutionContext context = new()
         {
-            ActionName = _settings.Function,
+            ActionName = Settings.Function,
             Binding = executableBinding,
             ActivationMode = action.ActivationMode,
             IsKeyDown = isKeyDown
@@ -108,23 +90,13 @@ public sealed class AdaptiveButton : SCButtonBase
                 {
                     string actionText = isKeyDown ? "pressed" : "released";
                     Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                        $"AdaptiveButton: {actionText} '{context.ActionName}' ({activationMode}) → '{executableBinding}' ({bindingType})");
+                        $"{GetType().Name}: {actionText} '{context.ActionName}' ({activationMode}) → '{executableBinding}' ({bindingType})");
                 }
             }
             catch (Exception ex)
             {
                 Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"AdaptiveButton: Exception executing '{executableBinding}': {ex.Message}");
+                    $"{GetType().Name}: Exception executing '{executableBinding}': {ex.Message}");
             }
         });
-
-    public override void ReceivedSettings(ReceivedSettingsPayload payload)
-    {
-        ArgumentNullException.ThrowIfNull(payload);
-
-        if (payload.Settings != null && payload.Settings.Count > 0)
-        {
-            _settings = payload.Settings.ToObject<FunctionSettings>() ?? _settings;
-        }
-    }
 }

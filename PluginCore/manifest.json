@@ -2,7 +2,7 @@
     "Actions": [
         {
             "Icon": "Images/icon",
-            "Name": "Adaptive Button",
+            "Name": "Adaptive Key",
             "States": [
                 {
                     "Image": "Images/pluginAction",
@@ -11,8 +11,8 @@
                 }
             ],
             "SupportedInMultiActions": true,
-            "Tooltip": "Star Citizen Adaptive Button",
-            "UUID": "com.jarex985.scstreamdeck.adaptivebutton",
+            "Tooltip": "Star Citizen Adaptive Key",
+            "UUID": "com.jarex985.scstreamdeck.adaptivekey",
             "PropertyInspectorPath": "PropertyInspector/Buttons/AdaptiveButton.html"
         }
     ],

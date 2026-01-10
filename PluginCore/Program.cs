@@ -18,7 +18,7 @@ internal static class Program
         IInitializationService initService = serviceProvider.GetRequiredService<IInitializationService>();
 
         // Initialize button services for dependency injection
-        SCButtonBase.InitializeServices(serviceProvider);
+        SCActionBase.InitializeServices(serviceProvider);
 
         try
         {

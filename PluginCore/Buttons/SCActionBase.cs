@@ -1,8 +1,10 @@
 using BarRaider.SdTools;
 using BarRaider.SdTools.Events;
+using BarRaider.SdTools.Payloads;
 using BarRaider.SdTools.Wrappers;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
+using SCStreamDeck.SCCore.Buttons.Settings;
 using SCStreamDeck.SCCore.Common;
 using SCStreamDeck.SCCore.Models;
 using SCStreamDeck.SCCore.Services.Core;
@@ -11,25 +13,29 @@ using SCStreamDeck.SCCore.Services.Keybinding;
 namespace SCStreamDeck.SCCore.Buttons.Base;
 
 /// <summary>
-///     Base class for Star Citizen Stream Deck Keys.
+///     Base class for Star Citizen Stream Deck Keys and Dials.
 /// </summary>
-public abstract class SCButtonBase : KeypadBase
+public abstract class SCActionBase : KeyAndEncoderBase
 {
-    /// <summary>
-    ///     Static service provider for dependency injection in StreamDeck buttons.
-    ///     Set in Program.cs after service initialization.
-    /// </summary>
     private static IServiceProvider? s_serviceProvider;
 
-    /// <summary>
-    ///     Constructor for SCButtonBase.
-    ///     Services are injected via static provider to work around SDK limitations.
-    /// </summary>
-    protected SCButtonBase(SDConnection connection, InitialPayload payload) : base(connection, payload)
+    protected SCActionBase(SDConnection connection, InitialPayload payload) : base(connection, payload)
     {
+        ArgumentNullException.ThrowIfNull(payload);
+
+        // Load settings from payload
+        if (payload.Settings == null || payload.Settings.Count == 0)
+        {
+            Settings = new FunctionSettings();
+        }
+        else
+        {
+            Settings = payload.Settings.ToObject<FunctionSettings>() ?? new FunctionSettings();
+        }
+
         if (s_serviceProvider == null)
         {
-            throw new InvalidOperationException("SCButtonBase services not initialized. Call InitializeServices first.");
+            throw new InvalidOperationException("SCActionBase services not initialized. Call InitializeServices first.");
         }
 
         KeybindingService = s_serviceProvider.GetRequiredService<IKeybindingService>();
@@ -45,11 +51,9 @@ public abstract class SCButtonBase : KeypadBase
 
     private IInitializationService InitializationService { get; }
     protected IKeybindingService KeybindingService { get; }
+    internal bool IsReady => InitializationService.IsInitialized && KeybindingService.IsLoaded;
 
-    /// <summary>
-    ///     Indicates whether the button is ready for execution (services initialized).
-    /// </summary>
-    protected bool IsReady => InitializationService.IsInitialized && KeybindingService.IsLoaded;
+    protected FunctionSettings Settings { get; private set; }
 
     /// <summary>
     ///     Initializes the service provider for button dependency injection.
@@ -159,6 +163,19 @@ public abstract class SCButtonBase : KeypadBase
     }
 
     /// <summary>
+    ///     Called when settings are received.
+    /// </summary>
+    public override void ReceivedSettings(ReceivedSettingsPayload payload)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+
+        if (payload.Settings != null && payload.Settings.Count > 0)
+        {
+            Settings = payload.Settings.ToObject<FunctionSettings>() ?? Settings;
+        }
+    }
+
+    /// <summary>
     ///     Called when global settings are received.
     /// </summary>
     public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload)
@@ -170,4 +187,39 @@ public abstract class SCButtonBase : KeypadBase
     {
         // Override in derived classes if needed
     }
+
+    #region Dial and Touchpad Methods
+
+    /// <summary>
+    ///     Called when the dial is rotated. Not used for buttons.
+    /// </summary>
+    public override void DialRotate(DialRotatePayload payload)
+    {
+        // Not implemented for buttons
+    }
+
+    /// <summary>
+    ///     Called when the dial is pressed down. Not used for buttons.
+    /// </summary>
+    public override void DialDown(DialPayload payload)
+    {
+        // Not implemented for buttons
+    }
+
+    /// <summary>
+    ///     Called when the dial is released. Not used for buttons.
+    /// </summary>
+    public override void DialUp(DialPayload payload)
+    {
+        // Not implemented for buttons
+    }
+
+    /// <summary>
+    ///     Called when the touchpad is pressed. Not used for buttons.
+    /// </summary>
+    public override void TouchPress(TouchpadPressPayload payload)
+    {
+        // Not implemented for buttons
+    }
+    #endregion
 }

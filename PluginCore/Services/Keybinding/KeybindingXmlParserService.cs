@@ -253,9 +253,9 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
         ActivationMode inferred = InferFromHeuristic(onPress, onHold, onRelease, retriggerable);
 
         // Log warning if heuristic was used (not exact match)
-        Logger.Instance.LogMessage(TracingLevel.WARN,
+        /*Logger.Instance.LogMessage(TracingLevel.WARN,
             $"[KeybindingXmlParser] Action '{actionName}' used heuristic activation mode: {inferred} " +
-            $"(onPress={onPress}, onHold={onHold}, onRelease={onRelease}, retriggerable={retriggerable})");
+            $"(onPress={onPress}, onHold={onHold}, onRelease={onRelease}, retriggerable={retriggerable})");*/
 
         return inferred;
     }
