@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿﻿using Microsoft.Extensions.DependencyInjection;
 using SCStreamDeck.SCCore.Services.Core;
 using SCStreamDeck.SCCore.Services.Data;
 using SCStreamDeck.SCCore.Services.Installation;
@@ -35,6 +35,9 @@ public static class ServiceConfiguration
         services.AddSingleton<IKeybindingXmlParserService, KeybindingXmlParserService>();
         services.AddSingleton<IKeybindingMetadataService, KeybindingMetadataService>();
         services.AddSingleton<IKeybindingOutputService, KeybindingOutputService>();
+        services.AddSingleton<IKeybindingLoaderService, KeybindingLoaderService>();
+        services.AddSingleton<IKeybindingParserService, KeybindingParserService>();
+        services.AddSingleton<IKeybindingExecutorService, KeybindingExecutorService>();
         
         services.AddSingleton<IKeybindingProcessorService, KeybindingProcessorService>();
         services.AddSingleton<IKeybindingService, KeybindingService>();
