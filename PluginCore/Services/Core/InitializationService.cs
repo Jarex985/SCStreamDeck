@@ -55,7 +55,7 @@ public sealed class InitializationService : IInitializationService, IDisposable
         _initSemaphore.Dispose();
     }
 
-    public event EventHandler<InitializationResult>? InitializationCompleted;
+    //public event EventHandler<InitializationResult>? InitializationCompleted;
 
     public bool IsInitialized
     {
@@ -373,7 +373,7 @@ public sealed class InitializationService : IInitializationService, IDisposable
             }
 
             var result = InitializationResult.Success(_currentChannel, candidates.Count);
-            RaiseInitializationCompleted(result);
+            //RaiseInitializationCompleted(result);
 
             return result;
         }
@@ -387,7 +387,7 @@ public sealed class InitializationService : IInitializationService, IDisposable
             }
 
             var result = InitializationResult.Failure($"{ErrorMessages.InitializationFailed}: {ex.Message}");
-            RaiseInitializationCompleted(result);
+            //RaiseInitializationCompleted(result);
 
             return result;
         }
@@ -397,7 +397,7 @@ public sealed class InitializationService : IInitializationService, IDisposable
     ///     Raises the InitializationCompleted event with proper exception handling.
     ///     Event handlers should be fast; any slow operations should spawn their own tasks.
     /// </summary>
-    private void RaiseInitializationCompleted(InitializationResult result)
+    /*private void RaiseInitializationCompleted(InitializationResult result)
     {
         try
         {
@@ -409,7 +409,7 @@ public sealed class InitializationService : IInitializationService, IDisposable
             Logger.Instance.LogMessage(TracingLevel.ERROR,
                 $"[InitializationService] {ErrorMessages.EventHandlerFailed}: {ex.Message}");
         }
-    }
+    }*/
 
     // Cache validation result helper class
     private sealed class CacheValidationResult

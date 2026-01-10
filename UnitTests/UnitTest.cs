@@ -9,11 +9,6 @@ namespace UnitTests;
 public class UnitTest
 {
     [Fact]
-    public void Test1()
-    {
-    }
-
-    [Fact]
     public void KeybindingParserService_ParseKeyboardBinding_ReturnsCorrectResult()
     {
         // Arrange

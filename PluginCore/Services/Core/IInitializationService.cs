@@ -18,13 +18,7 @@ public interface IInitializationService
     ///     Safe to call multiple times - only initializes once.
     /// </summary>
     Task<InitializationResult> EnsureInitializedAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    ///     Event raised when initialization completes (success or failure).
-    ///     Subscribe to this to react to initialization completion.
-    /// </summary>
-    event EventHandler<InitializationResult>? InitializationCompleted;
-
+    
     /// <summary>
     ///     Switches to a different Star Citizen channel (LIVE/PTU).
     /// </summary>

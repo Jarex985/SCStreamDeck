@@ -1,42 +1,56 @@
 using BarRaider.SdTools;
 using BarRaider.SdTools.Events;
 using BarRaider.SdTools.Wrappers;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Infrastructure;
 using SCStreamDeck.SCCore.Services.Core;
 using SCStreamDeck.SCCore.Services.Keybinding;
 
 namespace SCStreamDeck.SCCore.Buttons.Base;
 
 /// <summary>
-///     Modern base class for SCCore-based Stream Deck buttons.
-///     Provides shared functionality using SCCore services instead of legacy code.
+///     Base class for Star Citizen Stream Deck Keys.
 /// </summary>
 public abstract class SCButtonBase : KeypadBase
 {
     /// <summary>
-    ///     Constructor for SCButtonBase using SCCore dependency injection.
+    ///     Static service provider for dependency injection in StreamDeck buttons.
+    ///     Set in Program.cs after service initialization.
     /// </summary>
-    protected SCButtonBase(SDConnection connection, InitialPayload payload) : base(connection, payload)
+    private static IServiceProvider? _serviceProvider;
+    
+    /// <summary>
+    ///     Initializes the service provider for button dependency injection.
+    /// </summary>
+    public static void InitializeServices(IServiceProvider serviceProvider)
     {
-        // Get services from ServiceLocator
-        KeybindingService = ServiceLocator.GetService<IKeybindingService>();
-        InitializationService = ServiceLocator.GetService<IInitializationService>();
-
-        InitializationService.InitializationCompleted += OnInitializationCompleted;
-        Connection.OnPropertyInspectorDidAppear += OnPropertyInspectorDidAppear;
-        Connection.OnSendToPlugin += OnSendToPlugin;
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
     }
 
     /// <summary>
-    ///     Gets the initialization service for managing plugin startup and state.
+    ///     Constructor for SCButtonBase.
+    ///     Services are injected via static provider to work around SDK limitations.
     /// </summary>
-    protected IInitializationService InitializationService { get; }
+    protected SCButtonBase(SDConnection connection, InitialPayload payload) : base(connection, payload)
+    {
+        if (_serviceProvider == null)
+        {
+            throw new InvalidOperationException("SCButtonBase services not initialized. Call InitializeServices first.");
+        }
 
-    /// <summary>
-    ///     Gets the keybinding service for accessing Star Citizen keybindings.
-    /// </summary>
+        KeybindingService = _serviceProvider.GetRequiredService<IKeybindingService>();
+        InitializationService = _serviceProvider.GetRequiredService<IInitializationService>();
+        Connection.OnPropertyInspectorDidAppear += OnPropertyInspectorDidAppear;
+        Connection.OnSendToPlugin += OnSendToPlugin;
+        
+        if (IsReady)
+        {
+            SendPropertyInspectorUpdate();
+        }
+    }
+    
+    private IInitializationService InitializationService { get; }
     protected IKeybindingService KeybindingService { get; }
 
     /// <summary>
@@ -53,9 +67,8 @@ public abstract class SCButtonBase : KeypadBase
 
     /// <summary>
     ///     Sends the current keybinding status and available actions to the Property Inspector.
-    ///     Can be overridden by derived classes for custom Property Inspector updates.
     /// </summary>
-    protected virtual void SendPropertyInspectorUpdate()
+    private void SendPropertyInspectorUpdate()
     {
         try
         {
@@ -96,27 +109,11 @@ public abstract class SCButtonBase : KeypadBase
             });
         }
     }
-
-    /// <summary>
-    ///     Called when SCCore initialization completes (success or failure).
-    ///     Virtual so derived classes can override for custom initialization handling.
-    /// </summary>
-    protected virtual void OnInitializationCompleted(object? sender, InitializationResult result)
-    {
-        ArgumentNullException.ThrowIfNull(result);
-
-        if (!result.IsSuccess)
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"{GetType().Name}: Initialization failed - {result.ErrorMessage}");
-
-        SendPropertyInspectorUpdate();
-    }
-
+    
     /// <summary>
     ///     Called when the Property Inspector appears.
-    ///     Virtual so derived classes can override for custom behavior.
     /// </summary>
-    protected virtual void OnPropertyInspectorDidAppear(object? sender,
+    private void OnPropertyInspectorDidAppear(object? sender,
         SDEventReceivedEventArgs<PropertyInspectorDidAppear> e)
     {
         SendPropertyInspectorUpdate();
@@ -126,7 +123,7 @@ public abstract class SCButtonBase : KeypadBase
     ///     Called when the Property Inspector sends a message to the plugin.
     ///     Virtual so derived classes can override for custom message handling.
     /// </summary>
-    protected virtual void OnSendToPlugin(object? sender, SDEventReceivedEventArgs<SendToPlugin> e)
+    private void OnSendToPlugin(object? sender, SDEventReceivedEventArgs<SendToPlugin> e)
     {
         ArgumentNullException.ThrowIfNull(e);
 
@@ -142,7 +139,7 @@ public abstract class SCButtonBase : KeypadBase
             Logger.Instance.LogMessage(TracingLevel.ERROR, $"{GetType().Name}: OnSendToPlugin error: {ex.Message}");
         }
     }
-
+    
     /// <summary>
     ///     Sealed override of KeyPressed - calls ExecuteButtonAction.
     ///     Derived classes should implement ExecuteButtonAction, not override this.
@@ -160,33 +157,25 @@ public abstract class SCButtonBase : KeypadBase
     {
         ExecuteButtonAction(false);
     }
-
-    /// <summary>
-    ///     Called periodically by the Stream Deck SDK.
-    ///     Virtual so derived classes can override if periodic updates are needed.
-    /// </summary>
-    public override void OnTick()
-    {
-        // Most buttons don't need periodic updates
-        // Override in derived classes if needed
-    }
-
+    
     /// <summary>
     ///     Called when global settings are received.
-    ///     Virtual so derived classes can override if global settings are needed.
     /// </summary>
     public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload)
+    {
+        // Override in derived classes if needed
+    }
+    
+    public override void OnTick()
     {
         // Override in derived classes if needed
     }
 
     /// <summary>
     ///     Disposes resources and unsubscribes from events.
-    ///     Virtual so derived classes can extend cleanup.
     /// </summary>
     public override void Dispose()
     {
-        InitializationService.InitializationCompleted -= OnInitializationCompleted;
         Connection.OnPropertyInspectorDidAppear -= OnPropertyInspectorDidAppear;
         Connection.OnSendToPlugin -= OnSendToPlugin;
         GC.SuppressFinalize(this);

@@ -3,6 +3,8 @@ using SCStreamDeck.SCCore.Buttons.Base;
 using SCStreamDeck.SCCore.Buttons.Settings;
 using SCStreamDeck.SCCore.Common;
 using SCStreamDeck.SCCore.Models;
+using SCStreamDeck.SCCore.Services.Core;
+using SCStreamDeck.SCCore.Services.Keybinding;
 
 // ReSharper disable once UnusedType.Global
 
@@ -23,12 +25,14 @@ public sealed class AdaptiveButton : SCButtonBase
 
         // Load settings from payload
         if (payload.Settings == null || payload.Settings.Count == 0)
+        {
             _settings = new FunctionSettings();
+        }
         else
+        {
             _settings = payload.Settings.ToObject<FunctionSettings>() ?? new FunctionSettings();
-
-        // Check if already initialized and send initial status
-        if (IsReady) SendPropertyInspectorUpdate();
+        }
+        
     }
 
     protected override void ExecuteButtonAction(bool isKeyDown)
@@ -126,9 +130,5 @@ public sealed class AdaptiveButton : SCButtonBase
         if (payload.Settings != null && payload.Settings.Count > 0)
             _settings = payload.Settings.ToObject<FunctionSettings>() ?? _settings;
     }
-
-    public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload)
-    {
-        /* No global settings used */
-    }
+    
 }

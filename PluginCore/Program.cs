@@ -15,6 +15,9 @@ internal static class Program
         var serviceProvider = ServiceConfiguration.BuildAndInitialize();
         var initService = serviceProvider.GetRequiredService<SCCore.Services.Core.IInitializationService>();
         
+        // Initialize button services for dependency injection
+        SCCore.Buttons.Base.SCButtonBase.InitializeServices(serviceProvider);
+        
         try 
         {
             var result = await initService.EnsureInitializedAsync();
