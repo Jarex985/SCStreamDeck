@@ -21,31 +21,37 @@ public sealed class VersionProviderService : IVersionProvider
     /// <summary>
     ///     Gets the plugin version synchronously (uses cached value after first load).
     /// </summary>
-    public string GetPluginVersion()
-    {
-        return _cachedVersion.Value;
-    }
+    public string GetPluginVersion() => _cachedVersion.Value;
 
     /// <summary>
     ///     Gets the plugin version asynchronously.
     /// </summary>
     public async Task<string> GetPluginVersionAsync(CancellationToken cancellationToken = default)
     {
-        var manifestPath = Path.Combine(_pathProvider.BaseDirectory, "manifest.json");
+        string manifestPath = Path.Combine(_pathProvider.BaseDirectory, "manifest.json");
 
-        if (!SecurePathValidator.TryNormalizePath(manifestPath, out var normalizedPath))
+        if (!SecurePathValidator.TryNormalizePath(manifestPath, out string normalizedPath))
+        {
             throw new InvalidOperationException("Failed to resolve manifest.json path.");
-        if (!File.Exists(normalizedPath)) throw new FileNotFoundException("manifest.json not found.", normalizedPath);
+        }
+
+        if (!File.Exists(normalizedPath))
+        {
+            throw new FileNotFoundException("manifest.json not found.", normalizedPath);
+        }
 
         try
         {
-            await using var stream = File.OpenRead(normalizedPath);
-            var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+            await using FileStream stream = File.OpenRead(normalizedPath);
+            JsonDocument doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            if (doc.RootElement.TryGetProperty("Version", out var versionElement))
+            if (doc.RootElement.TryGetProperty("Version", out JsonElement versionElement))
             {
-                var version = versionElement.GetString();
-                if (!string.IsNullOrWhiteSpace(version)) return version;
+                string? version = versionElement.GetString();
+                if (!string.IsNullOrWhiteSpace(version))
+                {
+                    return version;
+                }
             }
 
             throw new InvalidOperationException("Version property not found or empty in manifest.json.");

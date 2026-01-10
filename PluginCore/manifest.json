@@ -1,39 +1,39 @@
 {
-  "Actions": [
-    {
-      "Icon": "Images/icon",
-      "Name": "Adaptive Button",
-      "States": [
+    "Actions": [
         {
-          "Image": "Images/pluginAction",
-          "TitleAlignment": "bottom",
-          "FontSize": 8
+            "Icon": "Images/icon",
+            "Name": "Adaptive Button",
+            "States": [
+                {
+                    "Image": "Images/pluginAction",
+                    "TitleAlignment": "bottom",
+                    "FontSize": 8
+                }
+            ],
+            "SupportedInMultiActions": true,
+            "Tooltip": "Star Citizen Adaptive Button",
+            "UUID": "com.jarex985.scstreamdeck.adaptivebutton",
+            "PropertyInspectorPath": "PropertyInspector/Buttons/AdaptiveButton.html"
         }
-      ],
-      "SupportedInMultiActions": true,
-      "Tooltip": "Star Citizen Adaptive Button",
-      "UUID": "com.jarex985.scstreamdeck.adaptivebutton",
-      "PropertyInspectorPath": "PropertyInspector/Buttons/AdaptiveButton.html"
+    ],
+    "Author": "Jarex985",
+    "Name": "Star Citizen Stream Deck",
+    "UUID": "com.jarex985.scstreamdeck",
+    "Description": "Plugin that provides bindable actions for Star Citizen via Stream Deck.",
+    "Icon": "Images/pluginIcon",
+    "URL": "https://github.com/Jarex985/SCStreamDeck",
+    "Version": "0.1.0.0",
+    "CodePath": "com.jarex985.scstreamdeck.exe",
+    "Category": "Star Citizen Stream Deck",
+    "CategoryIcon": "Images/categoryIcon",
+    "OS": [
+        {
+            "Platform": "windows",
+            "MinimumVersion": "10"
+        }
+    ],
+    "SDKVersion": 2,
+    "Software": {
+        "MinimumVersion": "6.4"
     }
-  ],
-  "Author": "Jarex985",
-  "Name": "Star Citizen Stream Deck",
-  "UUID": "com.jarex985.scstreamdeck",
-  "Description": "Plugin that provides bindable actions for Star Citizen via Stream Deck.",
-  "Icon": "Images/pluginIcon",
-  "URL": "https://github.com/Jarex985/SCStreamDeck",
-  "Version": "0.1.0.0",
-  "CodePath": "com.jarex985.scstreamdeck.exe",
-  "Category": "Star Citizen Stream Deck",
-  "CategoryIcon": "Images/categoryIcon",
-  "OS": [
-    {
-      "Platform": "windows",
-      "MinimumVersion": "10"
-    }
-  ],
-  "SDKVersion": 2,
-  "Software": {
-    "MinimumVersion": "6.4"
-  }
 }

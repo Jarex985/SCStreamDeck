@@ -3,8 +3,6 @@ using SCStreamDeck.SCCore.Buttons.Base;
 using SCStreamDeck.SCCore.Buttons.Settings;
 using SCStreamDeck.SCCore.Common;
 using SCStreamDeck.SCCore.Models;
-using SCStreamDeck.SCCore.Services.Core;
-using SCStreamDeck.SCCore.Services.Keybinding;
 
 // ReSharper disable once UnusedType.Global
 
@@ -32,7 +30,6 @@ public sealed class AdaptiveButton : SCButtonBase
         {
             _settings = payload.Settings.ToObject<FunctionSettings>() ?? new FunctionSettings();
         }
-        
     }
 
     protected override void ExecuteButtonAction(bool isKeyDown)
@@ -50,7 +47,7 @@ public sealed class AdaptiveButton : SCButtonBase
             return;
         }
 
-        if (!KeybindingService.TryGetAction(_settings.Function, out var action) || action == null)
+        if (!KeybindingService.TryGetAction(_settings.Function, out KeybindingAction? action) || action == null)
         {
             Logger.Instance.LogMessage(TracingLevel.WARN,
                 $"AdaptiveButton: Function '{_settings.Function}' not found");
@@ -58,7 +55,7 @@ public sealed class AdaptiveButton : SCButtonBase
         }
 
         string? executableBinding = null;
-        var bindingType = InputType.Unknown;
+        InputType bindingType = InputType.Unknown;
 
         if (!string.IsNullOrWhiteSpace(action.KeyboardBinding))
         {
@@ -81,7 +78,7 @@ public sealed class AdaptiveButton : SCButtonBase
             return;
         }
 
-        var context = new KeybindingExecutionContext
+        KeybindingExecutionContext context = new()
         {
             ActionName = _settings.Function,
             Binding = executableBinding,
@@ -100,17 +97,16 @@ public sealed class AdaptiveButton : SCButtonBase
         string executableBinding,
         InputType bindingType,
         ActivationMode activationMode,
-        bool isKeyDown)
-    {
+        bool isKeyDown) =>
         _ = Task.Run(async () =>
         {
             try
             {
-                var success = await KeybindingService.ExecuteAsync(context).ConfigureAwait(false);
+                bool success = await KeybindingService.ExecuteAsync(context).ConfigureAwait(false);
                 // TODO: Remove this log or make it debug level later with if Debug
                 if (success)
                 {
-                    var actionText = isKeyDown ? "pressed" : "released";
+                    string actionText = isKeyDown ? "pressed" : "released";
                     Logger.Instance.LogMessage(TracingLevel.DEBUG,
                         $"AdaptiveButton: {actionText} '{context.ActionName}' ({activationMode}) → '{executableBinding}' ({bindingType})");
                 }
@@ -121,14 +117,14 @@ public sealed class AdaptiveButton : SCButtonBase
                     $"AdaptiveButton: Exception executing '{executableBinding}': {ex.Message}");
             }
         });
-    }
 
     public override void ReceivedSettings(ReceivedSettingsPayload payload)
     {
         ArgumentNullException.ThrowIfNull(payload);
 
         if (payload.Settings != null && payload.Settings.Count > 0)
+        {
             _settings = payload.Settings.ToObject<FunctionSettings>() ?? _settings;
+        }
     }
-    
 }

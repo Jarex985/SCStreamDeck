@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using BarRaider.SdTools;
+﻿using BarRaider.SdTools;
 using Newtonsoft.Json;
 using SCStreamDeck.SCCore.Common;
 using SCStreamDeck.SCCore.Logging;
@@ -13,8 +12,8 @@ namespace SCStreamDeck.SCCore.Services.Keybinding;
 public sealed class KeybindingLoaderService : IKeybindingLoaderService
 {
     private readonly Dictionary<string, KeybindingAction> _actions = new(StringComparer.OrdinalIgnoreCase);
-    private readonly object _lock = new();
     private readonly nint _currentKeyboardLayout = NativeMethods.GetKeyboardLayout(0);
+    private readonly object _lock = new();
     private Dictionary<string, ActivationModeMetadata> _activationModes = new(StringComparer.OrdinalIgnoreCase);
 
     public bool IsLoaded { get; private set; }
@@ -23,7 +22,7 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
     {
         try
         {
-            if (!SecurePathValidator.TryNormalizePath(jsonPath, out var validatedPath))
+            if (!SecurePathValidator.TryNormalizePath(jsonPath, out string validatedPath))
             {
                 IsLoaded = false;
                 Logger.Instance.LogMessage(TracingLevel.ERROR,
@@ -39,8 +38,8 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
                 return false;
             }
 
-            var json = await File.ReadAllTextAsync(validatedPath, cancellationToken).ConfigureAwait(false);
-            var dataFile = JsonConvert.DeserializeObject<KeybindingDataFile>(json);
+            string json = await File.ReadAllTextAsync(validatedPath, cancellationToken).ConfigureAwait(false);
+            KeybindingDataFile? dataFile = JsonConvert.DeserializeObject<KeybindingDataFile>(json);
 
             if (dataFile?.Actions == null)
             {
@@ -55,9 +54,9 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
                 _actions.Clear();
 
                 // Map DTO actions to domain model
-                foreach (var action in dataFile.Actions)
+                foreach (KeybindingActionData action in dataFile.Actions)
                 {
-                    var keybindingAction = new KeybindingAction
+                    KeybindingAction keybindingAction = new()
                     {
                         ActionName = action.Name ?? string.Empty,
                         MapName = action.MapName ?? string.Empty,
@@ -123,10 +122,7 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
         }
     }
 
-    public IntPtr GetKeyboardLayoutId()
-    {
-        return _currentKeyboardLayout;
-    }
+    public IntPtr GetKeyboardLayoutId() => _currentKeyboardLayout;
 
     public IReadOnlyDictionary<string, ActivationModeMetadata> GetActivationModes()
     {

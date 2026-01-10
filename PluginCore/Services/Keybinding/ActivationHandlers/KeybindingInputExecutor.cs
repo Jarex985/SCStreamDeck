@@ -1,9 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Runtime.InteropServices;
-using System.Threading;
-using BarRaider.SdTools;
-using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Logging;
 using SCStreamDeck.SCCore.Models;
 using WindowsInput;
 using WindowsInput.Native;
@@ -21,18 +16,23 @@ internal sealed class KeybindingInputExecutor(
     ConcurrentDictionary<string, Timer> activationTimers)
     : IInputExecutor
 {
+    private readonly ConcurrentDictionary<string, Timer> _activationTimers =
+        activationTimers ?? throw new ArgumentNullException(nameof(activationTimers));
+
+    private readonly ConcurrentDictionary<string, byte> _holdStates =
+        holdStates ?? throw new ArgumentNullException(nameof(holdStates));
+
     private readonly IInputSimulator _inputSimulator = inputSimulator ?? throw new ArgumentNullException(nameof(inputSimulator));
-    private readonly ConcurrentDictionary<string, byte> _holdStates = holdStates ?? throw new ArgumentNullException(nameof(holdStates));
-    private readonly ConcurrentDictionary<string, Timer> _activationTimers = activationTimers ?? throw new ArgumentNullException(nameof(activationTimers));
 
     public bool ExecutePress(ParsedInput input)
     {
         switch (input.Type)
         {
             case InputType.Keyboard:
-                var (modifiers, keys) = ((DirectInputKeyCode[], DirectInputKeyCode[]))input.Value;
+                (DirectInputKeyCode[] modifiers, DirectInputKeyCode[] keys) =
+                    ((DirectInputKeyCode[], DirectInputKeyCode[]))input.Value;
 
-                foreach (var key in keys)
+                foreach (DirectInputKeyCode key in keys)
                 {
                     if (modifiers.Length > 0)
                     {
@@ -43,10 +43,11 @@ internal sealed class KeybindingInputExecutor(
                         _inputSimulator.Keyboard.DelayedKeyPress(key, 50);
                     }
                 }
+
                 return true;
 
             case InputType.MouseButton:
-                var button = (VirtualKeyCode)input.Value;
+                VirtualKeyCode button = (VirtualKeyCode)input.Value;
                 ExecuteMouseButtonClick(button);
                 return true;
 
@@ -54,17 +55,18 @@ internal sealed class KeybindingInputExecutor(
                 // Check if it's a tuple (modifiers[] + direction) or just direction
                 if (input.Value is ValueTuple<DirectInputKeyCode[], int> wheelWithModifiers)
                 {
-                    var (wheelModifiers, wheelDirection) = wheelWithModifiers;
+                    (DirectInputKeyCode[] wheelModifiers, int wheelDirection) = wheelWithModifiers;
 
-                    foreach (var modifier in wheelModifiers)
+                    foreach (DirectInputKeyCode modifier in wheelModifiers)
                     {
                         _inputSimulator.Keyboard.KeyDown(modifier);
                     }
+
                     _inputSimulator.Mouse.VerticalScroll(wheelDirection);
                     Thread.Sleep(50);
-                    
+
                     // Release modifiers up (reverse order) - separate SendInput() calls
-                    foreach (var modifier in wheelModifiers.Reverse())
+                    foreach (DirectInputKeyCode modifier in wheelModifiers.Reverse())
                     {
                         _inputSimulator.Keyboard.KeyUp(modifier);
                     }
@@ -72,9 +74,10 @@ internal sealed class KeybindingInputExecutor(
                 else
                 {
                     // Standalone mouse wheel (no modifiers)
-                    var wheelDir = (int)input.Value;
+                    int wheelDir = (int)input.Value;
                     _inputSimulator.Mouse.VerticalScroll(wheelDir);
                 }
+
                 return true;
 
             default:
@@ -86,19 +89,25 @@ internal sealed class KeybindingInputExecutor(
     {
         // TryAdd is atomic - no lock needed
         if (!_holdStates.TryAdd(actionKey, 1))
+        {
             return true; // Already holding
+        }
 
         switch (input.Type)
         {
             case InputType.Keyboard:
-                var (modifiers, keys) = ((DirectInputKeyCode[], DirectInputKeyCode[]))input.Value;
+                (DirectInputKeyCode[] modifiers, DirectInputKeyCode[] keys) =
+                    ((DirectInputKeyCode[], DirectInputKeyCode[]))input.Value;
                 // Use ModifiedKeyStrokeDown - sends KeyDown for modifiers and keys, holds them
-                foreach (var key in keys)
+                foreach (DirectInputKeyCode key in keys)
+                {
                     _inputSimulator.Keyboard.ModifiedKeyStrokeDown(modifiers, key);
+                }
+
                 return true;
 
             case InputType.MouseButton:
-                var button = (VirtualKeyCode)input.Value;
+                VirtualKeyCode button = (VirtualKeyCode)input.Value;
                 ExecuteMouseButtonDown(button);
                 return true;
 
@@ -111,20 +120,26 @@ internal sealed class KeybindingInputExecutor(
     {
         // TryRemove is atomic - no lock needed
         if (!_holdStates.TryRemove(actionKey, out _))
+        {
             return true; // Was not holding
+        }
 
         switch (input.Type)
         {
             case InputType.Keyboard:
-                var (modifiers, keys) = ((DirectInputKeyCode[], DirectInputKeyCode[]))input.Value;
+                (DirectInputKeyCode[] modifiers, DirectInputKeyCode[] keys) =
+                    ((DirectInputKeyCode[], DirectInputKeyCode[]))input.Value;
                 // Use ModifiedKeyStrokeUp - sends KeyUp for keys and modifiers (reverse order)
                 // Process in reverse order of ExecuteDown
-                for (var i = keys.Length - 1; i >= 0; i--)
+                for (int i = keys.Length - 1; i >= 0; i--)
+                {
                     _inputSimulator.Keyboard.ModifiedKeyStrokeUp(modifiers, keys[i]);
+                }
+
                 return true;
 
             case InputType.MouseButton:
-                var button = (VirtualKeyCode)input.Value;
+                VirtualKeyCode button = (VirtualKeyCode)input.Value;
                 ExecuteMouseButtonUp(button);
                 return true;
 
@@ -135,12 +150,15 @@ internal sealed class KeybindingInputExecutor(
 
     public bool ScheduleDelayedPress(ParsedInput input, string actionKey, float delaySeconds)
     {
-        var delayMs = (int)(delaySeconds * 1000);
+        int delayMs = (int)(delaySeconds * 1000);
 
         // Cancel any existing timer for this action atomically
-        if (_activationTimers.TryRemove(actionKey, out var existingTimer)) existingTimer.Dispose();
+        if (_activationTimers.TryRemove(actionKey, out Timer? existingTimer))
+        {
+            existingTimer.Dispose();
+        }
 
-        var timer = new Timer(_ => ExecutePress(input), null, delayMs, Timeout.Infinite);
+        Timer timer = new(_ => ExecutePress(input), null, delayMs, Timeout.Infinite);
         _activationTimers[actionKey] = timer;
 
         return true;
@@ -148,17 +166,23 @@ internal sealed class KeybindingInputExecutor(
 
     public void CancelDelayedPress(string actionKey)
     {
-        if (_activationTimers.TryRemove(actionKey, out var timer)) timer.Dispose();
+        if (_activationTimers.TryRemove(actionKey, out Timer? timer))
+        {
+            timer.Dispose();
+        }
     }
 
     public bool ScheduleDelayedHold(ParsedInput input, string actionKey, float delaySeconds)
     {
-        var delayMs = (int)(delaySeconds * 1000);
+        int delayMs = (int)(delaySeconds * 1000);
 
         // Cancel any existing timer for this action atomically
-        if (_activationTimers.TryRemove(actionKey, out var existingTimer)) existingTimer.Dispose();
+        if (_activationTimers.TryRemove(actionKey, out Timer? existingTimer))
+        {
+            existingTimer.Dispose();
+        }
 
-        var timer = new Timer(_ => ExecuteDown(input, actionKey), null, delayMs, Timeout.Infinite);
+        Timer timer = new(_ => ExecuteDown(input, actionKey), null, delayMs, Timeout.Infinite);
         _activationTimers[actionKey] = timer;
 
         return true;
@@ -166,7 +190,10 @@ internal sealed class KeybindingInputExecutor(
 
     public void CancelDelayedHold(string actionKey)
     {
-        if (_activationTimers.TryRemove(actionKey, out var timer)) timer.Dispose();
+        if (_activationTimers.TryRemove(actionKey, out Timer? timer))
+        {
+            timer.Dispose();
+        }
     }
 
     #region Mouse Button Helpers

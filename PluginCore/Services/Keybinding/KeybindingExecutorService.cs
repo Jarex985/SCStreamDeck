@@ -13,8 +13,8 @@ namespace SCStreamDeck.SCCore.Services.Keybinding;
 public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDisposable
 {
     private readonly ConcurrentDictionary<string, Timer> _activationTimers = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, byte> _holdStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly ActivationModeHandlerRegistry _handlerRegistry;
+    private readonly ConcurrentDictionary<string, byte> _holdStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly IInputExecutor _inputExecutor;
     private readonly IInputSimulator _inputSimulator;
     private readonly IKeybindingLoaderService _loaderService;
@@ -37,11 +37,17 @@ public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDis
     public void Dispose()
     {
         if (_disposed)
+        {
             return;
+        }
 
-        foreach (var kvp in _activationTimers)
-            if (_activationTimers.TryRemove(kvp.Key, out var timer))
+        foreach (KeyValuePair<string, Timer> kvp in _activationTimers)
+        {
+            if (_activationTimers.TryRemove(kvp.Key, out Timer? timer))
+            {
                 timer.Dispose();
+            }
+        }
 
         _holdStates.Clear();
         _disposed = true;
@@ -51,7 +57,7 @@ public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDis
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        if (!context.IsValid(out var errorMessage))
+        if (!context.IsValid(out string? errorMessage))
         {
             Logger.Instance.LogMessage(TracingLevel.WARN,
                 $"[{nameof(KeybindingExecutorService)}]: Invalid execution context - {errorMessage}");
@@ -85,7 +91,7 @@ public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDis
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var parsedInput = _parserService.ParseBinding(context.Binding);
+        ParsedInputResult? parsedInput = _parserService.ParseBinding(context.Binding);
         if (parsedInput == null)
         {
             Logger.Instance.LogMessage(TracingLevel.WARN,
@@ -93,22 +99,18 @@ public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDis
             return false;
         }
 
-        var executionContext = new ActivationExecutionContext
+        ActivationExecutionContext executionContext = new()
         {
             ActionName = context.ActionName,
-            Input = new ParsedInput
-            {
-                Type = parsedInput.Type,
-                Value = parsedInput.Value
-            },
+            Input = new ParsedInput { Type = parsedInput.Type, Value = parsedInput.Value },
             IsKeyDown = context.IsKeyDown,
             Mode = context.ActivationMode
         };
 
         // Get activation mode metadata from loader service
-        var activationModes = _loaderService.GetActivationModes();
+        IReadOnlyDictionary<string, ActivationModeMetadata> activationModes = _loaderService.GetActivationModes();
         ActivationModeMetadata? metadata;
-        var modeKey = context.ActivationMode.ToString();
+        string modeKey = context.ActivationMode.ToString();
         if (!activationModes.TryGetValue(modeKey, out metadata))
         {
             metadata = new ActivationModeMetadata { OnPress = true }; // Fallback

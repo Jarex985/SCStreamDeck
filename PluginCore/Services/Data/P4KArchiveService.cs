@@ -20,7 +20,10 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
 
         lock (_lock)
         {
@@ -54,7 +57,7 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (!SecurePathValidator.TryNormalizePath(p4kPath, out var validatedPath))
+                if (!SecurePathValidator.TryNormalizePath(p4kPath, out string validatedPath))
                 {
                     Logger.Instance.LogMessage(TracingLevel.ERROR, $"[SCCore.P4K] {ErrorMessages.InvalidPath}");
                     return false;
@@ -123,27 +126,34 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
             zipFile = _zipFile;
         }
 
-        if (zipFile == null) return Task.FromResult<IReadOnlyList<P4KFileEntry>>([]);
+        if (zipFile == null)
+        {
+            return Task.FromResult<IReadOnlyList<P4KFileEntry>>([]);
+        }
 
         return Task.Run(() =>
         {
             try
             {
-                var results = new List<P4KFileEntry>();
-                var normalizedPattern = NormalizePath(filePattern);
-                var normalizedDirectory = NormalizePath(directory);
+                List<P4KFileEntry> results = new();
+                string normalizedPattern = NormalizePath(filePattern);
+                string normalizedDirectory = NormalizePath(directory);
 
-                foreach (var entry in zipFile)
+                foreach (ZipEntry? entry in zipFile)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    if (entry == null || string.IsNullOrEmpty(entry.Name)) continue;
+                    if (entry == null || string.IsNullOrEmpty(entry.Name))
+                    {
+                        continue;
+                    }
 
-                    var normalizedEntryName = NormalizePath(entry.Name);
+                    string normalizedEntryName = NormalizePath(entry.Name);
 
                     // Match if entry is in the specified directory AND ends with the pattern
                     if (normalizedEntryName.StartsWith(normalizedDirectory, StringComparison.OrdinalIgnoreCase) &&
                         normalizedEntryName.EndsWith(normalizedPattern, StringComparison.OrdinalIgnoreCase))
+                    {
                         results.Add(new P4KFileEntry
                         {
                             Path = entry.Name,
@@ -152,6 +162,7 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
                             UncompressedSize = entry.Size,
                             IsCompressed = entry.CompressionMethod != CompressionMethod.Stored
                         });
+                    }
                 }
 
                 return results;
@@ -180,7 +191,10 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
             zipFile = _zipFile;
         }
 
-        if (zipFile == null) return Task.FromResult<byte[]?>(null);
+        if (zipFile == null)
+        {
+            return Task.FromResult<byte[]?>(null);
+        }
 
         return Task.Run(() =>
         {
@@ -188,7 +202,7 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var zipEntry = FindZipEntry(zipFile, entry.Path);
+                ZipEntry? zipEntry = FindZipEntry(zipFile, entry.Path);
                 if (zipEntry == null)
                 {
                     Logger.Instance.LogMessage(TracingLevel.ERROR,
@@ -198,14 +212,14 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
 
                 cancellationToken.ThrowIfCancellationRequested();
 
-                using var stream = zipFile.GetInputStream(zipEntry);
-                using var memoryStream = new MemoryStream((int)zipEntry.Size);
+                using Stream? stream = zipFile.GetInputStream(zipEntry);
+                using MemoryStream memoryStream = new((int)zipEntry.Size);
 
                 cancellationToken.ThrowIfCancellationRequested();
                 stream.CopyTo(memoryStream);
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var data = memoryStream.ToArray();
+                byte[] data = memoryStream.ToArray();
 
                 return data;
             }
@@ -233,8 +247,11 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
 
     public async Task<string?> ReadFileAsTextAsync(P4KFileEntry entry, CancellationToken cancellationToken = default)
     {
-        var bytes = await ReadFileAsync(entry, cancellationToken).ConfigureAwait(false);
-        if (bytes == null || bytes.Length == 0) return null;
+        byte[]? bytes = await ReadFileAsync(entry, cancellationToken).ConfigureAwait(false);
+        if (bytes == null || bytes.Length == 0)
+        {
+            return null;
+        }
 
         try
         {
@@ -283,38 +300,48 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
     private static ZipEntry? FindZipEntry(ZipFile zipFile, string entryPath)
     {
         // Try direct lookup first
-        var entry = zipFile.GetEntry(entryPath);
-        if (entry != null) return entry;
+        ZipEntry? entry = zipFile.GetEntry(entryPath);
+        if (entry != null)
+        {
+            return entry;
+        }
 
         // Try with normalized path variations
-        var normalized = NormalizePath(entryPath);
+        string normalized = NormalizePath(entryPath);
 
         // Try with Data/ prefix
         if (!normalized.StartsWith(P4KConstants.DataPrefix, StringComparison.OrdinalIgnoreCase))
         {
             entry = zipFile.GetEntry(P4KConstants.DataPrefix + normalized);
-            if (entry != null) return entry;
+            if (entry != null)
+            {
+                return entry;
+            }
         }
         else
         {
             // Try without Data/ prefix
-            var withoutPrefix = normalized.Substring(P4KConstants.DataPrefix.Length);
+            string withoutPrefix = normalized.Substring(P4KConstants.DataPrefix.Length);
             entry = zipFile.GetEntry(withoutPrefix);
-            if (entry != null) return entry;
+            if (entry != null)
+            {
+                return entry;
+            }
         }
 
         // Last resort: case-insensitive scan
-        foreach (var e in zipFile)
+        foreach (ZipEntry? e in zipFile)
+        {
             if (e != null && string.Equals(NormalizePath(e.Name), normalized, StringComparison.OrdinalIgnoreCase))
+            {
                 return e;
+            }
+        }
 
         return null;
     }
 
-    private static string NormalizePath(string path)
-    {
-        return path.Replace('\\', '/').TrimStart('/').ToUpperInvariant();
-    }
+    private static string NormalizePath(string path) => path.Replace('\\', '/').TrimStart('/').ToUpperInvariant();
 
     /// <summary>
     ///     Attempts to set the AES encryption key on a ZipFile instance using reflection.
@@ -336,7 +363,7 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
         try
         {
             // Use reflection to access the internal "Key" property
-            var keyProperty = zipFile.GetType().GetProperty("Key", BindingFlags.NonPublic | BindingFlags.Instance);
+            PropertyInfo? keyProperty = zipFile.GetType().GetProperty("Key", BindingFlags.NonPublic | BindingFlags.Instance);
 
             if (keyProperty == null)
             {

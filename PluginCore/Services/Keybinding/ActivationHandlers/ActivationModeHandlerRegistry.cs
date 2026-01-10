@@ -14,16 +14,14 @@ internal sealed class ActivationModeHandlerRegistry
 
     public ActivationModeHandlerRegistry()
     {
-        var handlers = new IActivationModeHandler[]
-        {
-            new ImmediatePressHandler(),
-            new DelayedPressHandler(),
-            new HoldHandler()
-        };
+        IActivationModeHandler[] handlers =
+            new IActivationModeHandler[] { new ImmediatePressHandler(), new DelayedPressHandler(), new HoldHandler() };
 
-        foreach (var handler in handlers)
-            foreach (var mode in handler.SupportedModes)
-                _handlers[mode] = handler;
+        foreach (IActivationModeHandler handler in handlers)
+        foreach (string mode in handler.SupportedModes)
+        {
+            _handlers[mode] = handler;
+        }
 
         // Default to press handler for unknown modes
         _defaultHandler = new ImmediatePressHandler();
@@ -34,17 +32,19 @@ internal sealed class ActivationModeHandlerRegistry
     /// </summary>
     public IActivationModeHandler GetHandler(ActivationMode mode)
     {
-        var modeName = mode.ToString();
+        string modeName = mode.ToString();
 
-        if (_handlers.TryGetValue(modeName, out var handler))
+        if (_handlers.TryGetValue(modeName, out IActivationModeHandler? handler))
+        {
             return handler;
+        }
 
         Logger.Instance.LogMessage(TracingLevel.WARN,
             $"[ActivationRegistry] Unknown activation mode '{modeName}', using default press handler");
 
         return _defaultHandler;
     }
-    
+
     /// <summary>
     ///     Executes the appropriate activation mode handler for the given context.
     /// </summary>
@@ -53,7 +53,7 @@ internal sealed class ActivationModeHandlerRegistry
         ActivationModeMetadata metadata,
         IInputExecutor executor)
     {
-        var handler = GetHandler(context.Mode);
+        IActivationModeHandler handler = GetHandler(context.Mode);
         return handler.Execute(context, metadata, executor);
     }
 }

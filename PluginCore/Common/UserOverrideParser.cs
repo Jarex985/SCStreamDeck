@@ -17,18 +17,21 @@ internal sealed class UserOverrideParser
     /// <returns>Parsed overrides, or null if file doesn't exist or parsing fails.</returns>
     public UserOverrides? Parse(string actionMapsPath)
     {
-        if (!SecurePathValidator.TryNormalizePath(actionMapsPath, out var validPath))
+        if (!SecurePathValidator.TryNormalizePath(actionMapsPath, out string validPath))
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
                 $"[UserOverrideParser] {ErrorMessages.InvalidPath}: {actionMapsPath}");
             return null;
         }
 
-        if (!File.Exists(validPath)) return null;
+        if (!File.Exists(validPath))
+        {
+            return null;
+        }
 
         try
         {
-            var xmlText = File.ReadAllText(validPath);
+            string xmlText = File.ReadAllText(validPath);
             return ParseXml(xmlText);
         }
 
@@ -57,8 +60,11 @@ internal sealed class UserOverrideParser
         ArgumentNullException.ThrowIfNull(overrides);
 
         // Build lookup - handle duplicates by keeping last occurrence
-        var actionLookup = new Dictionary<string, KeybindingActionData>(StringComparer.OrdinalIgnoreCase);
-        foreach (var action in actions) actionLookup[action.Name] = action;
+        Dictionary<string, KeybindingActionData> actionLookup = new(StringComparer.OrdinalIgnoreCase);
+        foreach (KeybindingActionData action in actions)
+        {
+            actionLookup[action.Name] = action;
+        }
 
         ApplyBindingOverrides(actionLookup, overrides.Keyboard,
             (action, binding) => action.Bindings.Keyboard = binding);
@@ -77,35 +83,51 @@ internal sealed class UserOverrideParser
         IReadOnlyDictionary<string, string?> overrides,
         Action<KeybindingActionData, string?> applyBinding)
     {
-        foreach (var (actionName, binding) in overrides)
-            if (actionLookup.TryGetValue(actionName, out var action))
+        foreach ((string actionName, string? binding) in overrides)
+        {
+            if (actionLookup.TryGetValue(actionName, out KeybindingActionData? action))
+            {
                 applyBinding(action, binding);
+            }
+        }
     }
 
     private UserOverrides ParseXml(string xmlText)
     {
-        var keyboard = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        var mouse = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        var joystick = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        var gamepad = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, string?> keyboard = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, string?> mouse = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, string?> joystick = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, string?> gamepad = new(StringComparer.OrdinalIgnoreCase);
 
-        using var sr = new StringReader(xmlText);
-        using var xmlReader = XmlReader.Create(sr, new XmlReaderSettings
-        {
-            IgnoreComments = true,
-            IgnoreWhitespace = true,
-            DtdProcessing = DtdProcessing.Prohibit,
-            XmlResolver = null
-        });
+        using StringReader sr = new(xmlText);
+        using XmlReader xmlReader = XmlReader.Create(sr,
+            new XmlReaderSettings
+            {
+                IgnoreComments = true, IgnoreWhitespace = true, DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null
+            });
 
         while (xmlReader.Read())
         {
-            if (xmlReader.NodeType != XmlNodeType.Element) continue;
-            if (!xmlReader.Name.Equals("action", StringComparison.OrdinalIgnoreCase)) continue;
+            if (xmlReader.NodeType != XmlNodeType.Element)
+            {
+                continue;
+            }
 
-            var actionName = xmlReader.GetAttribute("name") ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(actionName)) continue;
-            if (xmlReader.IsEmptyElement) continue;
+            if (!xmlReader.Name.Equals("action", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string actionName = xmlReader.GetAttribute("name") ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(actionName))
+            {
+                continue;
+            }
+
+            if (xmlReader.IsEmptyElement)
+            {
+                continue;
+            }
 
             ParseActionRebinds(xmlReader, actionName, keyboard, mouse, joystick, gamepad);
         }
@@ -121,7 +143,7 @@ internal sealed class UserOverrideParser
         Dictionary<string, string?> joystick,
         Dictionary<string, string?> gamepad)
     {
-        var depth = xmlReader.Depth;
+        int depth = xmlReader.Depth;
 
         while (xmlReader.Read())
         {
@@ -129,19 +151,34 @@ internal sealed class UserOverrideParser
             if (xmlReader.NodeType == XmlNodeType.EndElement &&
                 xmlReader.Depth == depth &&
                 xmlReader.Name.Equals("action", StringComparison.OrdinalIgnoreCase))
+            {
                 break;
+            }
 
-            if (xmlReader.NodeType != XmlNodeType.Element) continue;
-            if (!xmlReader.Name.Equals("rebind", StringComparison.OrdinalIgnoreCase)) continue;
+            if (xmlReader.NodeType != XmlNodeType.Element)
+            {
+                continue;
+            }
 
-            var input = xmlReader.GetAttribute("input") ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(input)) continue;
+            if (!xmlReader.Name.Equals("rebind", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string input = xmlReader.GetAttribute("input") ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                continue;
+            }
 
             // Parse input format: "kb1_apostrophe" -> prefix="kb", suffix="apostrophe"
-            var prefix = input.Length >= 2 ? input[..2].ToLowerInvariant() : string.Empty;
-            var normalized = NormalizeInputSuffix(input);
+            string prefix = input.Length >= 2 ? input[..2].ToLowerInvariant() : string.Empty;
+            string normalized = NormalizeInputSuffix(input);
 
-            if (string.IsNullOrWhiteSpace(normalized)) continue;
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                continue;
+            }
 
             // Map to appropriate dictionary based on prefix
             switch (prefix)
@@ -164,8 +201,11 @@ internal sealed class UserOverrideParser
 
     private static string NormalizeInputSuffix(string input)
     {
-        var idx = input.IndexOf('_');
-        if (idx < 0 || idx == input.Length - 1) return string.Empty;
+        int idx = input.IndexOf('_');
+        if (idx < 0 || idx == input.Length - 1)
+        {
+            return string.Empty;
+        }
 
         return input[(idx + 1)..].Trim();
     }

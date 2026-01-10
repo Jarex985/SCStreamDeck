@@ -38,8 +38,11 @@ internal static class WindowsKeyLayoutCharMapper
     {
         try
         {
-            var keyState = new byte[KeyboardStateArraySize];
-            if (shift) keyState[(int)VirtualKeyCode.SHIFT] = KeyPressedState;
+            byte[] keyState = new byte[KeyboardStateArraySize];
+            if (shift)
+            {
+                keyState[(int)VirtualKeyCode.SHIFT] = KeyPressedState;
+            }
 
             // AltGr is represented as RightAlt (Alt+Ctrl) on Windows.
             if (altGr)
@@ -48,18 +51,22 @@ internal static class WindowsKeyLayoutCharMapper
                 keyState[(int)VirtualKeyCode.MENU] = KeyPressedState; // Alt
             }
 
-            var buffer = new char[CharacterBufferSize];
-            var characterCount = NativeMethods.ToUnicodeEx(
+            char[] buffer = new char[CharacterBufferSize];
+            int characterCount = NativeMethods.ToUnicodeEx(
                 (uint)virtualKey, scanCode, keyState, buffer, buffer.Length, 0, hkl);
 
 
-            if (characterCount <= 0) return null;
-            var result = new string(buffer, 0, characterCount);
+            if (characterCount <= 0)
+            {
+                return null;
+            }
+
+            string result = new(buffer, 0, characterCount);
             return result;
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, 
+            Logger.Instance.LogMessage(TracingLevel.ERROR,
                 $"[WindowsKeyLayoutCharMapper] Exception: {ex.Message}");
             return null;
         }

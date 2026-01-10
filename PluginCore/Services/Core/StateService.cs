@@ -21,7 +21,7 @@ public sealed class StateService(IPathProvider pathProvider, IVersionProvider ve
     {
         try
         {
-            var state = await PluginState.LoadAsync(_pathProvider.CacheDirectory, cancellationToken)
+            PluginState? state = await PluginState.LoadAsync(_pathProvider.CacheDirectory, cancellationToken)
                 .ConfigureAwait(false);
             return state;
         }
@@ -53,10 +53,14 @@ public sealed class StateService(IPathProvider pathProvider, IVersionProvider ve
     public async Task<IReadOnlyList<SCInstallCandidate>?> GetCachedCandidatesAsync(
         CancellationToken cancellationToken = default)
     {
-        var state = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
+        PluginState? state = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
 
-        if (state == null || !state.IsValid()) return null;
-        var candidates = state.GetCachedCandidates();
+        if (state == null || !state.IsValid())
+        {
+            return null;
+        }
+
+        IReadOnlyList<SCInstallCandidate> candidates = state.GetCachedCandidates();
         return candidates;
     }
 
@@ -65,9 +69,10 @@ public sealed class StateService(IPathProvider pathProvider, IVersionProvider ve
     {
         ArgumentNullException.ThrowIfNull(installation);
 
-        var currentState = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
+        PluginState? currentState = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
 
         if (currentState == null)
+        {
             currentState = new PluginState(
                 await _versionProvider.GetPluginVersionAsync(cancellationToken).ConfigureAwait(false),
                 DateTime.UtcNow,
@@ -76,8 +81,9 @@ public sealed class StateService(IPathProvider pathProvider, IVersionProvider ve
                 null,
                 null
             );
+        }
 
-        var updatedState = currentState
+        PluginState updatedState = currentState
             .WithInstallation(channel, installation)
             .WithLastInitialized(DateTime.UtcNow);
 
@@ -86,21 +92,24 @@ public sealed class StateService(IPathProvider pathProvider, IVersionProvider ve
 
     public async Task RemoveInstallationAsync(SCChannel channel, CancellationToken cancellationToken = default)
     {
-        var currentState = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
-        if (currentState == null) return;
+        PluginState? currentState = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
+        if (currentState == null)
+        {
+            return;
+        }
 
-        var updatedState = currentState.WithoutInstallation(channel);
+        PluginState updatedState = currentState.WithoutInstallation(channel);
         await SaveStateAsync(updatedState, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task UpdateSelectedChannelAsync(SCChannel channel, CancellationToken cancellationToken = default)
     {
-        var currentState = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
+        PluginState? currentState = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
 
         if (currentState == null)
         {
             // Create minimal state if none exists
-            var newState = new PluginState(
+            PluginState newState = new(
                 await _versionProvider.GetPluginVersionAsync(cancellationToken).ConfigureAwait(false),
                 DateTime.UtcNow,
                 channel,
@@ -113,7 +122,7 @@ public sealed class StateService(IPathProvider pathProvider, IVersionProvider ve
         }
         else
         {
-            var updatedState = currentState.WithSelectedChannel(channel);
+            PluginState updatedState = currentState.WithSelectedChannel(channel);
             await SaveStateAsync(updatedState, cancellationToken).ConfigureAwait(false);
         }
     }
@@ -122,8 +131,11 @@ public sealed class StateService(IPathProvider pathProvider, IVersionProvider ve
     {
         try
         {
-            var stateFile = Path.Combine(_pathProvider.CacheDirectory, ".plugin-state.json");
-            if (File.Exists(stateFile)) File.Delete(stateFile);
+            string stateFile = Path.Combine(_pathProvider.CacheDirectory, ".plugin-state.json");
+            if (File.Exists(stateFile))
+            {
+                File.Delete(stateFile);
+            }
         }
 
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

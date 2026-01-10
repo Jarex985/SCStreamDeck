@@ -16,13 +16,13 @@ internal static class ErrorMessages
 
     // Initialization/Channel/Installation Service errors
     public const string InitializationFailed = "Initialization failed";
-    
+
     public const string InstallDetectionFailed = "Failed to detect Star Citizen installations";
     public const string ChannelSwitchFailed = "Failed to switch channel";
-    
+
     // Keybinding Processing errors
     public const string KeybindingProcessingFailed = "Failed to process keybindings";
-    
+
     public const string LanguageDetectionFailed = "Failed to detect language:";
     public const string LocalizationLoadFailed = "Failed to load localization:";
     public const string UserOverrideApplyFailed = "Failed to apply user overrides:";

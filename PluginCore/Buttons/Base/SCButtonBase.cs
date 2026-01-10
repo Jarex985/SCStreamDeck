@@ -4,6 +4,7 @@ using BarRaider.SdTools.Wrappers;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using SCStreamDeck.SCCore.Common;
+using SCStreamDeck.SCCore.Models;
 using SCStreamDeck.SCCore.Services.Core;
 using SCStreamDeck.SCCore.Services.Keybinding;
 
@@ -18,15 +19,7 @@ public abstract class SCButtonBase : KeypadBase
     ///     Static service provider for dependency injection in StreamDeck buttons.
     ///     Set in Program.cs after service initialization.
     /// </summary>
-    private static IServiceProvider? _serviceProvider;
-    
-    /// <summary>
-    ///     Initializes the service provider for button dependency injection.
-    /// </summary>
-    public static void InitializeServices(IServiceProvider serviceProvider)
-    {
-        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-    }
+    private static IServiceProvider? s_serviceProvider;
 
     /// <summary>
     ///     Constructor for SCButtonBase.
@@ -34,22 +27,22 @@ public abstract class SCButtonBase : KeypadBase
     /// </summary>
     protected SCButtonBase(SDConnection connection, InitialPayload payload) : base(connection, payload)
     {
-        if (_serviceProvider == null)
+        if (s_serviceProvider == null)
         {
             throw new InvalidOperationException("SCButtonBase services not initialized. Call InitializeServices first.");
         }
 
-        KeybindingService = _serviceProvider.GetRequiredService<IKeybindingService>();
-        InitializationService = _serviceProvider.GetRequiredService<IInitializationService>();
+        KeybindingService = s_serviceProvider.GetRequiredService<IKeybindingService>();
+        InitializationService = s_serviceProvider.GetRequiredService<IInitializationService>();
         Connection.OnPropertyInspectorDidAppear += OnPropertyInspectorDidAppear;
         Connection.OnSendToPlugin += OnSendToPlugin;
-        
+
         if (IsReady)
         {
             SendPropertyInspectorUpdate();
         }
     }
-    
+
     private IInitializationService InitializationService { get; }
     protected IKeybindingService KeybindingService { get; }
 
@@ -57,6 +50,12 @@ public abstract class SCButtonBase : KeypadBase
     ///     Indicates whether the button is ready for execution (services initialized).
     /// </summary>
     protected bool IsReady => InitializationService.IsInitialized && KeybindingService.IsLoaded;
+
+    /// <summary>
+    ///     Initializes the service provider for button dependency injection.
+    /// </summary>
+    public static void InitializeServices(IServiceProvider serviceProvider) =>
+        s_serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
 
     /// <summary>
     ///     Abstract method that derived classes must implement to define button behavior.
@@ -76,18 +75,16 @@ public abstract class SCButtonBase : KeypadBase
             {
                 Connection.SendToPropertyInspectorAsync(new JObject
                 {
-                    ["functionsLoaded"] = false,
-                    ["functions"] = new JArray(),
-                    ["status"] = "Keybindings not loaded yet"
+                    ["functionsLoaded"] = false, ["functions"] = new JArray(), ["status"] = "Keybindings not loaded yet"
                 });
                 return;
             }
 
-            var allActions = KeybindingService.GetAllActions();
-            var hkl = KeyboardLayoutDetector.DetectCurrent().Hkl;
+            IReadOnlyList<KeybindingAction> allActions = KeybindingService.GetAllActions();
+            IntPtr hkl = KeyboardLayoutDetector.DetectCurrent().Hkl;
 
             // Build grouped functions payload using FunctionsPayloadBuilder
-            var groups = FunctionsPayloadBuilder.BuildGroupedFunctionsPayload(allActions, hkl);
+            JArray groups = FunctionsPayloadBuilder.BuildGroupedFunctionsPayload(allActions, hkl);
 
             Connection.SendToPropertyInspectorAsync(new JObject
             {
@@ -98,26 +95,20 @@ public abstract class SCButtonBase : KeypadBase
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"{GetType().Name}: SendPropertyInspectorUpdate failed: {ex.Message}");
-
+            Logger.Instance.LogMessage(TracingLevel.ERROR, $"{GetType().Name}: SendPropertyInspectorUpdate failed: {ex.Message}");
             Connection.SendToPropertyInspectorAsync(new JObject
             {
-                ["functionsLoaded"] = false,
-                ["functions"] = new JArray(),
-                ["status"] = $"Error: {ex.Message}"
+                ["functionsLoaded"] = false, ["functions"] = new JArray(), ["status"] = $"Error: {ex.Message}"
             });
         }
     }
-    
+
     /// <summary>
     ///     Called when the Property Inspector appears.
     /// </summary>
     private void OnPropertyInspectorDidAppear(object? sender,
-        SDEventReceivedEventArgs<PropertyInspectorDidAppear> e)
-    {
+        SDEventReceivedEventArgs<PropertyInspectorDidAppear> e) =>
         SendPropertyInspectorUpdate();
-    }
 
     /// <summary>
     ///     Called when the Property Inspector sends a message to the plugin.
@@ -129,47 +120,33 @@ public abstract class SCButtonBase : KeypadBase
 
         try
         {
-            if (e.Event?.Payload == null || !e.Event.Payload.TryGetValue("property_inspector", out var value))
+            if (e.Event?.Payload == null || !e.Event.Payload.TryGetValue("property_inspector", out JToken? value))
+            {
                 return;
+            }
 
-            if (value.ToString() == "propertyInspectorConnected") SendPropertyInspectorUpdate();
+            if (value.ToString() == "propertyInspectorConnected")
+            {
+                SendPropertyInspectorUpdate();
+            }
         }
         catch (Exception ex)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR, $"{GetType().Name}: OnSendToPlugin error: {ex.Message}");
         }
     }
-    
+
     /// <summary>
     ///     Sealed override of KeyPressed - calls ExecuteButtonAction.
     ///     Derived classes should implement ExecuteButtonAction, not override this.
     /// </summary>
-    public sealed override void KeyPressed(KeyPayload payload)
-    {
-        ExecuteButtonAction(true);
-    }
+    public sealed override void KeyPressed(KeyPayload payload) => ExecuteButtonAction(true);
 
     /// <summary>
     ///     Sealed override of KeyReleased - calls ExecuteButtonAction.
     ///     Derived classes should implement ExecuteButtonAction, not override this.
     /// </summary>
-    public sealed override void KeyReleased(KeyPayload payload)
-    {
-        ExecuteButtonAction(false);
-    }
-    
-    /// <summary>
-    ///     Called when global settings are received.
-    /// </summary>
-    public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload)
-    {
-        // Override in derived classes if needed
-    }
-    
-    public override void OnTick()
-    {
-        // Override in derived classes if needed
-    }
+    public sealed override void KeyReleased(KeyPayload payload) => ExecuteButtonAction(false);
 
     /// <summary>
     ///     Disposes resources and unsubscribes from events.
@@ -179,5 +156,18 @@ public abstract class SCButtonBase : KeypadBase
         Connection.OnPropertyInspectorDidAppear -= OnPropertyInspectorDidAppear;
         Connection.OnSendToPlugin -= OnSendToPlugin;
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    ///     Called when global settings are received.
+    /// </summary>
+    public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload)
+    {
+        // Override in derived classes if needed
+    }
+
+    public override void OnTick()
+    {
+        // Override in derived classes if needed
     }
 }

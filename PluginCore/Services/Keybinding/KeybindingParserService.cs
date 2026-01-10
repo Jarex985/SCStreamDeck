@@ -11,20 +11,30 @@ public sealed class KeybindingParserService : IKeybindingParserService
 {
     public ParsedInputResult? ParseBinding(string binding)
     {
-        if (string.IsNullOrWhiteSpace(binding)) return null;
-        var normalized = binding.ToUpperInvariant().Trim();
+        if (string.IsNullOrWhiteSpace(binding))
+        {
+            return null;
+        }
+
+        string normalized = binding.ToUpperInvariant().Trim();
 
         // Check mouse buttons first (no modifiers)
-        if (TryParseMouseButton(normalized, out var mouseButton))
+        if (TryParseMouseButton(normalized, out VirtualKeyCode mouseButton))
+        {
             return new ParsedInputResult(InputType.MouseButton, mouseButton);
+        }
 
         // Check for mouse wheel with modifiers (e.g., "lalt+mwheel_up")
-        if (TryParseMouseWheelWithModifiers(normalized, out var modifiers, out var wheelDirection))
+        if (TryParseMouseWheelWithModifiers(normalized, out DirectInputKeyCode[] modifiers, out int wheelDirection))
+        {
             return new ParsedInputResult(InputType.MouseWheel, (modifiers, wheelDirection));
+        }
 
         // Check keyboard bindings
-        if (TryParseKeyboard(normalized, out var kbModifiers, out var keys))
+        if (TryParseKeyboard(normalized, out DirectInputKeyCode[] kbModifiers, out DirectInputKeyCode[] keys))
+        {
             return new ParsedInputResult(InputType.Keyboard, (kbModifiers, keys));
+        }
 
         // Check standalone mouse wheel (no modifiers)
         if (normalized.Contains(InputConstants.Mouse.WheelUp, StringComparison.Ordinal))
@@ -55,30 +65,44 @@ public sealed class KeybindingParserService : IKeybindingParserService
         wheelDirection = 0;
 
         if (!binding.Contains('+', StringComparison.Ordinal))
+        {
             return false;
+        }
 
         if (!binding.Contains(InputConstants.Mouse.WheelPrefix, StringComparison.Ordinal))
-            return false;
-
-        var tokens = binding.Split('+');
-        var modifierList = new List<DirectInputKeyCode>();
-
-        foreach (var token in tokens)
         {
-            var trimmed = token.Trim();
-            if (string.IsNullOrEmpty(trimmed))
-                continue;
+            return false;
+        }
 
-            if (TryParseModifier(trimmed, out var modifier))
+        string[] tokens = binding.Split('+');
+        List<DirectInputKeyCode> modifierList = new();
+
+        foreach (string token in tokens)
+        {
+            string trimmed = token.Trim();
+            if (string.IsNullOrEmpty(trimmed))
+            {
+                continue;
+            }
+
+            if (TryParseModifier(trimmed, out DirectInputKeyCode modifier))
+            {
                 modifierList.Add(modifier);
+            }
             else if (trimmed == InputConstants.Mouse.WheelUp)
+            {
                 wheelDirection = -1; // Negative = scroll UP
+            }
             else if (trimmed == InputConstants.Mouse.WheelDown)
+            {
                 wheelDirection = 1; // Positive = scroll DOWN
+            }
         }
 
         if (modifierList.Count == 0 || wheelDirection == 0)
+        {
             return false;
+        }
 
         modifiers = modifierList.ToArray();
         return true;
@@ -126,24 +150,32 @@ public sealed class KeybindingParserService : IKeybindingParserService
         modifiers = Array.Empty<DirectInputKeyCode>();
         keys = Array.Empty<DirectInputKeyCode>();
 
-        var tokens = scBinding.Split('+');
-        var modifierList = new List<DirectInputKeyCode>();
-        var keyList = new List<DirectInputKeyCode>();
+        string[] tokens = scBinding.Split('+');
+        List<DirectInputKeyCode> modifierList = new();
+        List<DirectInputKeyCode> keyList = new();
 
-        foreach (var token in tokens)
+        foreach (string token in tokens)
         {
-            var trimmed = token.Trim();
+            string trimmed = token.Trim();
             if (string.IsNullOrEmpty(trimmed))
+            {
                 continue;
+            }
 
-            if (TryParseModifier(trimmed, out var modifier))
+            if (TryParseModifier(trimmed, out DirectInputKeyCode modifier))
+            {
                 modifierList.Add(modifier);
-            else if (TryParseKey(trimmed, out var key))
+            }
+            else if (TryParseKey(trimmed, out DirectInputKeyCode key))
+            {
                 keyList.Add(key);
+            }
         }
 
         if (keyList.Count == 0)
+        {
             return false;
+        }
 
         modifiers = modifierList.ToArray();
         keys = keyList.ToArray();
@@ -177,7 +209,7 @@ public sealed class KeybindingParserService : IKeybindingParserService
         key = default;
 
         // Special keys mapping
-        var specialKeyResult = token switch
+        bool specialKeyResult = token switch
         {
             InputConstants.Keyboard.F1 => SetKey(DirectInputKeyCode.DikF1, out key),
             InputConstants.Keyboard.F2 => SetKey(DirectInputKeyCode.DikF2, out key),
@@ -213,7 +245,9 @@ public sealed class KeybindingParserService : IKeybindingParserService
         };
 
         if (specialKeyResult)
+        {
             return true;
+        }
 
         // Use SCKeyToDirectInputMapper for all other keys (letters, numbers, punctuation)
         return SCKeyToDirectInputMapper.TryGetDirectInputKeyCode(token, out key);

@@ -1,4 +1,3 @@
-using BarRaider.SdTools;
 using WindowsInput.Native;
 
 namespace SCStreamDeck.SCCore.Common;
@@ -18,12 +17,16 @@ internal static class DirectInputDisplayMapper
     public static string ToDisplay(string? scKeyboardBind, nint hkl)
     {
         if (string.IsNullOrWhiteSpace(scKeyboardBind))
+        {
             return string.Empty;
+        }
 
-        var parts = scKeyboardBind.Split(['+'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        
+        string[] parts = scKeyboardBind.Split(['+'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
         if (parts.Length == 0)
+        {
             return string.Empty;
+        }
 
         return string.Join(" + ", parts.Select(p => TokenToDisplay(p, hkl)));
     }
@@ -32,7 +35,7 @@ internal static class DirectInputDisplayMapper
     {
         token = token.Trim().ToLowerInvariant();
 
-        if (SCKeyToDirectInputMapper.TryGetDirectInputKeyCode(token, out var dik))
+        if (SCKeyToDirectInputMapper.TryGetDirectInputKeyCode(token, out DirectInputKeyCode dik))
         {
             return ToDisplay(dik, hkl);
         }
@@ -48,29 +51,31 @@ internal static class DirectInputDisplayMapper
     /// <returns>User-friendly display string</returns>
     public static string ToDisplay(DirectInputKeyCode dik, nint hkl)
     {
-        if (TryGetFixedDisplay(dik, out var fixedDisplay))
+        if (TryGetFixedDisplay(dik, out string fixedDisplay))
+        {
             return fixedDisplay;
+        }
 
         // Character keys: Nutze Windows API für layout-aware Zeichenermittlung
-        var scanCode = (uint)dik;
-        var vk = NativeMethods.MapVirtualKeyEx(scanCode, 3, hkl);
-        
+        uint scanCode = (uint)dik;
+        uint vk = NativeMethods.MapVirtualKeyEx(scanCode, 3, hkl);
+
         if (vk == 0)
         {
             return dik.ToString();
         }
 
-        var virtualKey = (VirtualKeyCode)vk;
-        var ch = WindowsKeyLayoutCharMapper.TryGetChar(hkl, virtualKey, scanCode, false, false);
-        
+        VirtualKeyCode virtualKey = (VirtualKeyCode)vk;
+        string? ch = WindowsKeyLayoutCharMapper.TryGetChar(hkl, virtualKey, scanCode, false, false);
+
         if (string.IsNullOrWhiteSpace(ch))
         {
             return dik.ToString();
         }
 
-        var result = ch.Length == 1 ? ch.ToUpperInvariant() : ch;
+        string result = ch.Length == 1 ? ch.ToUpperInvariant() : ch;
 
-        
+
         return result;
     }
 

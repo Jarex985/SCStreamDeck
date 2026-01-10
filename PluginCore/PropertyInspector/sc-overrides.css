@@ -1,4 +1,4 @@
-/* 
+/*
  *  StarCitizen StreamDeck - Property Inspector overrides
  *  Keep all layout tweaks here so we don't modify easy-pi/src/sdpi.css directly.
  */
@@ -93,6 +93,7 @@
 .hidden {
     display: none !important;
 }
+
 .hint {
     font-size: 11px;
     color: #999;
@@ -107,22 +108,25 @@
 
 .sc-details {
     padding: 8px 10px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 6px;
     font-size: 11px;
     line-height: 1.35;
 }
+
 .sc-details-title {
     font-size: 12px;
     font-weight: 600;
     margin-bottom: 6px;
 }
+
 .sc-details-desc {
     color: #bbb;
     margin-bottom: 8px;
     white-space: pre-wrap;
 }
+
 .sc-details-grid {
     display: grid;
     grid-template-columns: 70px 1fr;
@@ -130,19 +134,23 @@
     row-gap: 6px;
     align-items: start;
 }
+
 .sc-details-device {
     color: #bbb;
     text-transform: uppercase;
     letter-spacing: 0.4px;
 }
+
 .sc-details-bindings {
     white-space: pre-wrap;
     word-break: break-word;
 }
+
 .sc-details-unbound {
     color: #999;
     font-style: italic;
 }
+
 .sc-details-meta {
     margin-top: 8px;
     color: #888;

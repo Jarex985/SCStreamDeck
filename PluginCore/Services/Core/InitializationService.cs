@@ -50,10 +50,7 @@ public sealed class InitializationService : IInitializationService, IDisposable
         }
     }
 
-    public void Dispose()
-    {
-        _initSemaphore.Dispose();
-    }
+    public void Dispose() => _initSemaphore.Dispose();
 
     //public event EventHandler<InitializationResult>? InitializationCompleted;
 
@@ -71,21 +68,30 @@ public sealed class InitializationService : IInitializationService, IDisposable
     public async Task<InitializationResult> EnsureInitializedAsync(CancellationToken cancellationToken = default)
     {
         // Fast path: Check if already initialized
-        if (_initialized) return InitializationResult.Success(_currentChannel, 0);
+        if (_initialized)
+        {
+            return InitializationResult.Success(_currentChannel, 0);
+        }
 
         // Acquire semaphore to prevent concurrent initialization
         await _initSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             // Double-checked locking: Check again after acquiring semaphore
-            if (_initialized) return InitializationResult.Success(_currentChannel, 0);
+            if (_initialized)
+            {
+                return InitializationResult.Success(_currentChannel, 0);
+            }
 
             // If another task is already initializing, await it
-            if (_initializationTask != null) return await _initializationTask.ConfigureAwait(false);
+            if (_initializationTask != null)
+            {
+                return await _initializationTask.ConfigureAwait(false);
+            }
 
             // Start new initialization task
             _initializationTask = InitializeInternalAsync(cancellationToken);
-            var result = await _initializationTask.ConfigureAwait(false);
+            InitializationResult result = await _initializationTask.ConfigureAwait(false);
 
             // Clear task reference
             _initializationTask = null;
@@ -107,11 +113,14 @@ public sealed class InitializationService : IInitializationService, IDisposable
                 _currentChannel = channel;
             }
 
-            var jsonPath = GetKeybindingsJsonPath();
-            var success = await _keybindingService.LoadKeybindingsAsync(jsonPath, cancellationToken)
+            string jsonPath = GetKeybindingsJsonPath();
+            bool success = await _keybindingService.LoadKeybindingsAsync(jsonPath, cancellationToken)
                 .ConfigureAwait(false);
 
-            if (!success) return false;
+            if (!success)
+            {
+                return false;
+            }
 
             Logger.Instance.LogMessage(TracingLevel.INFO, $"[InitializationService] Switched to {channel}");
             return true;
@@ -154,13 +163,16 @@ public sealed class InitializationService : IInitializationService, IDisposable
     private async Task<CacheValidationResult> ValidateAndCleanupCachedInstallationsAsync(
         IReadOnlyList<SCInstallCandidate>? cachedCandidates, CancellationToken cancellationToken)
     {
-        var validCandidates = new List<SCInstallCandidate>();
+        List<SCInstallCandidate> validCandidates = new();
 
         if (cachedCandidates == null || cachedCandidates.Count == 0)
+        {
             return new CacheValidationResult { ValidCandidates = validCandidates, NeedsFullDetection = true };
+        }
 
 
-        foreach (var cached in cachedCandidates)
+        foreach (SCInstallCandidate cached in cachedCandidates)
+        {
             if (File.Exists(cached.DataP4kPath) && Directory.Exists(cached.ChannelPath))
             {
                 validCandidates.Add(cached);
@@ -170,8 +182,9 @@ public sealed class InitializationService : IInitializationService, IDisposable
                 Logger.Instance.LogMessage(TracingLevel.WARN,
                     $"[InitializationService] {cached.Channel} installation no longer exists, cleaning up");
 
-                var keybindingJson = _pathProvider.GetKeybindingJsonPath(cached.Channel.ToString());
+                string keybindingJson = _pathProvider.GetKeybindingJsonPath(cached.Channel.ToString());
                 if (File.Exists(keybindingJson))
+                {
                     try
                     {
                         File.Delete(keybindingJson);
@@ -182,12 +195,13 @@ public sealed class InitializationService : IInitializationService, IDisposable
                         Logger.Instance.LogMessage(TracingLevel.WARN,
                             $"[InitializationService] {ErrorMessages.KeybindingsDeleteFailed}: {ex.Message}");
                     }
+                }
 
                 await _stateService.RemoveInstallationAsync(cached.Channel, cancellationToken).ConfigureAwait(false);
             }
+        }
 
-        return new CacheValidationResult
-            { ValidCandidates = validCandidates, NeedsFullDetection = validCandidates.Count == 0 };
+        return new CacheValidationResult { ValidCandidates = validCandidates, NeedsFullDetection = validCandidates.Count == 0 };
     }
 
     /// <summary>
@@ -212,9 +226,9 @@ public sealed class InitializationService : IInitializationService, IDisposable
             }
 
             // Save all newly detected installations to state
-            foreach (var candidate in candidates)
+            foreach (SCInstallCandidate candidate in candidates)
             {
-                var installationState = InstallationState.FromCandidate(candidate);
+                InstallationState installationState = InstallationState.FromCandidate(candidate);
                 await _stateService.UpdateInstallationAsync(candidate.Channel, installationState, cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -225,12 +239,12 @@ public sealed class InitializationService : IInitializationService, IDisposable
         else
         {
             // Cache is valid, but check for new installations
-            var freshCandidates =
+            List<SCInstallCandidate> freshCandidates =
                 (await _installLocator.FindInstallationsAsync(cancellationToken).ConfigureAwait(false)).ToList();
 
             // Find new channels that weren't in cache
-            var cachedChannels = validationResult.ValidCandidates.Select(c => c.Channel).ToHashSet();
-            var newInstallations = freshCandidates.Where(c => !cachedChannels.Contains(c.Channel)).ToList();
+            HashSet<SCChannel> cachedChannels = validationResult.ValidCandidates.Select(c => c.Channel).ToHashSet();
+            List<SCInstallCandidate> newInstallations = freshCandidates.Where(c => !cachedChannels.Contains(c.Channel)).ToList();
 
             if (newInstallations.Count > 0)
             {
@@ -239,9 +253,9 @@ public sealed class InitializationService : IInitializationService, IDisposable
                     $"{string.Join(", ", newInstallations.Select(c => c.Channel))}");
 
                 // Add new installations to state
-                foreach (var newCandidate in newInstallations)
+                foreach (SCInstallCandidate newCandidate in newInstallations)
                 {
-                    var installationState = InstallationState.FromCandidate(newCandidate);
+                    InstallationState installationState = InstallationState.FromCandidate(newCandidate);
                     await _stateService
                         .UpdateInstallationAsync(newCandidate.Channel, installationState, cancellationToken)
                         .ConfigureAwait(false);
@@ -266,10 +280,10 @@ public sealed class InitializationService : IInitializationService, IDisposable
     private SCInstallCandidate SelectOptimalChannel(List<SCInstallCandidate> candidates)
     {
         // Prefer LIVE, then PTU, then EPTU - but only if they actually exist
-        var selectedCandidate = candidates.FirstOrDefault(c => c.Channel == SCChannel.Live)
-                                ?? candidates.FirstOrDefault(c => c.Channel == SCChannel.Ptu)
-                                ?? candidates.FirstOrDefault(c => c.Channel == SCChannel.Eptu)
-                                ?? candidates[0];
+        SCInstallCandidate selectedCandidate = candidates.FirstOrDefault(c => c.Channel == SCChannel.Live)
+                                               ?? candidates.FirstOrDefault(c => c.Channel == SCChannel.Ptu)
+                                               ?? candidates.FirstOrDefault(c => c.Channel == SCChannel.Eptu)
+                                               ?? candidates[0];
 
         lock (_lock)
         {
@@ -289,17 +303,17 @@ public sealed class InitializationService : IInitializationService, IDisposable
     private async Task<bool> GenerateKeybindingsForChannelsAsync(List<SCInstallCandidate> candidates,
         SCInstallCandidate selectedCandidate, CancellationToken cancellationToken)
     {
-        var keyboardLayout = KeyboardLayoutDetector.DetectCurrent();
+        KeyboardLayoutInfo keyboardLayout = KeyboardLayoutDetector.DetectCurrent();
 
-        foreach (var candidate in candidates)
+        foreach (SCInstallCandidate candidate in candidates)
         {
-            var channelJsonPath = _pathProvider.GetKeybindingJsonPath(candidate.Channel.ToString());
+            string channelJsonPath = _pathProvider.GetKeybindingJsonPath(candidate.Channel.ToString());
 
             if (!File.Exists(channelJsonPath) || _keybindingProcessor.NeedsRegeneration(channelJsonPath, candidate))
             {
-                var actionMapsPath = KeybindingProfilePathResolver.TryFindActionMapsXml(candidate.ChannelPath);
+                string? actionMapsPath = KeybindingProfilePathResolver.TryFindActionMapsXml(candidate.ChannelPath);
 
-                var processResult = await _keybindingProcessor.ProcessKeybindingsAsync(
+                KeybindingProcessResult processResult = await _keybindingProcessor.ProcessKeybindingsAsync(
                     candidate,
                     actionMapsPath,
                     keyboardLayout,
@@ -333,10 +347,11 @@ public sealed class InitializationService : IInitializationService, IDisposable
         try
         {
             // Step 1: Validate and cleanup cached installations
-            var cachedCandidates =
+            IReadOnlyList<SCInstallCandidate>? cachedCandidates =
                 await _stateService.GetCachedCandidatesAsync(cancellationToken).ConfigureAwait(false);
-            var validationResult = await ValidateAndCleanupCachedInstallationsAsync(cachedCandidates, cancellationToken)
-                .ConfigureAwait(false);
+            CacheValidationResult validationResult =
+                await ValidateAndCleanupCachedInstallationsAsync(cachedCandidates, cancellationToken)
+                    .ConfigureAwait(false);
 
             // Step 2: Detect installations (full or delta)
             List<SCInstallCandidate> candidates;
@@ -351,28 +366,32 @@ public sealed class InitializationService : IInitializationService, IDisposable
             }
 
             // Step 3: Select optimal channel
-            var selectedCandidate = SelectOptimalChannel(candidates);
+            SCInstallCandidate selectedCandidate = SelectOptimalChannel(candidates);
 
             // Step 4: Generate keybindings for all channels
-            var keybindingSuccess =
+            bool keybindingSuccess =
                 await GenerateKeybindingsForChannelsAsync(candidates, selectedCandidate, cancellationToken)
                     .ConfigureAwait(false);
             if (!keybindingSuccess)
+            {
                 return InitializationResult.Failure($"{ErrorMessages.KeybindingProcessingFailed}");
+            }
 
             // Step 5: Load keybindings for selected channel
-            var success = await _keybindingService.LoadKeybindingsAsync(GetKeybindingsJsonPath(), cancellationToken)
+            bool success = await _keybindingService.LoadKeybindingsAsync(GetKeybindingsJsonPath(), cancellationToken)
                 .ConfigureAwait(false);
             if (!success)
+            {
                 Logger.Instance.LogMessage(TracingLevel.ERROR,
                     "[InitializationService] Keybindings load failed - check previous logs");
+            }
 
             lock (_lock)
             {
                 _initialized = true;
             }
 
-            var result = InitializationResult.Success(_currentChannel, candidates.Count);
+            InitializationResult result = InitializationResult.Success(_currentChannel, candidates.Count);
             //RaiseInitializationCompleted(result);
 
             return result;
@@ -386,7 +405,7 @@ public sealed class InitializationService : IInitializationService, IDisposable
                 _initialized = false;
             }
 
-            var result = InitializationResult.Failure($"{ErrorMessages.InitializationFailed}: {ex.Message}");
+            InitializationResult result = InitializationResult.Failure($"{ErrorMessages.InitializationFailed}: {ex.Message}");
             //RaiseInitializationCompleted(result);
 
             return result;

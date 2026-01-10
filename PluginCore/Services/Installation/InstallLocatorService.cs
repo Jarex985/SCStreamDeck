@@ -30,26 +30,30 @@ public sealed class InstallLocatorService : IInstallLocatorService
         {
             if (_cachedInstallations != null && _cacheTimestamp.HasValue)
             {
-                var age = DateTime.UtcNow - _cacheTimestamp.Value;
+                TimeSpan age = DateTime.UtcNow - _cacheTimestamp.Value;
                 if (age < _cacheExpiration)
+                {
                     return _cachedInstallations;
+                }
             }
         }
 
         // Find installations async - stop early if we find valid installations
-        var candidates = await FindInstallationsFromSourcesAsync(cancellationToken).ConfigureAwait(false);
+        List<SCInstallCandidate> candidates = await FindInstallationsFromSourcesAsync(cancellationToken).ConfigureAwait(false);
 
         // TODO: Never happened in any tests, eventually remove
         // De-duplicate based on Data.p4k path
-        var beforeDedup = candidates.Count;
+        int beforeDedup = candidates.Count;
         candidates = candidates
             .DistinctBy(c => NormalizePath(c.DataP4kPath))
             .OrderBy(c => c.Channel)
             .ToList();
 
         if (beforeDedup > candidates.Count)
+        {
             Logger.Instance.LogMessage(TracingLevel.DEBUG,
                 $"[InstallLocator] Removed {beforeDedup - candidates.Count} duplicate(s)");
+        }
 
         // Update cache
         lock (_lock)
@@ -94,12 +98,14 @@ public sealed class InstallLocatorService : IInstallLocatorService
 
         lock (_lock)
         {
-            var previousChannel = _selectedInstallation?.Channel;
+            SCChannel? previousChannel = _selectedInstallation?.Channel;
             _selectedInstallation = installation;
 
             if (previousChannel != installation.Channel && previousChannel != null)
+            {
                 Logger.Instance.LogMessage(TracingLevel.INFO,
                     $"[InstallLocator] Channel changed from {previousChannel} to {installation.Channel}");
+            }
         }
     }
 
@@ -113,18 +119,18 @@ public sealed class InstallLocatorService : IInstallLocatorService
 
     private async Task<List<SCInstallCandidate>> FindInstallationsFromSourcesAsync(CancellationToken cancellationToken)
     {
-        var allRootPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> allRootPaths = new(StringComparer.OrdinalIgnoreCase);
 
         // RSI Launcher logs - collect ALL unique root paths from all log files
         // This handles cases where user has installations on different drives (C:\, D:\, etc.)
-        foreach (var logFile in _configReader.FindLogFiles())
+        foreach (string logFile in _configReader.FindLogFiles())
         {
-            var paths = await RsiLauncherConfigReader.ExtractPathsFromLogAsync(logFile, cancellationToken)
+            HashSet<string> paths = await RsiLauncherConfigReader.ExtractPathsFromLogAsync(logFile, cancellationToken)
                 .ConfigureAwait(false);
-            foreach (var path in paths)
+            foreach (string path in paths)
             {
                 // Additional cleanup: Trim and remove trailing separators
-                var cleanPath = path.Trim().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                string cleanPath = path.Trim().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 allRootPaths.Add(cleanPath);
             }
         }
@@ -136,7 +142,7 @@ public sealed class InstallLocatorService : IInstallLocatorService
         }
 
         // Log with better formatting
-        var sortedPaths = allRootPaths.OrderBy(p => p).ToList();
+        List<string> sortedPaths = allRootPaths.OrderBy(p => p).ToList();
 
         if (sortedPaths.Count == 1)
         {
@@ -148,21 +154,30 @@ public sealed class InstallLocatorService : IInstallLocatorService
             Logger.Instance.LogMessage(TracingLevel.DEBUG,
                 $"[InstallLocator] Found {sortedPaths.Count} unique root paths:");
 
-            foreach (var path in sortedPaths) Logger.Instance.LogMessage(TracingLevel.DEBUG, $"  - {path}");
+            foreach (string path in sortedPaths)
+            {
+                Logger.Instance.LogMessage(TracingLevel.DEBUG, $"  - {path}");
+            }
         }
 
         // Now enumerate candidates from all unique root paths
-        var candidates = new List<SCInstallCandidate>();
-        foreach (var rootPath in allRootPaths)
+        List<SCInstallCandidate> candidates = new();
+        foreach (string rootPath in allRootPaths)
+        {
             InstallationCandidateEnumerator.AddCandidatesFromRoot(candidates, rootPath);
+        }
 
         return candidates;
     }
 
     private static string NormalizePath(string? path)
     {
-        if (string.IsNullOrWhiteSpace(path)) return string.Empty;
-        return SecurePathValidator.TryNormalizePath(path, out var normalized) ? normalized : path.Trim();
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return string.Empty;
+        }
+
+        return SecurePathValidator.TryNormalizePath(path, out string normalized) ? normalized : path.Trim();
     }
 
     #endregion

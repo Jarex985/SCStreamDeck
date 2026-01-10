@@ -34,8 +34,7 @@ function setElementLabel(elem, str) {
     let label = elem.querySelector('.rangeLabel');
     if (label) {
         label.innerHTML = str;
-    }
-    else {
+    } else {
         console.log('setElementLabel ERROR! No .rangeLabel found', elem);
     }
 }

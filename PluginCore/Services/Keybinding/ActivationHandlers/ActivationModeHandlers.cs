@@ -10,8 +10,8 @@ internal sealed class ImmediatePressHandler : IActivationModeHandler
 {
     public IEnumerable<string> SupportedModes => new[]
     {
-        "press", "press_quicker", "tap", "tap_quicker", "double_tap", "double_tap_nonblocking",
-        "hold_toggle", "smart_toggle", "all"
+        "press", "press_quicker", "tap", "tap_quicker", "double_tap", "double_tap_nonblocking", "hold_toggle", "smart_toggle",
+        "all"
     };
 
     public bool Execute(ActivationExecutionContext context, ActivationModeMetadata metadata, IInputExecutor executor)
@@ -22,34 +22,49 @@ internal sealed class ImmediatePressHandler : IActivationModeHandler
             case ActivationMode.press_quicker:
                 // Press modes trigger on key down, ignore key up
                 if (!context.IsKeyDown)
+                {
                     return true;
+                }
+
                 return executor.ExecutePress(context.Input);
 
             case ActivationMode.tap:
             case ActivationMode.tap_quicker:
                 // Tap modes trigger on key UP (release), not down
                 if (context.IsKeyDown)
+                {
                     return true; // Ignore press, wait for release
+                }
+
                 return executor.ExecutePress(context.Input);
 
             case ActivationMode.double_tap:
             case ActivationMode.double_tap_nonblocking:
                 // Treat as simple press for StreamDeck use
                 if (!context.IsKeyDown)
+                {
                     return true;
+                }
+
                 return executor.ExecutePress(context.Input);
 
             case ActivationMode.hold_toggle:
             case ActivationMode.smart_toggle:
                 // Toggle modes send a press on each button press
                 if (!context.IsKeyDown)
+                {
                     return true;
+                }
+
                 return executor.ExecutePress(context.Input);
 
             case ActivationMode.all:
                 // Hold while pressed - Star Citizen decides based on duration
                 if (context.IsKeyDown)
+                {
                     return executor.ExecuteDown(context.Input, context.ActionName);
+                }
+
                 return executor.ExecuteUp(context.Input, context.ActionName);
 
             default:
@@ -64,17 +79,15 @@ internal sealed class ImmediatePressHandler : IActivationModeHandler
 /// </summary>
 internal sealed class DelayedPressHandler : IActivationModeHandler
 {
-    public IEnumerable<string> SupportedModes => new[]
-    {
-        "delayed_press", "delayed_press_quicker", "delayed_press_medium", "delayed_press_long"
-    };
+    public IEnumerable<string> SupportedModes =>
+        new[] { "delayed_press", "delayed_press_quicker", "delayed_press_medium", "delayed_press_long" };
 
     public bool Execute(ActivationExecutionContext context, ActivationModeMetadata metadata, IInputExecutor executor)
     {
         if (context.IsKeyDown)
         {
             // Schedule delayed execution
-            var delay = metadata.PressTriggerThreshold > 0
+            float delay = metadata.PressTriggerThreshold > 0
                 ? metadata.PressTriggerThreshold
                 : GetDefaultDelay(context.Mode);
 
@@ -86,9 +99,8 @@ internal sealed class DelayedPressHandler : IActivationModeHandler
         return true;
     }
 
-    private static float GetDefaultDelay(ActivationMode mode)
-    {
-        return mode switch
+    private static float GetDefaultDelay(ActivationMode mode) =>
+        mode switch
         {
             ActivationMode.delayed_press_quicker => 0.15f,
             ActivationMode.delayed_press => 0.25f,
@@ -96,7 +108,6 @@ internal sealed class DelayedPressHandler : IActivationModeHandler
             ActivationMode.delayed_press_long => 1.5f,
             _ => 0.25f
         };
-    }
 }
 
 /// <summary>
@@ -117,7 +128,10 @@ internal sealed class HoldHandler : IActivationModeHandler
             case ActivationMode.hold:
             case ActivationMode.hold_no_retrigger:
                 if (context.IsKeyDown)
+                {
                     return executor.ExecuteDown(context.Input, context.ActionName);
+                }
+
                 return executor.ExecuteUp(context.Input, context.ActionName);
 
             case ActivationMode.delayed_hold:
@@ -126,7 +140,7 @@ internal sealed class HoldHandler : IActivationModeHandler
                 if (context.IsKeyDown)
                 {
                     // Schedule delayed hold
-                    var delay = metadata.PressTriggerThreshold > 0
+                    float delay = metadata.PressTriggerThreshold > 0
                         ? metadata.PressTriggerThreshold
                         : GetDefaultDelay(context.Mode);
 
@@ -142,14 +156,12 @@ internal sealed class HoldHandler : IActivationModeHandler
         }
     }
 
-    private static float GetDefaultDelay(ActivationMode mode)
-    {
-        return mode switch
+    private static float GetDefaultDelay(ActivationMode mode) =>
+        mode switch
         {
             ActivationMode.delayed_hold_no_retrigger => 0.15f,
             ActivationMode.delayed_hold => 0.25f,
             ActivationMode.delayed_hold_long => 1.5f,
             _ => 0.25f
         };
-    }
 }

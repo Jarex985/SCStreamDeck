@@ -40,13 +40,9 @@ public sealed class KeybindingProcessResult
     public string? DetectedLanguage { get; init; }
     public string? ErrorMessage { get; init; }
 
-    public static KeybindingProcessResult Success(string detectedLanguage)
-    {
-        return new KeybindingProcessResult { IsSuccess = true, DetectedLanguage = detectedLanguage };
-    }
+    public static KeybindingProcessResult Success(string detectedLanguage) =>
+        new() { IsSuccess = true, DetectedLanguage = detectedLanguage };
 
-    public static KeybindingProcessResult Failure(string errorMessage)
-    {
-        return new KeybindingProcessResult { IsSuccess = false, ErrorMessage = errorMessage };
-    }
+    public static KeybindingProcessResult Failure(string errorMessage) =>
+        new() { IsSuccess = false, ErrorMessage = errorMessage };
 }

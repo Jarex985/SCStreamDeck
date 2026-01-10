@@ -22,14 +22,18 @@ public sealed class CryXmlParserService : ICryXmlParserService
         return Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return !TryConvertCryXmlToText(binaryXmlData, out var xmlText, out _) ? null : xmlText;
+            return !TryConvertCryXmlToText(binaryXmlData, out string xmlText, out _) ? null : xmlText;
         }, cancellationToken);
     }
 
     public bool IsCryXml(ReadOnlySpan<byte> data)
     {
-        if (data.Length < HeaderSize) return false;
-        var signature = ReadAsciiZ(data[..8]);
+        if (data.Length < HeaderSize)
+        {
+            return false;
+        }
+
+        string signature = ReadAsciiZ(data[..8]);
 
         return string.Equals(signature, CryXmlSignature, StringComparison.Ordinal);
     }
@@ -39,10 +43,13 @@ public sealed class CryXmlParserService : ICryXmlParserService
     private static bool TryConvertCryXmlToText(ReadOnlySpan<byte> data, out string xmlText, out string error)
     {
         xmlText = string.Empty;
-        var doc = TryParseCryXml(data, out error);
-        if (doc is null) return false;
+        CryXmlDocument? doc = TryParseCryXml(data, out error);
+        if (doc is null)
+        {
+            return false;
+        }
 
-        var settings = new XmlWriterSettings
+        XmlWriterSettings settings = new()
         {
             OmitXmlDeclaration = true,
             ConformanceLevel = ConformanceLevel.Document,
@@ -51,9 +58,9 @@ public sealed class CryXmlParserService : ICryXmlParserService
             NewLineHandling = NewLineHandling.None
         };
 
-        var stringBuilder = new StringBuilder(Math.Min(4 * 1024 * 1024, data.Length * 4));
-        using (var sw = new StringWriter(stringBuilder))
-        using (var xw = XmlWriter.Create(sw, settings))
+        StringBuilder stringBuilder = new(Math.Min(4 * 1024 * 1024, data.Length * 4));
+        using (StringWriter sw = new(stringBuilder))
+        using (XmlWriter xw = XmlWriter.Create(sw, settings))
         {
             WriteCryXmlNode(xw, doc, 0);
             xw.Flush();
@@ -74,7 +81,7 @@ public sealed class CryXmlParserService : ICryXmlParserService
             return null;
         }
 
-        var signature = ReadAsciiZ(data[..8]);
+        string signature = ReadAsciiZ(data[..8]);
         if (!string.Equals(signature, CryXmlSignature, StringComparison.Ordinal))
         {
             error = "File is not a binary XML object (wrong header signature).";
@@ -104,13 +111,13 @@ public sealed class CryXmlParserService : ICryXmlParserService
 
     private static CryXmlDocument? ParseCryXmlInternal(ReadOnlySpan<byte> data, out string error)
     {
-        var header = ReadCryXmlHeader(data);
+        CryXmlHeader header = ReadCryXmlHeader(data);
         ValidateCryXmlBounds(data, header);
-        var stringData = data.Slice((int)header.StringDataPos, (int)header.StringDataSize);
-        var attributes = ReadCryXmlAttributesTable(data, header);
-        var childIndices = ReadCryXmlChildIndicesTable(data, header);
-        var rawNodes = ReadCryXmlRawNodes(data, header);
-        var nodes = BuildCryXmlNodes(stringData, rawNodes, attributes, childIndices);
+        ReadOnlySpan<byte> stringData = data.Slice((int)header.StringDataPos, (int)header.StringDataSize);
+        (uint KeyOffset, uint ValueOffset)[] attributes = ReadCryXmlAttributesTable(data, header);
+        uint[] childIndices = ReadCryXmlChildIndicesTable(data, header);
+        CryXmlRawNode[] rawNodes = ReadCryXmlRawNodes(data, header);
+        CryXmlNode[] nodes = BuildCryXmlNodes(stringData, rawNodes, attributes, childIndices);
 
         if (nodes.Length == 0)
         {
@@ -122,9 +129,8 @@ public sealed class CryXmlParserService : ICryXmlParserService
         return new CryXmlDocument(nodes[0], nodes);
     }
 
-    private static CryXmlHeader ReadCryXmlHeader(ReadOnlySpan<byte> data)
-    {
-        return new CryXmlHeader(
+    private static CryXmlHeader ReadCryXmlHeader(ReadOnlySpan<byte> data) =>
+        new(
             ReadU32(data, 12),
             ReadU32(data, 16),
             ReadU32(data, 20),
@@ -133,7 +139,6 @@ public sealed class CryXmlParserService : ICryXmlParserService
             ReadU32(data, 32),
             ReadU32(data, 36),
             ReadU32(data, 40));
-    }
 
     private static void ValidateCryXmlBounds(ReadOnlySpan<byte> data, CryXmlHeader header)
     {
@@ -149,10 +154,10 @@ public sealed class CryXmlParserService : ICryXmlParserService
     private static (uint KeyOffset, uint ValueOffset)[] ReadCryXmlAttributesTable(ReadOnlySpan<byte> data,
         CryXmlHeader header)
     {
-        var attributes = new (uint KeyOffset, uint ValueOffset)[header.AttrCount];
+        (uint KeyOffset, uint ValueOffset)[] attributes = new (uint KeyOffset, uint ValueOffset)[header.AttrCount];
         for (uint i = 0; i < header.AttrCount; i++)
         {
-            var offset = (int)header.AttrTablePos + (int)(i * AttributeEntrySize);
+            int offset = (int)header.AttrTablePos + (int)(i * AttributeEntrySize);
             attributes[i] = (ReadU32(data, offset), ReadU32(data, offset + 4));
         }
 
@@ -161,10 +166,10 @@ public sealed class CryXmlParserService : ICryXmlParserService
 
     private static uint[] ReadCryXmlChildIndicesTable(ReadOnlySpan<byte> data, CryXmlHeader header)
     {
-        var childIndices = new uint[header.ChildCount];
+        uint[] childIndices = new uint[header.ChildCount];
         for (uint i = 0; i < header.ChildCount; i++)
         {
-            var offset = (int)header.ChildTablePos + (int)(i * ChildIndexSize);
+            int offset = (int)header.ChildTablePos + (int)(i * ChildIndexSize);
             childIndices[i] = ReadU32(data, offset);
         }
 
@@ -173,10 +178,10 @@ public sealed class CryXmlParserService : ICryXmlParserService
 
     private static CryXmlRawNode[] ReadCryXmlRawNodes(ReadOnlySpan<byte> data, CryXmlHeader header)
     {
-        var rawNodes = new CryXmlRawNode[header.NodeCount];
+        CryXmlRawNode[] rawNodes = new CryXmlRawNode[header.NodeCount];
         for (uint i = 0; i < header.NodeCount; i++)
         {
-            var offset = (int)header.NodeTablePos + (int)(i * NodeStructureSize);
+            int offset = (int)header.NodeTablePos + (int)(i * NodeStructureSize);
             rawNodes[i] = new CryXmlRawNode(
                 ReadU32(data, offset),
                 ReadU32(data, offset + 4),
@@ -193,41 +198,50 @@ public sealed class CryXmlParserService : ICryXmlParserService
     private static CryXmlNode[] BuildCryXmlNodes(ReadOnlySpan<byte> stringData, CryXmlRawNode[] rawNodes,
         (uint KeyOffset, uint ValueOffset)[] attributes, uint[] childIndices)
     {
-        var nodes = new CryXmlNode[rawNodes.Length];
-        for (var i = 0; i < rawNodes.Length; i++)
+        CryXmlNode[] nodes = new CryXmlNode[rawNodes.Length];
+        for (int i = 0; i < rawNodes.Length; i++)
+        {
             nodes[i] = BuildCryXmlNode(stringData, rawNodes[i], attributes, childIndices, rawNodes.Length);
+        }
+
         return nodes;
     }
 
     private static CryXmlNode BuildCryXmlNode(ReadOnlySpan<byte> stringData, CryXmlRawNode rawNode,
         (uint KeyOffset, uint ValueOffset)[] attributes, uint[] childIndices, int nodeCount)
     {
-        var tag = ReadStringByOffset(stringData, rawNode.TagOffset);
-        var content = ReadStringByOffset(stringData, rawNode.ContentOffset);
-        var attrs = new List<KeyValuePair<string, string>>(rawNode.AttributeCount);
+        string tag = ReadStringByOffset(stringData, rawNode.TagOffset);
+        string content = ReadStringByOffset(stringData, rawNode.ContentOffset);
+        List<KeyValuePair<string, string>> attrs = new(rawNode.AttributeCount);
 
         for (uint a = 0; a < rawNode.AttributeCount; a++)
         {
-            var attrIndex = rawNode.FirstAttributeIndex + a;
+            uint attrIndex = rawNode.FirstAttributeIndex + a;
             if (attrIndex >= attributes.Length)
+            {
                 throw new FormatException($"Attribute index out of bounds: {attrIndex} (count={attributes.Length})");
+            }
 
-            var (keyOffset, valueOffset) = attributes[attrIndex];
-            var key = ReadStringByOffset(stringData, keyOffset);
-            var value = ReadStringByOffset(stringData, valueOffset);
+            (uint keyOffset, uint valueOffset) = attributes[attrIndex];
+            string key = ReadStringByOffset(stringData, keyOffset);
+            string value = ReadStringByOffset(stringData, valueOffset);
             attrs.Add(new KeyValuePair<string, string>(key, value));
         }
 
-        var children = new List<int>(rawNode.ChildCount);
+        List<int> children = new(rawNode.ChildCount);
         for (uint c = 0; c < rawNode.ChildCount; c++)
         {
-            var childIdxIndex = rawNode.FirstChildIndex + c;
+            uint childIdxIndex = rawNode.FirstChildIndex + c;
             if (childIdxIndex >= childIndices.Length)
+            {
                 throw new FormatException($"Child index out of bounds: {childIdxIndex} (count={childIndices.Length})");
+            }
 
-            var childNodeIndex = childIndices[childIdxIndex];
+            uint childNodeIndex = childIndices[childIdxIndex];
             if (childNodeIndex >= nodeCount)
+            {
                 throw new FormatException($"Child node index out of bounds: {childNodeIndex} (nodeCount={nodeCount})");
+            }
 
             children.Add((int)childNodeIndex);
         }
@@ -237,18 +251,28 @@ public sealed class CryXmlParserService : ICryXmlParserService
 
     private static void WriteCryXmlNode(XmlWriter xw, CryXmlDocument doc, int nodeIndex)
     {
-        var node = doc.Nodes[nodeIndex];
+        CryXmlNode node = doc.Nodes[nodeIndex];
         xw.WriteStartElement(node.Tag);
 
-        foreach (var (key, value) in node.Attributes)
+        foreach ((string key, string value) in node.Attributes)
         {
-            if (string.IsNullOrEmpty(key)) continue;
+            if (string.IsNullOrEmpty(key))
+            {
+                continue;
+            }
+
             xw.WriteAttributeString(key, value);
         }
 
-        if (!string.IsNullOrEmpty(node.Content)) xw.WriteString(node.Content);
+        if (!string.IsNullOrEmpty(node.Content))
+        {
+            xw.WriteString(node.Content);
+        }
 
-        foreach (var childIndex in node.Children) WriteCryXmlNode(xw, doc, childIndex);
+        foreach (int childIndex in node.Children)
+        {
+            WriteCryXmlNode(xw, doc, childIndex);
+        }
 
         xw.WriteEndElement();
     }
@@ -257,35 +281,36 @@ public sealed class CryXmlParserService : ICryXmlParserService
 
     #region Helper Methods
 
-    private static uint ReadU32(ReadOnlySpan<byte> data, int offset)
-    {
-        return BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(offset, 4));
-    }
+    private static uint ReadU32(ReadOnlySpan<byte> data, int offset) =>
+        BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(offset, 4));
 
-    private static ushort ReadU16(ReadOnlySpan<byte> data, int offset)
-    {
-        return BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(offset, 2));
-    }
+    private static ushort ReadU16(ReadOnlySpan<byte> data, int offset) =>
+        BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(offset, 2));
 
     private static void EnsureWithin(int dataLength, uint offset, uint length, string label)
     {
         if (offset > (uint)dataLength)
+        {
             throw new FormatException($"{label}: offset out of bounds ({offset} > {dataLength})");
+        }
 
-        var end = checked(offset + length);
+        uint end = checked(offset + length);
         if (end > (uint)dataLength)
+        {
             throw new FormatException($"{label}: range out of bounds (end={end} > {dataLength})");
+        }
     }
 
-    private static string ReadStringByOffset(ReadOnlySpan<byte> stringData, uint offset)
-    {
-        return offset >= (uint)stringData.Length ? string.Empty : ReadAsciiZ(stringData[(int)offset..]);
-    }
+    private static string ReadStringByOffset(ReadOnlySpan<byte> stringData, uint offset) =>
+        offset >= (uint)stringData.Length ? string.Empty : ReadAsciiZ(stringData[(int)offset..]);
 
     private static string ReadAsciiZ(ReadOnlySpan<byte> data)
     {
-        var len = 0;
-        while (len < data.Length && data[len] != 0) len++;
+        int len = 0;
+        while (len < data.Length && data[len] != 0)
+        {
+            len++;
+        }
 
         return Encoding.ASCII.GetString(data[..len]);
     }

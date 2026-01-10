@@ -21,10 +21,13 @@ internal sealed partial class RsiLauncherConfigReader
     /// </summary>
     private string? GetRsiLauncherDirectory()
     {
-        if (_rsiLauncherDirectory != null) return _rsiLauncherDirectory;
+        if (_rsiLauncherDirectory != null)
+        {
+            return _rsiLauncherDirectory;
+        }
 
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var launcherPath = Path.Combine(appData, "rsilauncher");
+        string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        string launcherPath = Path.Combine(appData, "rsilauncher");
 
         if (!Directory.Exists(launcherPath))
         {
@@ -33,7 +36,11 @@ internal sealed partial class RsiLauncherConfigReader
             return null;
         }
 
-        if (!SecurePathValidator.TryNormalizePath(launcherPath, out var normalized)) return _rsiLauncherDirectory;
+        if (!SecurePathValidator.TryNormalizePath(launcherPath, out string normalized))
+        {
+            return _rsiLauncherDirectory;
+        }
+
         _rsiLauncherDirectory = normalized;
 
         return _rsiLauncherDirectory;
@@ -45,10 +52,13 @@ internal sealed partial class RsiLauncherConfigReader
     /// <param name="maxCount">Maximum number of log files to return.</param>
     public IEnumerable<string> FindLogFiles(int maxCount = 3)
     {
-        var launcherDir = GetRsiLauncherDirectory();
-        if (launcherDir == null) yield break;
+        string? launcherDir = GetRsiLauncherDirectory();
+        if (launcherDir == null)
+        {
+            yield break;
+        }
 
-        var logsDir = Path.Combine(launcherDir, "logs");
+        string logsDir = Path.Combine(launcherDir, "logs");
         if (!Directory.Exists(logsDir))
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
@@ -56,8 +66,12 @@ internal sealed partial class RsiLauncherConfigReader
             yield break;
         }
 
-        var logFiles = Directory.GetFiles(logsDir, "*.log").OrderByDescending(File.GetLastWriteTime).Take(maxCount);
-        foreach (var logFile in logFiles) yield return logFile;
+        IEnumerable<string> logFiles =
+            Directory.GetFiles(logsDir, "*.log").OrderByDescending(File.GetLastWriteTime).Take(maxCount);
+        foreach (string logFile in logFiles)
+        {
+            yield return logFile;
+        }
     }
 
     /// <summary>
@@ -67,13 +81,16 @@ internal sealed partial class RsiLauncherConfigReader
     public static async Task<HashSet<string>> ExtractPathsFromLogAsync(string logFilePath,
         CancellationToken cancellationToken = default)
     {
-        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> paths = new(StringComparer.OrdinalIgnoreCase);
 
-        if (!File.Exists(logFilePath)) return paths;
+        if (!File.Exists(logFilePath))
+        {
+            return paths;
+        }
 
         try
         {
-            var content = await File.ReadAllTextAsync(logFilePath, cancellationToken).ConfigureAwait(false);
+            string content = await File.ReadAllTextAsync(logFilePath, cancellationToken).ConfigureAwait(false);
             ExtractPathsFromContent(content, paths);
         }
 
@@ -96,9 +113,13 @@ internal sealed partial class RsiLauncherConfigReader
     /// </summary>
     private static void ExtractPathsFromContent(string content, HashSet<string> paths)
     {
-        foreach (var rawPath in StarCitizenPathRegex().Matches(content).Select(m => m.Value))
+        foreach (string rawPath in StarCitizenPathRegex().Matches(content).Select(m => m.Value))
         {
-            if (!SecurePathValidator.TryNormalizePath(rawPath, out var path)) continue;
+            if (!SecurePathValidator.TryNormalizePath(rawPath, out string path))
+            {
+                continue;
+            }
+
             AddNormalizedRootPath(path, paths);
         }
     }
@@ -108,12 +129,17 @@ internal sealed partial class RsiLauncherConfigReader
     /// </summary>
     private static void AddNormalizedRootPath(string starCitizenPath, HashSet<string> paths)
     {
-        if (!starCitizenPath.EndsWith("StarCitizen", StringComparison.OrdinalIgnoreCase)) return;
-
-        var rootPath = Path.GetDirectoryName(starCitizenPath);
-        if (string.IsNullOrWhiteSpace(rootPath) ||
-            !SecurePathValidator.TryNormalizePath(rootPath, out var normalizedRoot))
+        if (!starCitizenPath.EndsWith("StarCitizen", StringComparison.OrdinalIgnoreCase))
+        {
             return;
+        }
+
+        string? rootPath = Path.GetDirectoryName(starCitizenPath);
+        if (string.IsNullOrWhiteSpace(rootPath) ||
+            !SecurePathValidator.TryNormalizePath(rootPath, out string normalizedRoot))
+        {
+            return;
+        }
 
         normalizedRoot = normalizedRoot.Trim().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         paths.Add(normalizedRoot);

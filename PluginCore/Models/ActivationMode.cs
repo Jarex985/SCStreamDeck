@@ -1,5 +1,6 @@
 ﻿// ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Global
+
 #pragma warning disable CA1707
 
 namespace SCStreamDeck.SCCore.Models;

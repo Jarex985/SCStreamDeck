@@ -18,7 +18,7 @@ public interface IInitializationService
     ///     Safe to call multiple times - only initializes once.
     /// </summary>
     Task<InitializationResult> EnsureInitializedAsync(CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     ///     Switches to a different Star Citizen channel (LIVE/PTU).
     /// </summary>
@@ -45,22 +45,9 @@ public sealed class InitializationResult
     public SCChannel SelectedChannel { get; init; }
     public int DetectedInstallations { get; init; }
 
-    public static InitializationResult Success(SCChannel channel, int installCount)
-    {
-        return new InitializationResult
-        {
-            IsSuccess = true,
-            SelectedChannel = channel,
-            DetectedInstallations = installCount
-        };
-    }
+    public static InitializationResult Success(SCChannel channel, int installCount) =>
+        new() { IsSuccess = true, SelectedChannel = channel, DetectedInstallations = installCount };
 
-    public static InitializationResult Failure(string errorMessage)
-    {
-        return new InitializationResult
-        {
-            IsSuccess = false,
-            ErrorMessage = errorMessage
-        };
-    }
+    public static InitializationResult Failure(string errorMessage) =>
+        new() { IsSuccess = false, ErrorMessage = errorMessage };
 }

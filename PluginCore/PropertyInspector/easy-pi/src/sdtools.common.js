@@ -2,7 +2,7 @@
 // * EasyPI v2.0
 // * Author: BarRaider
 // *
-// * JS library to simplify the communication between the 
+// * JS library to simplify the communication between the
 // * Stream Deck's Property Inspector and the plugin.
 // *
 // * Project page: https://github.com/BarRaider/streamdeck-easypi-v2
@@ -58,8 +58,7 @@ function websocketOnMessage(evt) {
     if (jsonObj.event === 'didReceiveSettings') {
         var payload = jsonObj.payload;
         loadConfiguration(payload.settings);
-    }
-    else {
+    } else {
         console.log("Ignored websocketOnMessage: " + jsonObj.event);
     }
 }
@@ -72,15 +71,13 @@ function loadConfiguration(payload) {
             var elem = document.getElementById(key);
             if (elem.classList.contains("sdCheckbox")) { // Checkbox
                 elem.checked = payload[key];
-            }
-            else if (elem.classList.contains("sdFile")) { // File
+            } else if (elem.classList.contains("sdFile")) { // File
                 var elemFile = document.getElementById(elem.id + "Filename");
                 elemFile.innerText = payload[key];
                 if (!elemFile.innerText) {
                     elemFile.innerText = "No file...";
                 }
-            }
-            else if (elem.classList.contains("sdList")) { // Dynamic dropdown
+            } else if (elem.classList.contains("sdList")) { // Dynamic dropdown
                 var textProperty = elem.getAttribute("sdListTextProperty");
                 var valueProperty = elem.getAttribute("sdListValueProperty");
                 var valueField = elem.getAttribute("sdValueField");
@@ -95,16 +92,13 @@ function loadConfiguration(payload) {
                     elem.appendChild(opt);
                 }
                 elem.value = payload[valueField];
-            }
-            else if (elem.classList.contains("sdHTML")) { // HTML element
+            } else if (elem.classList.contains("sdHTML")) { // HTML element
                 elem.innerHTML = payload[key];
-            }
-            else { // Normal value
+            } else { // Normal value
                 elem.value = payload[key];
             }
             console.log("Load: " + key + "=" + payload[key]);
-        }
-        catch (err) {
+        } catch (err) {
             console.log("loadConfiguration failed for key: " + key + " - " + err);
         }
     }
@@ -118,28 +112,23 @@ function setSettings() {
         var key = elem.id;
         if (elem.classList.contains("sdCheckbox")) { // Checkbox
             payload[key] = elem.checked;
-        }
-        else if (elem.classList.contains("sdFile")) { // File
+        } else if (elem.classList.contains("sdFile")) { // File
             var elemFile = document.getElementById(elem.id + "Filename");
             payload[key] = elem.value;
             if (!elem.value) {
                 // Fetch innerText if file is empty (happens when we lose and regain focus to this key)
                 payload[key] = elemFile.innerText;
-            }
-            else {
+            } else {
                 // Set value on initial file selection
                 elemFile.innerText = elem.value;
             }
-        }
-        else if (elem.classList.contains("sdList")) { // Dynamic dropdown
+        } else if (elem.classList.contains("sdList")) { // Dynamic dropdown
             var valueField = elem.getAttribute("sdValueField");
             payload[valueField] = elem.value;
-        }
-        else if (elem.classList.contains("sdHTML")) { // HTML element
+        } else if (elem.classList.contains("sdHTML")) { // HTML element
             var valueField = elem.getAttribute("sdValueField");
             payload[valueField] = elem.innerHTML;
-        }
-        else { // Normal value
+        } else { // Normal value
             payload[key] = elem.value;
         }
         console.log("Save: " + key + "<=" + payload[key]);
@@ -239,7 +228,7 @@ function prepareDOMElements(baseElement) {
 
 function initPropertyInspector() {
     // Place to add functions
-	prepareDOMElements(document);
+    prepareDOMElements(document);
 }
 
 
@@ -301,7 +290,7 @@ function addDynamicStyles(clrs) {
     }
     `;
     document.body.appendChild(node);
-};
+}
 
 /** UTILITIES */
 

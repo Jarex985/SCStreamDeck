@@ -1,4 +1,4 @@
-﻿﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using SCStreamDeck.SCCore.Services.Core;
 using SCStreamDeck.SCCore.Services.Data;
 using SCStreamDeck.SCCore.Services.Installation;
@@ -30,7 +30,7 @@ public static class ServiceConfiguration
         services.AddSingleton<ICryXmlParserService, CryXmlParserService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
         services.AddSingleton<IInstallLocatorService, InstallLocatorService>();
-        
+
         // Register keybinding parser and output services (must be before IKeybindingProcessorService)
         services.AddSingleton<IKeybindingXmlParserService, KeybindingXmlParserService>();
         services.AddSingleton<IKeybindingMetadataService, KeybindingMetadataService>();
@@ -38,7 +38,7 @@ public static class ServiceConfiguration
         services.AddSingleton<IKeybindingLoaderService, KeybindingLoaderService>();
         services.AddSingleton<IKeybindingParserService, KeybindingParserService>();
         services.AddSingleton<IKeybindingExecutorService, KeybindingExecutorService>();
-        
+
         services.AddSingleton<IKeybindingProcessorService, KeybindingProcessorService>();
         services.AddSingleton<IKeybindingService, KeybindingService>();
         services.AddSingleton<IInitializationService, InitializationService>();
@@ -52,10 +52,10 @@ public static class ServiceConfiguration
     /// </summary>
     public static IServiceProvider BuildAndInitialize()
     {
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddSCCoreServices();
 
-        var serviceProvider = services.BuildServiceProvider();
+        ServiceProvider serviceProvider = services.BuildServiceProvider();
         ServiceLocator.Initialize(serviceProvider);
 
         return serviceProvider;

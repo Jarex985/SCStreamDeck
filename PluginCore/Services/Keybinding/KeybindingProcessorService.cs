@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using System.Text;
+﻿using System.Text;
 using BarRaider.SdTools;
 using SCStreamDeck.SCCore.Common;
 using SCStreamDeck.SCCore.Logging;
@@ -16,10 +15,10 @@ public sealed class KeybindingProcessorService : IKeybindingProcessorService
 {
     private readonly ICryXmlParserService _cryXmlParser;
     private readonly ILocalizationService _localizationService;
-    private readonly IP4KArchiveService _p4kService;
-    private readonly IKeybindingXmlParserService _xmlParser;
     private readonly IKeybindingMetadataService _metadataService;
     private readonly IKeybindingOutputService _outputService;
+    private readonly IP4KArchiveService _p4kService;
+    private readonly IKeybindingXmlParserService _xmlParser;
 
     public KeybindingProcessorService(
         IP4KArchiveService p4kService,
@@ -50,26 +49,36 @@ public sealed class KeybindingProcessorService : IKeybindingProcessorService
 
         try
         {
-            var xmlBytes = await ExtractDefaultProfileAsync(installation.DataP4kPath, cancellationToken)
+            byte[]? xmlBytes = await ExtractDefaultProfileAsync(installation.DataP4kPath, cancellationToken)
                 .ConfigureAwait(false);
             if (xmlBytes == null)
+            {
                 return KeybindingProcessResult.Failure("Failed to extract defaultProfile.xml from P4K");
+            }
 
-            var xmlText = await ParseCryXmlAsync(xmlBytes, cancellationToken).ConfigureAwait(false);
-            if (xmlText == null) return KeybindingProcessResult.Failure("Failed to parse CryXml binary data");
+            string? xmlText = await ParseCryXmlAsync(xmlBytes, cancellationToken).ConfigureAwait(false);
+            if (xmlText == null)
+            {
+                return KeybindingProcessResult.Failure("Failed to parse CryXml binary data");
+            }
 
-            var activationModes = _xmlParser.ParseActivationModes(xmlText);
-            var actions = _xmlParser.ParseXmlToActions(xmlText);
-            if (actions.Count == 0) return KeybindingProcessResult.Failure("No actions found in defaultProfile.xml");
+            Dictionary<string, ActivationModeMetadata> activationModes = _xmlParser.ParseActivationModes(xmlText);
+            List<KeybindingActionData> actions = _xmlParser.ParseXmlToActions(xmlText);
+            if (actions.Count == 0)
+            {
+                return KeybindingProcessResult.Failure("No actions found in defaultProfile.xml");
+            }
 
-            var detectedLanguage = _metadataService.DetectLanguage(installation.ChannelPath);
+            string detectedLanguage = _metadataService.DetectLanguage(installation.ChannelPath);
             await ApplyLocalizationAsync(actions, installation, detectedLanguage, cancellationToken)
                 .ConfigureAwait(false);
 
             if (!string.IsNullOrWhiteSpace(actionMapsPath) && File.Exists(actionMapsPath))
+            {
                 ApplyUserOverrides(actions, actionMapsPath);
+            }
 
-            var filteredActions = FilterActionsWithBindings(actions);
+            List<KeybindingActionData> filteredActions = FilterActionsWithBindings(actions);
 
             await _outputService.WriteKeybindingsJsonAsync(
                 installation,
@@ -86,7 +95,7 @@ public sealed class KeybindingProcessorService : IKeybindingProcessorService
 
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, 
+            Logger.Instance.LogMessage(TracingLevel.ERROR,
                 $"[{nameof(KeybindingProcessorService)}] {ErrorMessages.KeybindingProcessingFailed} {ex.Message}");
             return KeybindingProcessResult.Failure(ex.Message);
         }
@@ -104,7 +113,7 @@ public sealed class KeybindingProcessorService : IKeybindingProcessorService
     {
         try
         {
-            if (!SecurePathValidator.TryNormalizePath(dataP4kPath, out var normalizedPath))
+            if (!SecurePathValidator.TryNormalizePath(dataP4kPath, out string normalizedPath))
             {
                 Logger.Instance.LogMessage(TracingLevel.ERROR,
                     $"[{nameof(KeybindingProcessorService)}] {ErrorMessages.InvalidPath} {dataP4kPath}");
@@ -113,7 +122,7 @@ public sealed class KeybindingProcessorService : IKeybindingProcessorService
 
             await _p4kService.OpenArchiveAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
 
-            var entries = await _p4kService.ScanDirectoryAsync(
+            IReadOnlyList<P4KFileEntry> entries = await _p4kService.ScanDirectoryAsync(
                 P4KConstants.KeybindingConfigDirectory,
                 P4KConstants.DefaultProfileFileName,
                 cancellationToken).ConfigureAwait(false);
@@ -125,11 +134,13 @@ public sealed class KeybindingProcessorService : IKeybindingProcessorService
                 return null;
             }
 
-            var profileEntry = entries[0];
-            var bytes = await _p4kService.ReadFileAsync(profileEntry, cancellationToken).ConfigureAwait(false);
+            P4KFileEntry profileEntry = entries[0];
+            byte[]? bytes = await _p4kService.ReadFileAsync(profileEntry, cancellationToken).ConfigureAwait(false);
 
             if (bytes == null || bytes.Length == 0)
+            {
                 return null;
+            }
 
             return bytes;
         }
@@ -148,9 +159,11 @@ public sealed class KeybindingProcessorService : IKeybindingProcessorService
         {
             // Check if it's already plain XML
             if (xmlBytes[0] == (byte)'<' || xmlBytes.Take(Math.Min(64, xmlBytes.Length)).Any(b => b == (byte)'<'))
+            {
                 return Encoding.UTF8.GetString(xmlBytes);
+            }
 
-            var xmlText = await _cryXmlParser.ConvertCryXmlToTextAsync(xmlBytes, cancellationToken);
+            string? xmlText = await _cryXmlParser.ConvertCryXmlToTextAsync(xmlBytes, cancellationToken);
             return xmlText ?? null;
         }
 
@@ -171,7 +184,7 @@ public sealed class KeybindingProcessorService : IKeybindingProcessorService
     {
         try
         {
-            var localization = await _localizationService.LoadGlobalIniAsync(
+            IReadOnlyDictionary<string, string>? localization = await _localizationService.LoadGlobalIniAsync(
                 installation.ChannelPath,
                 language,
                 installation.DataP4kPath,
@@ -184,27 +197,35 @@ public sealed class KeybindingProcessorService : IKeybindingProcessorService
                 return;
             }
 
-            foreach (var action in actions)
+            foreach (KeybindingActionData action in actions)
             {
                 // Resolve action label
-                if (localization.TryGetValue(action.Label, out var localizedLabel))
+                if (localization.TryGetValue(action.Label, out string? localizedLabel))
+                {
                     action.Label = localizedLabel;
+                }
 
 
                 // Resolve action description
                 if (!string.IsNullOrEmpty(action.Description) &&
-                    localization.TryGetValue(action.Description, out var localizedDesc))
+                    localization.TryGetValue(action.Description, out string? localizedDesc))
+                {
                     action.Description = localizedDesc;
+                }
 
                 // Resolve map label
                 if (!string.IsNullOrEmpty(action.MapLabel) &&
-                    localization.TryGetValue(action.MapLabel, out var localizedMapLabel))
+                    localization.TryGetValue(action.MapLabel, out string? localizedMapLabel))
+                {
                     action.MapLabel = localizedMapLabel;
+                }
 
                 // Resolve category
                 if (!string.IsNullOrEmpty(action.Category) &&
-                    localization.TryGetValue(action.Category, out var localizedCategory))
+                    localization.TryGetValue(action.Category, out string? localizedCategory))
+                {
                     action.Category = localizedCategory;
+                }
             }
         }
         catch (Exception ex)
@@ -218,8 +239,8 @@ public sealed class KeybindingProcessorService : IKeybindingProcessorService
     {
         try
         {
-            var parser = new UserOverrideParser();
-            var overrides = parser.Parse(actionMapsPath);
+            UserOverrideParser parser = new();
+            UserOverrides? overrides = parser.Parse(actionMapsPath);
 
             if (overrides is not { HasOverrides: true })
             {
@@ -238,23 +259,23 @@ public sealed class KeybindingProcessorService : IKeybindingProcessorService
         }
     }
 
-    private static List<KeybindingActionData> FilterActionsWithBindings(List<KeybindingActionData> actions)
-    {
-        return actions.Where(a =>
+    private static List<KeybindingActionData> FilterActionsWithBindings(List<KeybindingActionData> actions) =>
+        actions.Where(a =>
         {
             // Must have at least one binding
-            var hasBinding = !string.IsNullOrWhiteSpace(a.Bindings.Keyboard) ||
-                             !string.IsNullOrWhiteSpace(a.Bindings.Mouse) ||
-                             !string.IsNullOrWhiteSpace(a.Bindings.Joystick) ||
-                             !string.IsNullOrWhiteSpace(a.Bindings.Gamepad);
+            bool hasBinding = !string.IsNullOrWhiteSpace(a.Bindings.Keyboard) ||
+                              !string.IsNullOrWhiteSpace(a.Bindings.Mouse) ||
+                              !string.IsNullOrWhiteSpace(a.Bindings.Joystick) ||
+                              !string.IsNullOrWhiteSpace(a.Bindings.Gamepad);
 
-            if (!hasBinding) return false;
+            if (!hasBinding)
+            {
+                return false;
+            }
 
             // Exclude modifier-only bindings
             return !a.Bindings.Keyboard.IsModifierOnly();
         }).ToList();
-    }
-
 
     #endregion
 }

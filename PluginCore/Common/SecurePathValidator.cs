@@ -19,12 +19,15 @@ public static class SecurePathValidator
     {
         normalizedPath = string.Empty;
 
-        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(baseDirectory)) return false;
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(baseDirectory))
+        {
+            return false;
+        }
 
         try
         {
-            var fullPath = Path.GetFullPath(path);
-            var fullBase = Path.GetFullPath(baseDirectory);
+            string fullPath = Path.GetFullPath(path);
+            string fullBase = Path.GetFullPath(baseDirectory);
 
             normalizedPath = fullPath;
 
@@ -62,8 +65,10 @@ public static class SecurePathValidator
     /// <exception cref="SecurityException">Thrown when path traversal is detected or path is invalid.</exception>
     public static string GetSecurePath(string path, string baseDirectory)
     {
-        if (!IsValidPath(path, baseDirectory, out var normalized))
+        if (!IsValidPath(path, baseDirectory, out string normalized))
+        {
             throw new SecurityException($"Invalid or unsafe path detected. Path must be within: {baseDirectory}");
+        }
 
         return normalized;
     }
@@ -79,7 +84,10 @@ public static class SecurePathValidator
     {
         normalizedPath = string.Empty;
 
-        if (string.IsNullOrWhiteSpace(path)) return false;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
 
         try
         {

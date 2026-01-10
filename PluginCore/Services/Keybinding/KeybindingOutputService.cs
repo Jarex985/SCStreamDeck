@@ -1,8 +1,8 @@
 using System.Text;
 using Newtonsoft.Json;
-using Formatting = Newtonsoft.Json.Formatting;
 using SCStreamDeck.SCCore.Common;
 using SCStreamDeck.SCCore.Models;
+using Formatting = Newtonsoft.Json.Formatting;
 
 namespace SCStreamDeck.SCCore.Services.Keybinding;
 
@@ -33,22 +33,18 @@ public sealed class KeybindingOutputService : IKeybindingOutputService
         Dictionary<string, ActivationModeMetadata> activationModes,
         CancellationToken cancellationToken = default)
     {
-        var metadata = BuildMetadata(
+        KeybindingMetadata metadata = BuildMetadata(
             installation,
             actionMapsPath,
             keyboardLayout,
             language,
             activationModes);
 
-        var dataFile = new KeybindingDataFile
-        {
-            Metadata = metadata,
-            Actions = actions
-        };
+        KeybindingDataFile dataFile = new() { Metadata = metadata, Actions = actions };
 
         Directory.CreateDirectory(Path.GetDirectoryName(outputJsonPath)!);
 
-        var json = JsonConvert.SerializeObject(dataFile, Formatting.Indented);
+        string json = JsonConvert.SerializeObject(dataFile, Formatting.Indented);
         return File.WriteAllTextAsync(outputJsonPath, json, Encoding.UTF8, cancellationToken);
     }
 
@@ -62,12 +58,12 @@ public sealed class KeybindingOutputService : IKeybindingOutputService
         string language,
         Dictionary<string, ActivationModeMetadata> activationModes)
     {
-        var p4kInfo = new FileInfo(installation.DataP4kPath);
-        var metadata = new KeybindingMetadata
+        FileInfo p4kInfo = new(installation.DataP4kPath);
+        KeybindingMetadata metadata = new()
         {
             Version = "1.0",
             ExtractedAt = DateTime.UtcNow,
-            KeyboardHkl = (long)keyboardLayout.Hkl,
+            KeyboardHkl = keyboardLayout.Hkl,
             Language = language,
             DataP4kPath = NormalizePath(installation.DataP4kPath),
             DataP4kSize = p4kInfo.Length,
@@ -77,7 +73,7 @@ public sealed class KeybindingOutputService : IKeybindingOutputService
 
         if (!string.IsNullOrWhiteSpace(actionMapsPath) && File.Exists(actionMapsPath))
         {
-            var actionMapsInfo = new FileInfo(actionMapsPath);
+            FileInfo actionMapsInfo = new(actionMapsPath);
             metadata.ActionMapsPath = NormalizePath(actionMapsPath);
             metadata.ActionMapsSize = actionMapsInfo.Length;
             metadata.ActionMapsLastWrite = actionMapsInfo.LastWriteTime;
@@ -91,8 +87,5 @@ public sealed class KeybindingOutputService : IKeybindingOutputService
     /// </summary>
     /// <param name="path">The path to normalize</param>
     /// <returns>Normalized path with forward slashes</returns>
-    private static string NormalizePath(string path)
-    {
-        return Path.GetFullPath(path).Replace('\\', '/');
-    }
+    private static string NormalizePath(string path) => Path.GetFullPath(path).Replace('\\', '/');
 }

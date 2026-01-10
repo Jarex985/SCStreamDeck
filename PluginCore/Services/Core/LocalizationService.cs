@@ -22,10 +22,8 @@ public sealed class LocalizationService : ILocalizationService
 
     private readonly IP4KArchiveService _p4kService;
 
-    public LocalizationService(IP4KArchiveService p4kService)
-    {
+    public LocalizationService(IP4KArchiveService p4kService) =>
         _p4kService = p4kService ?? throw new ArgumentNullException(nameof(p4kService));
-    }
 
     public async Task<IReadOnlyDictionary<string, string>> LoadGlobalIniAsync(
         string channelPath,
@@ -38,23 +36,25 @@ public sealed class LocalizationService : ILocalizationService
         ArgumentException.ThrowIfNullOrWhiteSpace(dataP4kPath);
 
         language = NormalizeLanguage(language);
-        var cacheKey = (channelPath, language);
+        (string channelPath, string language) cacheKey = (channelPath, language);
 
         // Check cache
         lock (_cacheLock)
         {
-            if (_cache.TryGetValue(cacheKey, out var cached))
+            if (_cache.TryGetValue(cacheKey, out Dictionary<string, string>? cached))
+            {
                 return cached;
+            }
         }
 
 
         // Load from sources
-        var content = await TryLoadContentAsync(channelPath, language, dataP4kPath, cancellationToken)
+        string? content = await TryLoadContentAsync(channelPath, language, dataP4kPath, cancellationToken)
             .ConfigureAwait(false);
 
         if (content != null)
         {
-            var parsed = ParseGlobalIni(content);
+            Dictionary<string, string> parsed = ParseGlobalIni(content);
             lock (_cacheLock)
             {
                 _cache[cacheKey] = parsed;
@@ -81,20 +81,23 @@ public sealed class LocalizationService : ILocalizationService
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channelPath);
-        var userConfigPath = Path.Combine(channelPath, P4KConstants.UserConfigFileName);
+        string userConfigPath = Path.Combine(channelPath, P4KConstants.UserConfigFileName);
 
-        if (!SecurePathValidator.TryNormalizePath(userConfigPath, out var validPath))
+        if (!SecurePathValidator.TryNormalizePath(userConfigPath, out string validPath))
         {
             Logger.Instance.LogMessage(TracingLevel.WARN,
                 $"[Localization] Invalid {P4KConstants.UserConfigFileName} path: {userConfigPath}");
             return LocalizationConstants.DefaultLanguage;
         }
 
-        if (!File.Exists(validPath)) return LocalizationConstants.DefaultLanguage;
+        if (!File.Exists(validPath))
+        {
+            return LocalizationConstants.DefaultLanguage;
+        }
 
         try
         {
-            var lines = await File.ReadAllLinesAsync(validPath, cancellationToken).ConfigureAwait(false);
+            string[] lines = await File.ReadAllLinesAsync(validPath, cancellationToken).ConfigureAwait(false);
             return ParseLanguageFromLines(lines);
         }
 
@@ -115,12 +118,14 @@ public sealed class LocalizationService : ILocalizationService
     public void ClearCache(string channelPath, string language)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(language);
-        var cacheKey = (channelPath, language.ToUpperInvariant());
+        (string channelPath, string) cacheKey = (channelPath, language.ToUpperInvariant());
 
         lock (_cacheLock)
         {
             if (_cache.Remove(cacheKey))
+            {
                 Logger.Instance.LogMessage(TracingLevel.INFO, $"[Localization] Cleared cache for {language}");
+            }
         }
     }
 
@@ -144,8 +149,11 @@ public sealed class LocalizationService : ILocalizationService
         CancellationToken cancellationToken)
     {
         // Priority 1: Override folder
-        var content = await LoadFromOverrideFolderAsync(channelPath, language, cancellationToken).ConfigureAwait(false);
-        if (content != null) return content;
+        string? content = await LoadFromOverrideFolderAsync(channelPath, language, cancellationToken).ConfigureAwait(false);
+        if (content != null)
+        {
+            return content;
+        }
 
         // Priority 2: P4K
         return await LoadFromP4KAsync(dataP4kPath, language, cancellationToken).ConfigureAwait(false);
@@ -156,16 +164,19 @@ public sealed class LocalizationService : ILocalizationService
         string language,
         CancellationToken cancellationToken)
     {
-        var overridePath = Path.Combine(channelPath, "data", LocalizationConstants.LocalizationSubdirectory, language,
+        string overridePath = Path.Combine(channelPath, "data", LocalizationConstants.LocalizationSubdirectory, language,
             P4KConstants.GlobalIniFileName);
 
-        if (!SecurePathValidator.TryNormalizePath(overridePath, out var validPath))
+        if (!SecurePathValidator.TryNormalizePath(overridePath, out string validPath))
         {
             Logger.Instance.LogMessage(TracingLevel.WARN, $"[Localization] Invalid override path: {overridePath}");
             return null;
         }
 
-        if (!File.Exists(validPath)) return null;
+        if (!File.Exists(validPath))
+        {
+            return null;
+        }
 
         try
         {
@@ -199,7 +210,7 @@ public sealed class LocalizationService : ILocalizationService
 
         try
         {
-            var opened = await _p4kService.OpenArchiveAsync(dataP4kPath, cancellationToken).ConfigureAwait(false);
+            bool opened = await _p4kService.OpenArchiveAsync(dataP4kPath, cancellationToken).ConfigureAwait(false);
             if (!opened)
             {
                 Logger.Instance.LogMessage(TracingLevel.ERROR, "[Localization] Failed to open Data.p4k");
@@ -208,8 +219,8 @@ public sealed class LocalizationService : ILocalizationService
 
             try
             {
-                var directory = $"{P4KConstants.LocalizationBaseDirectory}/{language}";
-                var entries = await _p4kService
+                string directory = $"{P4KConstants.LocalizationBaseDirectory}/{language}";
+                IReadOnlyList<P4KFileEntry> entries = await _p4kService
                     .ScanDirectoryAsync(directory, P4KConstants.GlobalIniFileName, cancellationToken)
                     .ConfigureAwait(false);
 
@@ -220,7 +231,7 @@ public sealed class LocalizationService : ILocalizationService
                     return null;
                 }
 
-                var content = await _p4kService.ReadFileAsTextAsync(entries[0], cancellationToken)
+                string? content = await _p4kService.ReadFileAsTextAsync(entries[0], cancellationToken)
                     .ConfigureAwait(false);
                 return content;
             }
@@ -240,32 +251,46 @@ public sealed class LocalizationService : ILocalizationService
 
     private static Dictionary<string, string> ParseGlobalIni(string content)
     {
-        var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (string.IsNullOrWhiteSpace(content)) return dictionary;
+        Dictionary<string, string> dictionary = new(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return dictionary;
+        }
 
-        using var reader = new StringReader(content);
+        using StringReader reader = new(content);
 
         while (reader.ReadLine() is { } line)
         {
-            var trimmed = line.Trim();
+            string trimmed = line.Trim();
 
             // Skip empty and comments
             if (string.IsNullOrEmpty(trimmed) ||
                 trimmed.StartsWith("--", StringComparison.Ordinal) ||
                 trimmed.StartsWith("//", StringComparison.Ordinal) ||
                 trimmed.StartsWith('#'))
+            {
                 continue;
+            }
 
-            var equalsIndex = trimmed.IndexOf('=');
-            if (equalsIndex <= 0) continue;
+            int equalsIndex = trimmed.IndexOf('=');
+            if (equalsIndex <= 0)
+            {
+                continue;
+            }
 
-            var key = trimmed[..equalsIndex].Trim();
-            var value = trimmed[(equalsIndex + 1)..].Trim();
+            string key = trimmed[..equalsIndex].Trim();
+            string value = trimmed[(equalsIndex + 1)..].Trim();
 
-            if (string.IsNullOrEmpty(key)) continue;
+            if (string.IsNullOrEmpty(key))
+            {
+                continue;
+            }
 
             // Add "@" prefix for ui_ keys to match defaultProfile.xml format
-            if (key.StartsWith("ui_", StringComparison.OrdinalIgnoreCase)) key = "@" + key;
+            if (key.StartsWith("ui_", StringComparison.OrdinalIgnoreCase))
+            {
+                key = "@" + key;
+            }
 
             dictionary[key] = value;
         }
@@ -275,27 +300,37 @@ public sealed class LocalizationService : ILocalizationService
 
     private static string ParseLanguageFromLines(IEnumerable<string> lines)
     {
-        foreach (var line in lines)
+        foreach (string line in lines)
         {
-            var trimmed = line.Trim();
+            string trimmed = line.Trim();
 
             if (string.IsNullOrEmpty(trimmed) ||
                 trimmed.StartsWith("--", StringComparison.Ordinal) ||
                 trimmed.StartsWith("//", StringComparison.Ordinal) ||
                 trimmed.StartsWith('#'))
+            {
                 continue;
+            }
 
             if (!trimmed.StartsWith(LocalizationConstants.LanguageConfigKey, StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
+            }
 
-            var equalsIndex = trimmed.IndexOf('=');
-            if (equalsIndex <= 0) continue;
+            int equalsIndex = trimmed.IndexOf('=');
+            if (equalsIndex <= 0)
+            {
+                continue;
+            }
 
-            var value = trimmed[(equalsIndex + 1)..].Trim();
+            string value = trimmed[(equalsIndex + 1)..].Trim();
 
-            if (string.IsNullOrWhiteSpace(value)) continue;
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
 
-            var normalized = value.ToUpperInvariant();
+            string normalized = value.ToUpperInvariant();
             if (SupportedLanguages.Contains(normalized))
             {
                 Logger.Instance.LogMessage(TracingLevel.INFO, $"[Localization] Detected language: {normalized}");

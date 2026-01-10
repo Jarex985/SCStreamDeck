@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8" />
-    <meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui,viewport-fit=cover">
-    <meta name=apple-mobile-web-app-capable content=yes>
-    <meta name=apple-mobile-web-app-status-bar-style content=black>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui,viewport-fit=cover" name=viewport>
+    <meta content=yes name=apple-mobile-web-app-capable>
+    <meta content=black name=apple-mobile-web-app-status-bar-style>
     <title>Star Citizen Simple Button</title>
 
-    <link rel="stylesheet" href="../easy-pi/src/sdpi.css">
-    <link rel="stylesheet" href="../sc-overrides.css">
+    <link href="../easy-pi/src/sdpi.css" rel="stylesheet">
+    <link href="../sc-overrides.css" rel="stylesheet">
     <script src="../easy-pi/src/sdtools.common.js"></script>
 </head>
 <body>
@@ -18,8 +18,8 @@
     <div class="sdpi-item sc-wide">
         <label class="sdpi-item-label" for="function">Function</label>
         <select class="sdpi-item-value select sdProperty" id="function"
-                oninput="setSettings()"
-                onchange="updateFunctionDetails()">
+                onchange="updateFunctionDetails()"
+                oninput="setSettings()">
             <option value="">Loading Star Citizen functions...</option>
         </select>
     </div>
@@ -44,19 +44,19 @@
 
 <script>
     // Store all function data for details lookup
-    let allFunctionsData = []; 
+    let allFunctionsData = [];
     let currentFunctionValue = '';
 
     // Override EasyPI's loadConfiguration to capture the function value
     const originalLoadConfiguration = loadConfiguration;
-    loadConfiguration = function(payload) {
+    loadConfiguration = function (payload) {
         // Call original to handle other properties
         originalLoadConfiguration(payload);
-        
+
         // Store the function value for later restoration
         if (payload && payload.function) {
             currentFunctionValue = payload.function;
-            
+
             // If dropdown is already populated, restore the value
             const select = document.getElementById('function');
             if (select && select.options.length > 1) {
@@ -77,12 +77,18 @@
 
     function deviceLabel(device) {
         switch ((device || '').toLowerCase()) {
-            case 'keyboard': return 'Keyboard';
-            case 'mouse': return 'Mouse';
-            case 'mouseaxis': return 'Mouse Axis';
-            case 'joystick': return 'Joystick';
-            case 'gamepad': return 'Gamepad';
-            default: return device || 'Device';
+            case 'keyboard':
+                return 'Keyboard';
+            case 'mouse':
+                return 'Mouse';
+            case 'mouseaxis':
+                return 'Mouse Axis';
+            case 'joystick':
+                return 'Joystick';
+            case 'gamepad':
+                return 'Gamepad';
+            default:
+                return device || 'Device';
         }
     }
 
@@ -159,7 +165,7 @@
                 const option = document.createElement('option');
                 option.value = opt.value;
                 option.textContent = opt.text;
-                
+
                 if (opt.disabled) {
                     option.disabled = true;
                 }
@@ -201,23 +207,23 @@
     }
 
     // Capture sendToPropertyInspector payloads (custom messages from plugin)
-    document.addEventListener('websocketCreate', function() {
+    document.addEventListener('websocketCreate', function () {
         const originalOnMessage = websocket.onmessage;
 
-        websocket.onmessage = function(evt) {
+        websocket.onmessage = function (evt) {
             const jsonObj = JSON.parse(evt.data);
 
             if (jsonObj.event === 'sendToPropertyInspector' && jsonObj.payload) {
                 if (jsonObj.payload.functionsLoaded) {
                     // Store the functions data for details lookup
                     allFunctionsData = jsonObj.payload.functions || [];
-                    
+
                     // Manually populate the dropdown with the functions
                     // Use the saved currentFunctionValue to restore selection
                     populateDropdown(allFunctionsData, currentFunctionValue);
-                    
+
                     setStatus(jsonObj.payload.status || 'Functions loaded');
-                    
+
                     // Update details for currently selected function
                     updateFunctionDetails();
                 }
@@ -232,7 +238,7 @@
         };
     });
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         // Update details when selection changes
         const functionSelect = document.getElementById('function');
         if (functionSelect) {

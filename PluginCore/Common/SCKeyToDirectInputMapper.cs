@@ -135,8 +135,6 @@ internal static class SCKeyToDirectInputMapper
     /// <param name="scKey">SC key name (e.g. "y", "z", "f1", "apostrophe")</param>
     /// <param name="dik">The DirectInput key code representing the physical key position</param>
     /// <returns>True if mapping found, false otherwise</returns>
-    public static bool TryGetDirectInputKeyCode(string scKey, out DirectInputKeyCode dik)
-    {
-        return ScToDik.TryGetValue(scKey.ToLowerInvariant(), out dik);
-    }
+    public static bool TryGetDirectInputKeyCode(string scKey, out DirectInputKeyCode dik) =>
+        ScToDik.TryGetValue(scKey.ToLowerInvariant(), out dik);
 }

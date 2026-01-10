@@ -1,6 +1,8 @@
 ﻿using BarRaider.SdTools;
 using Microsoft.Extensions.DependencyInjection;
+using SCStreamDeck.SCCore.Buttons.Base;
 using SCStreamDeck.SCCore.Infrastructure;
+using SCStreamDeck.SCCore.Services.Core;
 
 namespace SCStreamDeck;
 
@@ -10,25 +12,28 @@ internal static class Program
     {
         // Uncomment this line of code to allow for debugging
         //while (!System.Diagnostics.Debugger.IsAttached) { System.Threading.Thread.Sleep(100); }
-        
+
         // Initialize SCCore DI container & Pre-initialize services before StreamDeck connection
-        var serviceProvider = ServiceConfiguration.BuildAndInitialize();
-        var initService = serviceProvider.GetRequiredService<SCCore.Services.Core.IInitializationService>();
-        
+        IServiceProvider serviceProvider = ServiceConfiguration.BuildAndInitialize();
+        IInitializationService initService = serviceProvider.GetRequiredService<IInitializationService>();
+
         // Initialize button services for dependency injection
-        SCCore.Buttons.Base.SCButtonBase.InitializeServices(serviceProvider);
-        
-        try 
+        SCButtonBase.InitializeServices(serviceProvider);
+
+        try
         {
-            var result = await initService.EnsureInitializedAsync();
-            
-            if (!result.IsSuccess) 
-                Logger.Instance.LogMessage(TracingLevel.WARN,$"[Program] Pre-initialization failed: {result.ErrorMessage}");
+            InitializationResult result = await initService.EnsureInitializedAsync();
+
+            if (!result.IsSuccess)
+            {
+                Logger.Instance.LogMessage(TracingLevel.WARN, $"[Program] Pre-initialization failed: {result.ErrorMessage}");
+            }
         }
-        catch (Exception ex) 
+        catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,$"[Program] Pre-initialization exception: {ex.Message}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[Program] Pre-initialization exception: {ex.Message}");
         }
+
         SDWrapper.Run(args);
     }
 }

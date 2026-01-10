@@ -15,12 +15,19 @@ internal static class InstallationCandidateEnumerator
     /// <param name="root">The root path to search from.</param>
     public static void AddCandidatesFromRoot(List<SCInstallCandidate> list, string root)
     {
-        if (string.IsNullOrWhiteSpace(root)) return;
+        if (string.IsNullOrWhiteSpace(root))
+        {
+            return;
+        }
 
         try
         {
             root = NormalizePath(root);
-            if (!Directory.Exists(root)) return;
+            if (!Directory.Exists(root))
+            {
+                return;
+            }
+
             list.AddRange(EnumerateCandidates(root));
         }
         catch (Exception ex)
@@ -35,29 +42,35 @@ internal static class InstallationCandidateEnumerator
     /// </summary>
     private static IEnumerable<SCInstallCandidate> EnumerateCandidates(string root)
     {
-        var foundAny = false;
+        bool foundAny = false;
 
         // RSI style: root + StarCitizen (e.g., "F:\Roberts Space Industries" + "StarCitizen")
-        var rsiStarCitizen = Path.Combine(root, "StarCitizen");
+        string rsiStarCitizen = Path.Combine(root, "StarCitizen");
         if (Directory.Exists(rsiStarCitizen))
-            foreach (var candidate in EnumerateCandidates(root, rsiStarCitizen))
+        {
+            foreach (SCInstallCandidate candidate in EnumerateCandidates(root, rsiStarCitizen))
             {
                 foundAny = true;
                 yield return candidate;
             }
+        }
 
         // Direct style: root already points at StarCitizen folder
         // Only check if we didn't find anything via RSI style to avoid duplicates
         if (!foundAny && root.EndsWith("StarCitizen", StringComparison.OrdinalIgnoreCase))
-            foreach (var candidate in EnumerateCandidates(root, root))
+        {
+            foreach (SCInstallCandidate candidate in EnumerateCandidates(root, root))
             {
                 foundAny = true;
                 yield return candidate;
             }
+        }
 
         if (!foundAny)
+        {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
                 $"[CandidateEnumerator] No StarCitizen folder found under root: {root}");
+        }
     }
 
     /// <summary>
@@ -65,21 +78,23 @@ internal static class InstallationCandidateEnumerator
     /// </summary>
     private static IEnumerable<SCInstallCandidate> EnumerateCandidates(string root, string starCitizenFolder)
     {
-        var channels = new[]
+        (SCChannel Channel, string FolderName)[] channels = new[]
         {
-            (Channel: SCChannel.Live, FolderName: "LIVE"),
-            (Channel: SCChannel.Ptu, FolderName: "PTU"),
+            (Channel: SCChannel.Live, FolderName: "LIVE"), (Channel: SCChannel.Ptu, FolderName: "PTU"),
             (Channel: SCChannel.Eptu, FolderName: "EPTU")
         };
 
-        foreach (var (channel, folderName) in channels)
+        foreach ((SCChannel channel, string folderName) in channels)
         {
-            var channelPath = Path.Combine(starCitizenFolder, folderName);
-            var dataP4K = Path.Combine(channelPath, "Data.p4k");
+            string channelPath = Path.Combine(starCitizenFolder, folderName);
+            string dataP4K = Path.Combine(channelPath, "Data.p4k");
 
-            if (!Directory.Exists(channelPath) || !File.Exists(dataP4K)) continue;
+            if (!Directory.Exists(channelPath) || !File.Exists(dataP4K))
+            {
+                continue;
+            }
 
-            var actualRootPath = starCitizenFolder.EndsWith("StarCitizen", StringComparison.OrdinalIgnoreCase)
+            string actualRootPath = starCitizenFolder.EndsWith("StarCitizen", StringComparison.OrdinalIgnoreCase)
                 ? Path.GetDirectoryName(starCitizenFolder) ?? root
                 : root;
 
@@ -93,8 +108,11 @@ internal static class InstallationCandidateEnumerator
 
     private static string NormalizePath(string? path)
     {
-        if (string.IsNullOrWhiteSpace(path)) return string.Empty;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return string.Empty;
+        }
 
-        return SecurePathValidator.TryNormalizePath(path, out var normalized) ? normalized : path.Trim();
+        return SecurePathValidator.TryNormalizePath(path, out string normalized) ? normalized : path.Trim();
     }
 }

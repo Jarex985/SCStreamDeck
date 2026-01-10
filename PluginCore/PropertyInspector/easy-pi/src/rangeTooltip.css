@@ -12,7 +12,7 @@
     font-size: 11px;
     color: black;
     z-index: 1000;
-    box-shadow: 0px 0px 12px rgba(0,0,0,.8);
+    box-shadow: 0px 0px 12px rgba(0, 0, 0, .8);
     padding: 2px;
 }
 
@@ -31,9 +31,9 @@
     position: relative;
     font-weight: normal;
     margin-top: 22px;
-    left:-200px;
-    min-width:200px;
-    text-align:center;
+    left: -200px;
+    min-width: 200px;
+    text-align: center;
 }
 
 .percent::after {

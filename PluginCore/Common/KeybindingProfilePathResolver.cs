@@ -13,21 +13,31 @@ public static class KeybindingProfilePathResolver
     /// <returns>The normalized path to actionmaps.xml, or null if not found.</returns>
     public static string? TryFindActionMapsXml(string? channelPath)
     {
-        if (string.IsNullOrWhiteSpace(channelPath)) return null;
+        if (string.IsNullOrWhiteSpace(channelPath))
+        {
+            return null;
+        }
 
         try
         {
-            var userDir = Path.Combine(channelPath, "user");
-            var clientDir = Path.Combine(userDir, "client");
-            if (!Directory.Exists(userDir) || !Directory.Exists(clientDir)) return null;
+            string userDir = Path.Combine(channelPath, "user");
+            string clientDir = Path.Combine(userDir, "client");
+            if (!Directory.Exists(userDir) || !Directory.Exists(clientDir))
+            {
+                return null;
+            }
 
             // Iterate through instance directories (typically "0", but could be others in the future)
-            foreach (var instanceDir in Directory.GetDirectories(clientDir))
+            foreach (string instanceDir in Directory.GetDirectories(clientDir))
             {
-                var candidate = Path.Combine(instanceDir, "Profiles", "default", "actionmaps.xml");
+                string candidate = Path.Combine(instanceDir, "Profiles", "default", "actionmaps.xml");
 
-                if (!File.Exists(candidate)) continue;
-                return SecurePathValidator.TryNormalizePath(candidate, out var normalized) ? normalized : null;
+                if (!File.Exists(candidate))
+                {
+                    continue;
+                }
+
+                return SecurePathValidator.TryNormalizePath(candidate, out string normalized) ? normalized : null;
             }
         }
         catch

@@ -8,11 +8,11 @@ namespace SCStreamDeck.SCCore.Common;
 /// </summary>
 public static partial class KeyboardLayoutDetector
 {
-/// <summary>
-///     Default US English keyboard layout HKL (0x04090409).
-///     Used as fallback if GetKeyboardLayout fails.
-/// </summary>
-private static readonly nint DefaultUsEnglishHkl = new IntPtr(0x04090409);
+    /// <summary>
+    ///     Default US English keyboard layout HKL (0x04090409).
+    ///     Used as fallback if GetKeyboardLayout fails.
+    /// </summary>
+    private static readonly nint DefaultUsEnglishHkl = new(0x04090409);
 
     private static readonly object _lock = new();
     private static KeyboardLayoutInfo? _cached;
@@ -30,20 +30,23 @@ private static readonly nint DefaultUsEnglishHkl = new IntPtr(0x04090409);
     {
         lock (_lock)
         {
-            if (_cached is not null) return _cached;
+            if (_cached is not null)
+            {
+                return _cached;
+            }
 
-        var hklPtr = GetKeyboardLayout(0);
+            IntPtr hklPtr = GetKeyboardLayout(0);
 
-        // GetKeyboardLayout returns 0 (IntPtr.Zero) on failure
-        // Fall back to US English layout if detection fails, although this is unlikely
-        var hkl = hklPtr == IntPtr.Zero ? DefaultUsEnglishHkl : hklPtr;
+            // GetKeyboardLayout returns 0 (IntPtr.Zero) on failure
+            // Fall back to US English layout if detection fails, although this is unlikely
+            IntPtr hkl = hklPtr == IntPtr.Zero ? DefaultUsEnglishHkl : hklPtr;
 
-        _cached = new KeyboardLayoutInfo(hkl);
+            _cached = new KeyboardLayoutInfo(hkl);
             return _cached;
         }
     }
 
-    
+
     // TODO: Why is it never used?
     /// <summary>
     ///     Clears the cached keyboard layout, forcing the next call to <see cref="DetectCurrent" />
