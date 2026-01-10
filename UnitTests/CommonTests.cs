@@ -1,4 +1,4 @@
-﻿using SCStreamDeck.SCCore.Common;
+﻿﻿using SCStreamDeck.SCCore.Common;
 using WindowsInput.Native;
 
 namespace UnitTests;
@@ -82,5 +82,14 @@ public class CommonTests
         string? result = WindowsKeyLayoutCharMapper.TryGetChar(hkl, (VirtualKeyCode)999, 0, false, false);
 
         Assert.Null(result);
+    }
+
+    [Fact]
+    public void DirectInputDisplayMapper_TestGetKeyName_ReturnsName()
+    {
+        // Test for L-Alt
+        var result = DirectInputDisplayMapper.TestGetKeyName(DirectInputKeyCode.DikLalt);
+        Assert.NotNull(result);
+        // Depending on system, it might be "Left Alt" or similar
     }
 }

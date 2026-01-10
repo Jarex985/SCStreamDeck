@@ -9,7 +9,7 @@ namespace SCStreamDeck.SCCore.Common;
 /// </summary>
 internal static class SCKeyToDirectInputMapper
 {
-    private static readonly Dictionary<string, DirectInputKeyCode> ScToDik = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, DirectInputKeyCode> s_scToDik = new(StringComparer.OrdinalIgnoreCase)
     {
         // Letters (QWERTY physical positions)
         ["a"] = DirectInputKeyCode.DikA,
@@ -136,5 +136,5 @@ internal static class SCKeyToDirectInputMapper
     /// <param name="dik">The DirectInput key code representing the physical key position</param>
     /// <returns>True if mapping found, false otherwise</returns>
     public static bool TryGetDirectInputKeyCode(string scKey, out DirectInputKeyCode dik) =>
-        ScToDik.TryGetValue(scKey.ToLowerInvariant(), out dik);
+        s_scToDik.TryGetValue(scKey.ToLowerInvariant(), out dik);
 }
