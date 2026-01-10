@@ -17,13 +17,22 @@ namespace SCStreamDeck.SCCore.Buttons.Base;
 /// </summary>
 public abstract class SCActionBase : KeyAndEncoderBase
 {
+    #region Fields and Properties
+
     private static IServiceProvider? s_serviceProvider;
+    private IInitializationService InitializationService { get; }
+    protected IKeybindingService KeybindingService { get; }
+    internal bool IsReady => InitializationService.IsInitialized && KeybindingService.IsLoaded;
+    protected FunctionSettings Settings { get; private set; }
+
+    #endregion
+
+    #region Constructor and Initialization
 
     protected SCActionBase(SDConnection connection, InitialPayload payload) : base(connection, payload)
     {
         ArgumentNullException.ThrowIfNull(payload);
 
-        // Load settings from payload
         if (payload.Settings == null || payload.Settings.Count == 0)
         {
             Settings = new FunctionSettings();
@@ -49,24 +58,15 @@ public abstract class SCActionBase : KeyAndEncoderBase
         }
     }
 
-    private IInitializationService InitializationService { get; }
-    protected IKeybindingService KeybindingService { get; }
-    internal bool IsReady => InitializationService.IsInitialized && KeybindingService.IsLoaded;
-
-    protected FunctionSettings Settings { get; private set; }
-
     /// <summary>
-    ///     Initializes the service provider for button dependency injection.
+    ///     Initializes the service provider for dependency injection.
     /// </summary>
     public static void InitializeServices(IServiceProvider serviceProvider) =>
         s_serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
 
-    /// <summary>
-    ///     Abstract method that derived classes must implement to define button behavior.
-    ///     Called when the button is pressed or released.
-    /// </summary>
-    /// <param name="isKeyDown">True if button was pressed, false if released</param>
-    protected abstract void ExecuteButtonAction(bool isKeyDown);
+    #endregion
+
+    #region Property Inspector Methods
 
     /// <summary>
     ///     Sends the current keybinding status and available actions to the Property Inspector.
@@ -86,8 +86,6 @@ public abstract class SCActionBase : KeyAndEncoderBase
 
             IReadOnlyList<KeybindingAction> allActions = KeybindingService.GetAllActions();
             IntPtr hkl = KeyboardLayoutDetector.DetectCurrent().Hkl;
-
-            // Build grouped functions payload using FunctionsPayloadBuilder
             JArray groups = FunctionsPayloadBuilder.BuildGroupedFunctionsPayload(allActions, hkl);
 
             Connection.SendToPropertyInspectorAsync(new JObject
@@ -116,7 +114,6 @@ public abstract class SCActionBase : KeyAndEncoderBase
 
     /// <summary>
     ///     Called when the Property Inspector sends a message to the plugin.
-    ///     Virtual so derived classes can override for custom message handling.
     /// </summary>
     private void OnSendToPlugin(object? sender, SDEventReceivedEventArgs<SendToPlugin> e)
     {
@@ -140,17 +137,9 @@ public abstract class SCActionBase : KeyAndEncoderBase
         }
     }
 
-    /// <summary>
-    ///     Sealed override of KeyPressed - calls ExecuteButtonAction.
-    ///     Derived classes should implement ExecuteButtonAction, not override this.
-    /// </summary>
-    public sealed override void KeyPressed(KeyPayload payload) => ExecuteButtonAction(true);
+    #endregion
 
-    /// <summary>
-    ///     Sealed override of KeyReleased - calls ExecuteButtonAction.
-    ///     Derived classes should implement ExecuteButtonAction, not override this.
-    /// </summary>
-    public sealed override void KeyReleased(KeyPayload payload) => ExecuteButtonAction(false);
+    #region Lifecycle Methods
 
     /// <summary>
     ///     Disposes resources and unsubscribes from events.
@@ -169,7 +158,7 @@ public abstract class SCActionBase : KeyAndEncoderBase
     {
         ArgumentNullException.ThrowIfNull(payload);
 
-        if (payload.Settings != null && payload.Settings.Count > 0)
+        if (payload.Settings is { Count: > 0 })
         {
             Settings = payload.Settings.ToObject<FunctionSettings>() ?? Settings;
         }
@@ -188,6 +177,8 @@ public abstract class SCActionBase : KeyAndEncoderBase
         // Override in derived classes if needed
     }
 
+    #endregion
+
     #region Dial and Touchpad Methods
 
     /// <summary>
@@ -195,7 +186,7 @@ public abstract class SCActionBase : KeyAndEncoderBase
     /// </summary>
     public override void DialRotate(DialRotatePayload payload)
     {
-        // Not implemented for buttons
+        // Not implemented for keys
     }
 
     /// <summary>
@@ -203,7 +194,7 @@ public abstract class SCActionBase : KeyAndEncoderBase
     /// </summary>
     public override void DialDown(DialPayload payload)
     {
-        // Not implemented for buttons
+        // Not implemented for keys
     }
 
     /// <summary>
@@ -211,7 +202,7 @@ public abstract class SCActionBase : KeyAndEncoderBase
     /// </summary>
     public override void DialUp(DialPayload payload)
     {
-        // Not implemented for buttons
+        // Not implemented for keys
     }
 
     /// <summary>
@@ -219,7 +210,7 @@ public abstract class SCActionBase : KeyAndEncoderBase
     /// </summary>
     public override void TouchPress(TouchpadPressPayload payload)
     {
-        // Not implemented for buttons
+        // Not implemented for keys
     }
     #endregion
 }

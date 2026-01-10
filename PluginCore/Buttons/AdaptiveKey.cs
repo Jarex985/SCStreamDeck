@@ -8,95 +8,122 @@ using SCStreamDeck.SCCore.Models;
 namespace SCStreamDeck.SCCore.Buttons;
 
 /// <summary>
-///     Adaptive Star Citizen button.
+///     Adaptive Star Citizen Key.
 ///     Automatically adjusts behavior based on action activation modes.
 /// </summary>
 [PluginActionId("com.jarex985.scstreamdeck.adaptivekey")]
 public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload) : SCActionBase(connection, payload)
 {
-    protected override void ExecuteButtonAction(bool isKeyDown)
+    #region Public Methods
+
+    public override async void KeyPressed(KeyPayload payload)
     {
-        if (string.IsNullOrWhiteSpace(Settings.Function))
+        try
         {
-            Logger.Instance.LogMessage(TracingLevel.WARN, $"{GetType().Name}: No function configured");
+            await ProcessKeyEventAsync(true).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.Instance.LogMessage(TracingLevel.ERROR,$"{GetType().Name}: {ex.Message}");
+        }
+    }
+
+    public override async void KeyReleased(KeyPayload payload)
+    {
+        try
+        {
+            await ProcessKeyEventAsync(false).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.Instance.LogMessage(TracingLevel.ERROR,$"{GetType().Name}: {ex.Message}");
+        }
+    }
+
+    #endregion
+
+    #region Private Methods
+
+    private async Task ProcessKeyEventAsync(bool isKeyDown)
+    {
+        var validationResult = ValidateAndResolve();
+        if (validationResult == null)
+        {
             return;
         }
 
-        if (!IsReady)
-        {
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"{GetType().Name}: Not ready - initialization in progress");
-            return;
-        }
-
-        if (!KeybindingService.TryGetAction(Settings.Function, out KeybindingAction? action) || action == null)
-        {
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"{GetType().Name}: Function '{Settings.Function}' not found");
-            return;
-        }
-
-        string? executableBinding = null;
-        InputType bindingType = InputType.Unknown;
-
-        if (!string.IsNullOrWhiteSpace(action.KeyboardBinding))
-        {
-            executableBinding = action.KeyboardBinding;
-            bindingType = InputType.Keyboard;
-        }
-        else if (!string.IsNullOrWhiteSpace(action.MouseBinding))
-        {
-            bindingType = action.MouseBinding.GetInputType();
-            if (bindingType == InputType.MouseButton || bindingType == InputType.MouseWheel)
-            {
-                executableBinding = action.MouseBinding;
-            }
-        }
-
-        if (string.IsNullOrWhiteSpace(executableBinding))
-        {
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"{GetType().Name}: Function '{Settings.Function}' not bound to executable input");
-            return;
-        }
+        (KeybindingAction action, string executableBinding) = validationResult.Value;
 
         KeybindingExecutionContext context = new()
         {
-            ActionName = Settings.Function,
+            ActionName = Settings.Function!,
             Binding = executableBinding,
             ActivationMode = action.ActivationMode,
             IsKeyDown = isKeyDown
         };
 
-        ExecuteKeybindingAsyncSafe(context, executableBinding, bindingType, action.ActivationMode, isKeyDown);
+        await ExecuteKeybindingAsync(context).ConfigureAwait(false);
     }
 
-    /// <summary>
-    ///     Executes keybinding asynchronously.
-    /// </summary>
-    private void ExecuteKeybindingAsyncSafe(
-        KeybindingExecutionContext context,
-        string executableBinding,
-        InputType bindingType,
-        ActivationMode activationMode,
-        bool isKeyDown) =>
-        _ = Task.Run(async () =>
+    private (KeybindingAction, string)? ValidateAndResolve()
+    {
+        if (!(!string.IsNullOrWhiteSpace(Settings.Function) || !IsReady))
         {
-            try
+            return null;
+        }
+
+        if (!KeybindingService.TryGetAction(Settings.Function, out KeybindingAction? action) || action == null)
+        {
+            return null;
+        }
+
+        string? executableBinding;
+        if (!string.IsNullOrWhiteSpace(action.KeyboardBinding))
+        {
+            executableBinding = action.KeyboardBinding;
+        }
+        else if (!string.IsNullOrWhiteSpace(action.MouseBinding))
+        {
+            InputType bindingType = action.MouseBinding.GetInputType();
+            executableBinding = bindingType is InputType.MouseButton or InputType.MouseWheel ? action.MouseBinding : null;
+        }
+        else
+        {
+            executableBinding = null;
+        }
+
+        if (executableBinding == null)
+        {
+            return null;
+        }
+
+        return (action, executableBinding);
+    }
+
+    private async Task ExecuteKeybindingAsync(KeybindingExecutionContext context)
+    {
+        try
+        {
+            bool success = await KeybindingService.ExecuteAsync(context).ConfigureAwait(false);
+            if (success)
             {
-                bool success = await KeybindingService.ExecuteAsync(context).ConfigureAwait(false);
-                // TODO: Remove this log or make it debug level later with if Debug
-                if (success)
-                {
-                    string actionText = isKeyDown ? "pressed" : "released";
-                    Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                        $"{GetType().Name}: {actionText} '{context.ActionName}' ({activationMode}) → '{executableBinding}' ({bindingType})");
-                }
+#if DEBUG
+                LogSuccessfulExecution(context);
+#endif
             }
-            catch (Exception ex)
-            {
-                Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"{GetType().Name}: Exception executing '{executableBinding}': {ex.Message}");
-            }
-        });
+        }
+        catch (Exception ex)
+        {
+            Logger.Instance.LogMessage(TracingLevel.ERROR,$"{GetType().Name}: '{context.ActionName}': {ex.Message}");
+        }
+    }
+
+    private void LogSuccessfulExecution(KeybindingExecutionContext context)
+    {
+        string actionText = context.IsKeyDown ? "pressed" : "released";
+        Logger.Instance.LogMessage(TracingLevel.DEBUG,
+            $"{GetType().Name}: {actionText} '{context.ActionName}' ({context.ActivationMode}) → '{context.Binding}'");
+    }
+
+    #endregion
 }

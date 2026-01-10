@@ -36,7 +36,7 @@ public interface IKeybindingService
     /// <param name="actionName">The action name to lookup (case-insensitive)</param>
     /// <param name="action">The found action, or null if not found</param>
     /// <returns>True if action exists, false otherwise</returns>
-    bool TryGetAction(string actionName, out KeybindingAction? action);
+    bool TryGetAction(string? actionName, out KeybindingAction? action);
 
     /// <summary>
     ///     Gets all loaded keybinding actions.
