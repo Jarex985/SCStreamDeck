@@ -18,11 +18,7 @@ public sealed class KeybindingDataFile
 /// </summary>
 public sealed class KeybindingMetadata
 {
-    [JsonProperty("version")] public string Version { get; set; } = "1.0";
-
     [JsonProperty("extractedAt")] public DateTime ExtractedAt { get; set; }
-
-    [JsonProperty("keyboardHkl")] public long KeyboardHkl { get; set; }
 
     [JsonProperty("language")] public string Language { get; set; } = "english";
 

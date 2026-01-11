@@ -13,7 +13,6 @@ public interface IKeybindingOutputService
     /// </summary>
     /// <param name="installation">Star Citizen installation candidate</param>
     /// <param name="actionMapsPath">Path to the actionmaps.xml file (optional)</param>
-    /// <param name="keyboardLayout">Keyboard layout information</param>
     /// <param name="language">Detected language code</param>
     /// <param name="outputJsonPath">Path where the JSON file should be written</param>
     /// <param name="actions">List of keybinding actions</param>
@@ -23,7 +22,6 @@ public interface IKeybindingOutputService
     Task WriteKeybindingsJsonAsync(
         SCInstallCandidate installation,
         string? actionMapsPath,
-        KeyboardLayoutInfo keyboardLayout,
         string language,
         string outputJsonPath,
         List<KeybindingActionData> actions,

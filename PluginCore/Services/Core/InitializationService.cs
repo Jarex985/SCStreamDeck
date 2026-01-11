@@ -266,8 +266,9 @@ public sealed class InitializationService : IInitializationService, IDisposable
             }
             else
             {
+                // No new installations, use cache
                 candidates = validationResult.ValidCandidates;
-            } // No new installations, use cache
+            }
         }
 
         return candidates;
@@ -304,8 +305,6 @@ public sealed class InitializationService : IInitializationService, IDisposable
     private async Task<bool> GenerateKeybindingsForChannelsAsync(List<SCInstallCandidate> candidates,
         SCInstallCandidate selectedCandidate, CancellationToken cancellationToken)
     {
-        KeyboardLayoutInfo keyboardLayout = KeyboardLayoutDetector.DetectCurrent();
-
         foreach (SCInstallCandidate candidate in candidates)
         {
             string channelJsonPath = _pathProvider.GetKeybindingJsonPath(candidate.Channel.ToString());
@@ -317,7 +316,6 @@ public sealed class InitializationService : IInitializationService, IDisposable
                 KeybindingProcessResult processResult = await _keybindingProcessor.ProcessKeybindingsAsync(
                     candidate,
                     actionMapsPath,
-                    keyboardLayout,
                     channelJsonPath,
                     cancellationToken).ConfigureAwait(false);
 
@@ -379,21 +377,14 @@ public sealed class InitializationService : IInitializationService, IDisposable
             }
 
             // Step 5: Load keybindings for selected channel
-            bool success = await _keybindingService.LoadKeybindingsAsync(GetKeybindingsJsonPath(), cancellationToken)
+            await _keybindingService.LoadKeybindingsAsync(GetKeybindingsJsonPath(), cancellationToken)
                 .ConfigureAwait(false);
-            if (!success)
-            {
-                Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    "[InitializationService] Keybindings load failed - check previous logs");
-            }
 
             lock (_lock)
             {
                 _initialized = true;
             }
-
             InitializationResult result = InitializationResult.Success(_currentChannel, candidates.Count);
-            //RaiseInitializationCompleted(result);
 
             return result;
         }
@@ -407,34 +398,15 @@ public sealed class InitializationService : IInitializationService, IDisposable
             }
 
             InitializationResult result = InitializationResult.Failure($"{ErrorMessages.InitializationFailed}: {ex.Message}");
-            //RaiseInitializationCompleted(result);
+
 
             return result;
         }
     }
 
-    /// <summary>
-    ///     Raises the InitializationCompleted event with proper exception handling.
-    ///     Event handlers should be fast; any slow operations should spawn their own tasks.
-    /// </summary>
-    /*private void RaiseInitializationCompleted(InitializationResult result)
-    {
-        try
-        {
-            InitializationCompleted?.Invoke(this, result);
-        }
-
-        catch (Exception ex)
-        {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[InitializationService] {ErrorMessages.EventHandlerFailed}: {ex.Message}");
-        }
-    }*/
-
-    // Cache validation result helper class
     private sealed class CacheValidationResult
     {
-        public List<SCInstallCandidate> ValidCandidates { get; init; } = new();
+        public List<SCInstallCandidate> ValidCandidates { get; init; } = [];
         public bool NeedsFullDetection { get; init; }
     }
 }

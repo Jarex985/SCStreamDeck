@@ -1,4 +1,4 @@
-﻿﻿using System.Text;
+﻿using System.Text;
 using BarRaider.SdTools;
 using SCStreamDeck.Common;
 using SCStreamDeck.Logging;
@@ -30,12 +30,10 @@ public sealed class KeybindingProcessorService(
     public async Task<KeybindingProcessResult> ProcessKeybindingsAsync(
         SCInstallCandidate installation,
         string? actionMapsPath,
-        KeyboardLayoutInfo keyboardLayout,
         string outputJsonPath,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(installation);
-        ArgumentNullException.ThrowIfNull(keyboardLayout);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputJsonPath);
 
         try
@@ -74,7 +72,6 @@ public sealed class KeybindingProcessorService(
             await _outputService.WriteKeybindingsJsonAsync(
                 installation,
                 actionMapsPath,
-                keyboardLayout,
                 detectedLanguage,
                 outputJsonPath,
                 filteredActions,

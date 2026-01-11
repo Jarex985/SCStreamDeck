@@ -16,7 +16,6 @@ public sealed class KeybindingOutputService : IKeybindingOutputService
     /// </summary>
     /// <param name="installation">Star Citizen installation candidate</param>
     /// <param name="actionMapsPath">Path to the actionmaps.xml file (optional)</param>
-    /// <param name="keyboardLayout">Keyboard layout information</param>
     /// <param name="language">Detected language code</param>
     /// <param name="outputJsonPath">Path where the JSON file should be written</param>
     /// <param name="actions">List of keybinding actions</param>
@@ -26,7 +25,6 @@ public sealed class KeybindingOutputService : IKeybindingOutputService
     public Task WriteKeybindingsJsonAsync(
         SCInstallCandidate installation,
         string? actionMapsPath,
-        KeyboardLayoutInfo keyboardLayout,
         string language,
         string outputJsonPath,
         List<KeybindingActionData> actions,
@@ -36,7 +34,6 @@ public sealed class KeybindingOutputService : IKeybindingOutputService
         KeybindingMetadata metadata = BuildMetadata(
             installation,
             actionMapsPath,
-            keyboardLayout,
             language,
             activationModes);
 
@@ -54,16 +51,13 @@ public sealed class KeybindingOutputService : IKeybindingOutputService
     private static KeybindingMetadata BuildMetadata(
         SCInstallCandidate installation,
         string? actionMapsPath,
-        KeyboardLayoutInfo keyboardLayout,
         string language,
         Dictionary<string, ActivationModeMetadata> activationModes)
     {
         FileInfo p4KInfo = new(installation.DataP4KPath);
         KeybindingMetadata metadata = new()
         {
-            Version = "1.0",
             ExtractedAt = DateTime.UtcNow,
-            KeyboardHkl = keyboardLayout.Hkl,
             Language = language,
             DataP4KPath = NormalizePath(installation.DataP4KPath),
             DataP4KSize = p4KInfo.Length,

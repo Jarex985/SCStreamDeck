@@ -14,14 +14,12 @@ public interface IKeybindingProcessorService
     /// </summary>
     /// <param name="installation">SC installation to process</param>
     /// <param name="actionMapsPath">Path to user's actionmaps.xml (optional overrides)</param>
-    /// <param name="keyboardLayout">Keyboard layout info</param>
     /// <param name="outputJsonPath">Path where JSON should be saved</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Detected language and success status</returns>
     Task<KeybindingProcessResult> ProcessKeybindingsAsync(
         SCInstallCandidate installation,
         string? actionMapsPath,
-        KeyboardLayoutInfo keyboardLayout,
         string outputJsonPath,
         CancellationToken cancellationToken = default);
 
