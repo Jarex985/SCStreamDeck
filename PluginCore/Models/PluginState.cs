@@ -19,12 +19,13 @@ public sealed record PluginState(
     [property: JsonPropertyName("ptuInstallation")]
     InstallationState? PtuInstallation,
     [property: JsonPropertyName("eptuInstallation")]
-    InstallationState? EptuInstallation
+    InstallationState? EptuInstallation,
+    [property: JsonPropertyName("hotfixInstallation")]
+    InstallationState? HotfixInstallation
 )
 {
-    private static readonly JsonSerializerOptions LoadOptions = new() { PropertyNameCaseInsensitive = true };
-
-    private static readonly JsonSerializerOptions SaveOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions s_loadOptions = new() { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } };
+    private static readonly JsonSerializerOptions s_saveOptions = new() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
 
     /// <summary>
     ///     Gets the installation state for the specified channel.
@@ -33,6 +34,7 @@ public sealed record PluginState(
         channel switch
         {
             SCChannel.Live => LiveInstallation,
+            SCChannel.Hotfix => HotfixInstallation,
             SCChannel.Ptu => PtuInstallation,
             SCChannel.Eptu => EptuInstallation,
             _ => null
@@ -48,6 +50,11 @@ public sealed record PluginState(
         if (LiveInstallation != null)
         {
             candidates.Add(LiveInstallation.ToCandidate());
+        }
+
+        if (HotfixInstallation != null)
+        {
+            candidates.Add(HotfixInstallation.ToCandidate());
         }
 
         if (PtuInstallation != null)
@@ -79,6 +86,7 @@ public sealed record PluginState(
         channel switch
         {
             SCChannel.Live => this with { LiveInstallation = installation },
+            SCChannel.Hotfix => this with { HotfixInstallation = installation },
             SCChannel.Ptu => this with { PtuInstallation = installation },
             SCChannel.Eptu => this with { EptuInstallation = installation },
             _ => this
@@ -91,6 +99,7 @@ public sealed record PluginState(
         channel switch
         {
             SCChannel.Live => this with { LiveInstallation = null },
+            SCChannel.Hotfix => this with { HotfixInstallation = null },
             SCChannel.Ptu => this with { PtuInstallation = null },
             SCChannel.Eptu => this with { EptuInstallation = null },
             _ => this
@@ -123,7 +132,7 @@ public sealed record PluginState(
             await using FileStream stream = File.OpenRead(filePath);
             PluginState? state = await JsonSerializer.DeserializeAsync<PluginState>(
                 stream,
-                LoadOptions,
+                s_loadOptions,
                 cancellationToken).ConfigureAwait(false);
 
             return state;
@@ -148,7 +157,7 @@ public sealed record PluginState(
             await JsonSerializer.SerializeAsync(
                 stream,
                 this,
-                SaveOptions,
+                s_saveOptions,
                 cancellationToken).ConfigureAwait(false);
         }
         catch (IOException ex)

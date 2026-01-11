@@ -1,4 +1,4 @@
-namespace SCStreamDeck.SCCore.Models;
+namespace SCStreamDeck.SCCore.Common;
 
 /// <summary>
 ///     Constants for localization handling.

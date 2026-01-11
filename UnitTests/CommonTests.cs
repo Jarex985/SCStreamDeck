@@ -1,4 +1,4 @@
-﻿﻿using SCStreamDeck.SCCore.Common;
+﻿using SCStreamDeck.SCCore.Common;
 using WindowsInput.Native;
 
 namespace UnitTests;
@@ -88,8 +88,49 @@ public class CommonTests
     public void DirectInputDisplayMapper_TestGetKeyName_ReturnsName()
     {
         // Test for L-Alt
-        var result = DirectInputDisplayMapper.TestGetKeyName(DirectInputKeyCode.DikLalt);
+        var result = DirectInputDisplayMapper.TryGetKeyNameTextFromDik(DirectInputKeyCode.DikLalt);
         Assert.NotNull(result);
         // Depending on system, it might be "Left Alt" or similar
+    }
+
+    [Fact]
+    public void DirectInputDisplayMapper_ToDisplay_NullOrEmpty_ReturnsEmpty()
+    {
+        IntPtr hkl = KeyboardLayoutDetector.DetectCurrent().Hkl;
+        Assert.Equal(string.Empty, DirectInputDisplayMapper.ToDisplay(null, hkl));
+        Assert.Equal(string.Empty, DirectInputDisplayMapper.ToDisplay("", hkl));
+        Assert.Equal(string.Empty, DirectInputDisplayMapper.ToDisplay("   ", hkl));
+    }
+
+    [Fact]
+    public void DirectInputDisplayMapper_ToDisplay_SingleKey_ReturnsUpperCase()
+    {
+        IntPtr hkl = KeyboardLayoutDetector.DetectCurrent().Hkl;
+        var result = DirectInputDisplayMapper.ToDisplay("a", hkl);
+        Assert.Equal("A", result); // Assuming 'a' maps to 'A'
+    }
+
+    [Fact]
+    public void DirectInputDisplayMapper_ToDisplay_ModifierCombination_ReturnsFormatted()
+    {
+        IntPtr hkl = KeyboardLayoutDetector.DetectCurrent().Hkl;
+        var result = DirectInputDisplayMapper.ToDisplay("lshift+a", hkl);
+        Assert.Equal("L-Shift + A", result);
+    }
+
+    [Fact]
+    public void DirectInputDisplayMapper_ToDisplay_InvalidKey_ReturnsUpperCase()
+    {
+        IntPtr hkl = KeyboardLayoutDetector.DetectCurrent().Hkl;
+        var result = DirectInputDisplayMapper.ToDisplay("invalid", hkl);
+        Assert.Equal("INVALID", result);
+    }
+
+    [Fact]
+    public void DirectInputDisplayMapper_IsModifierKey_ReturnsTrueForModifiers()
+    {
+        Assert.True(DirectInputDisplayMapper.IsModifierKey(DirectInputKeyCode.DikLshift));
+        Assert.True(DirectInputDisplayMapper.IsModifierKey(DirectInputKeyCode.DikRalt));
+        Assert.False(DirectInputDisplayMapper.IsModifierKey(DirectInputKeyCode.DikA));
     }
 }

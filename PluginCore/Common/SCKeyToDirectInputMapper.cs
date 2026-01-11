@@ -104,7 +104,7 @@ internal static class SCKeyToDirectInputMapper
         ["home"] = DirectInputKeyCode.DikHome,
         ["end"] = DirectInputKeyCode.DikEnd,
         ["pgup"] = DirectInputKeyCode.DikPageUp,
-        ["pgdown"] = DirectInputKeyCode.DikPageDown,
+        ["pgdn"] = DirectInputKeyCode.DikPageDown,
         ["insert"] = DirectInputKeyCode.DikInsert,
         ["delete"] = DirectInputKeyCode.DikDelete,
 

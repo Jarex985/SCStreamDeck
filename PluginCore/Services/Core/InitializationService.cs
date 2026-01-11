@@ -274,13 +274,14 @@ public sealed class InitializationService : IInitializationService, IDisposable
     }
 
     /// <summary>
-    ///     Selects the optimal channel from available installations with priority: LIVE > PTU > EPTU.
+    ///     Selects the optimal channel from available installations with priority: LIVE > HOTFIX > PTU > EPTU.
     ///     Only selects channels that actually exist in the candidates list.
     /// </summary>
     private SCInstallCandidate SelectOptimalChannel(List<SCInstallCandidate> candidates)
     {
-        // Prefer LIVE, then PTU, then EPTU - but only if they actually exist
+        // Prefer LIVE, then HOTFIX, then PTU, then EPTU - but only if they actually exist
         SCInstallCandidate selectedCandidate = candidates.FirstOrDefault(c => c.Channel == SCChannel.Live)
+                                               ?? candidates.FirstOrDefault(c => c.Channel == SCChannel.Hotfix)
                                                ?? candidates.FirstOrDefault(c => c.Channel == SCChannel.Ptu)
                                                ?? candidates.FirstOrDefault(c => c.Channel == SCChannel.Eptu)
                                                ?? candidates[0];

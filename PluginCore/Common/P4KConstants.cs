@@ -1,4 +1,4 @@
-﻿namespace SCStreamDeck.SCCore.Models;
+﻿namespace SCStreamDeck.SCCore.Common;
 
 /// <summary>
 ///     Constants for P4K archive handling.
@@ -45,6 +45,18 @@ internal static class P4KConstants
     ///     Custom actionmaps override filename.
     /// </summary>
     public const string ActionMapsFileName = "actionmaps.xml";
+
+    // ===== Installation Paths =====
+
+    /// <summary>
+    ///     Star Citizen folder name.
+    /// </summary>
+    public const string StarCitizenFolderName = "StarCitizen";
+
+    /// <summary>
+    ///     Data P4K filename.
+    /// </summary>
+    public const string DataP4kFileName = "Data.p4k";
 
     /// <summary>
     ///     AES encryption key for Star Citizen P4K archives.

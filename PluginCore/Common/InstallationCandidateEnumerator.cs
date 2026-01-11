@@ -45,7 +45,7 @@ internal static class InstallationCandidateEnumerator
         bool foundAny = false;
 
         // RSI style: root + StarCitizen (e.g., "F:\Roberts Space Industries" + "StarCitizen")
-        string rsiStarCitizen = Path.Combine(root, "StarCitizen");
+        string rsiStarCitizen = Path.Combine(root, P4KConstants.StarCitizenFolderName);
         if (Directory.Exists(rsiStarCitizen))
         {
             foreach (SCInstallCandidate candidate in EnumerateCandidates(root, rsiStarCitizen))
@@ -57,7 +57,7 @@ internal static class InstallationCandidateEnumerator
 
         // Direct style: root already points at StarCitizen folder
         // Only check if we didn't find anything via RSI style to avoid duplicates
-        if (!foundAny && root.EndsWith("StarCitizen", StringComparison.OrdinalIgnoreCase))
+        if (!foundAny && root.EndsWith(P4KConstants.StarCitizenFolderName, StringComparison.OrdinalIgnoreCase))
         {
             foreach (SCInstallCandidate candidate in EnumerateCandidates(root, root))
             {
@@ -78,23 +78,18 @@ internal static class InstallationCandidateEnumerator
     /// </summary>
     private static IEnumerable<SCInstallCandidate> EnumerateCandidates(string root, string starCitizenFolder)
     {
-        (SCChannel Channel, string FolderName)[] channels = new[]
+        foreach (SCChannel channel in Enum.GetValues<SCChannel>())
         {
-            (Channel: SCChannel.Live, FolderName: "LIVE"), (Channel: SCChannel.Ptu, FolderName: "PTU"),
-            (Channel: SCChannel.Eptu, FolderName: "EPTU")
-        };
-
-        foreach ((SCChannel channel, string folderName) in channels)
-        {
+            string folderName = channel.GetFolderName();
             string channelPath = Path.Combine(starCitizenFolder, folderName);
-            string dataP4K = Path.Combine(channelPath, "Data.p4k");
+            string dataP4K = Path.Combine(channelPath, P4KConstants.DataP4kFileName);
 
             if (!Directory.Exists(channelPath) || !File.Exists(dataP4K))
             {
                 continue;
             }
 
-            string actualRootPath = starCitizenFolder.EndsWith("StarCitizen", StringComparison.OrdinalIgnoreCase)
+            string actualRootPath = starCitizenFolder.EndsWith(P4KConstants.StarCitizenFolderName, StringComparison.OrdinalIgnoreCase)
                 ? Path.GetDirectoryName(starCitizenFolder) ?? root
                 : root;
 

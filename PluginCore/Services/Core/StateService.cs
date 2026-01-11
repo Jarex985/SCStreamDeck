@@ -79,6 +79,7 @@ public sealed class StateService(IPathProvider pathProvider, IVersionProvider ve
                 channel,
                 null,
                 null,
+                null,
                 null
             );
         }
@@ -113,6 +114,7 @@ public sealed class StateService(IPathProvider pathProvider, IVersionProvider ve
                 await _versionProvider.GetPluginVersionAsync(cancellationToken).ConfigureAwait(false),
                 DateTime.UtcNow,
                 channel,
+                null,
                 null,
                 null,
                 null

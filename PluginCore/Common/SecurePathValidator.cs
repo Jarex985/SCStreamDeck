@@ -28,10 +28,8 @@ public static class SecurePathValidator
         {
             string fullPath = Path.GetFullPath(path);
             string fullBase = Path.GetFullPath(baseDirectory);
-
             normalizedPath = fullPath;
 
-            // Ensure the resolved path starts with the base directory (case-insensitive for Windows)
             return fullPath.StartsWith(fullBase, StringComparison.OrdinalIgnoreCase);
         }
         catch (ArgumentException)

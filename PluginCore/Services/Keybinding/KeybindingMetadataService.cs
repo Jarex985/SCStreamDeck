@@ -1,5 +1,6 @@
 using BarRaider.SdTools;
 using Newtonsoft.Json;
+using SCStreamDeck.SCCore.Common;
 using SCStreamDeck.SCCore.Logging;
 using SCStreamDeck.SCCore.Models;
 

@@ -5,41 +5,27 @@ namespace SCStreamDeck.SCCore.Common;
 
 /// <summary>
 ///     Maps DirectInput key codes to user-friendly display strings.
-///     Uses layout-aware character mapping for typeable keys and fixed labels for special keys.
 /// </summary>
-internal static partial class DirectInputDisplayMapper
+internal static class DirectInputDisplayMapper
 {
+    #region Constants and Imports
+
+    private const int BufferSize = 256;
+    private const int LParamShift = 16;
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetKeyNameText(long lParam, [Out] char[] lpString, int cchSize);
 
-    /// <summary>
-    ///     Gets the key name using Windows API (for testing GetKeyNameText).
-    /// </summary>
-    private static string? GetKeyNameFromScanCode(uint scanCode)
-    {
-        const int bufferSize = 256;
-        char[] buffer = new char[bufferSize];
-        long lParam = scanCode << 16; // lParam format for GetKeyNameText
-        int result = GetKeyNameText(lParam, buffer, bufferSize);
-        return result > 0 ? new string(buffer, 0, result) : null;
-    }
+    #endregion
+
+    #region Public Interface
 
     /// <summary>
-    ///     Test method to check if GetKeyNameText works for a DIK.
+    ///     Converts SC keyboard binding to display string.
     /// </summary>
-    public static string? TestGetKeyName(DirectInputKeyCode dik)
-    {
-        // Convert DIK to scan code (approximate, as DIK is not directly scan code)
-        uint scanCode = (uint)dik;
-        return GetKeyNameFromScanCode(scanCode);
-    }
-
-    /// <summary>
-    ///     Converts a Star Citizen keyboard binding to a user-friendly display string.
-    /// </summary>
-    /// <param name="scKeyboardBind">The SC keyboard binding (e.g. "lshift+apostrophe")</param>
-    /// <param name="hkl">The keyboard layout handle</param>
-    /// <returns>Formatted display string (e.g. "L-Shift + Ä")</returns>
+    /// <param name="scKeyboardBind">SC binding (e.g. "lshift+apostrophe")</param>
+    /// <param name="hkl">Keyboard layout handle</param>
+    /// <returns>Formatted display (e.g. "L-Shift + Ä")</returns>
     public static string ToDisplay(string? scKeyboardBind, nint hkl)
     {
         if (string.IsNullOrWhiteSpace(scKeyboardBind))
@@ -47,42 +33,62 @@ internal static partial class DirectInputDisplayMapper
             return string.Empty;
         }
 
-        string[] parts = scKeyboardBind.Split(['+'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        string[] parts = ParseBindingParts(scKeyboardBind);
+        return parts.Length == 0 ? string.Empty : FormatDisplayString(parts, hkl);
+    }
 
-        if (parts.Length == 0)
-        {
-            return string.Empty;
-        }
+    #endregion
 
+    #region Binding Parsing
+
+    /// <summary>
+    ///     Parses binding into token parts.
+    /// </summary>
+    private static string[] ParseBindingParts(string scKeyboardBind)
+    {
+        return scKeyboardBind.Split(['+'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    /// <summary>
+    ///     Formats display by converting tokens and joining.
+    /// </summary>
+    private static string FormatDisplayString(string[] parts, nint hkl)
+    {
         return string.Join(" + ", parts.Select(p => TokenToDisplay(p, hkl)));
     }
+
+    #endregion
+
+    #region Token Processing
 
     private static string TokenToDisplay(string token, nint hkl)
     {
         token = token.Trim().ToLowerInvariant();
 
-        if (SCKeyToDirectInputMapper.TryGetDirectInputKeyCode(token, out DirectInputKeyCode dik))
-        {
-            return ToDisplay(dik, hkl);
-        }
-
-        return token.ToUpperInvariant();
+        return SCKeyToDirectInputMapper.TryGetDirectInputKeyCode(token, out DirectInputKeyCode dik)
+            ? ToDisplay(dik, hkl) : token;
     }
 
+    #endregion
+
+    #region Key Resolution
+
     /// <summary>
-    ///     Converts a DirectInput key code to a display string for the specified keyboard layout.
+    ///     Converts DIK to display string for given layout.
+    ///     1. Try fixed names for special/modifier keys.
+    ///     2. For typeable keys: DIK → VK → layout-aware char.
     /// </summary>
-    /// <param name="dik">The DirectInput key code</param>
-    /// <param name="hkl">The keyboard layout handle</param>
+    /// <param name="dik">DirectInput key code</param>
+    /// <param name="hkl">Keyboard layout handle</param>
     /// <returns>User-friendly display string</returns>
-    public static string ToDisplay(DirectInputKeyCode dik, nint hkl)
+    private static string ToDisplay(DirectInputKeyCode dik, nint hkl)
     {
         if (TryGetFixedDisplay(dik, out string fixedDisplay))
         {
             return fixedDisplay;
         }
 
-        // Character keys: Nutze Windows API für layout-aware Zeichenermittlung
+        // Typeable keys: Use Windows API for layout-aware detection
         uint scanCode = (uint)dik;
         uint vk = NativeMethods.MapVirtualKeyEx(scanCode, 3, hkl);
 
@@ -99,30 +105,30 @@ internal static partial class DirectInputDisplayMapper
             return dik.ToString();
         }
 
-        string result = ch.Length == 1 ? ch.ToUpperInvariant() : ch;
-
-
+        string result = ToTitleCase(ch.Length == 1 ? ch.ToUpperInvariant() : ch);
         return result;
     }
 
+    /// <summary>
+    ///     Checks if DIK is a modifier key requiring L/R distinction.
+    /// </summary>
+    internal static bool IsModifierKey(DirectInputKeyCode dik)
+    {
+        return dik is DirectInputKeyCode.DikLshift or DirectInputKeyCode.DikRshift or
+               DirectInputKeyCode.DikLcontrol or DirectInputKeyCode.DikRcontrol or
+               DirectInputKeyCode.DikLalt or DirectInputKeyCode.DikRalt;
+    }
+
+    #endregion
+
+    #region Fixed Displays
+
     private static bool TryGetFixedDisplay(DirectInputKeyCode dik, out string display)
     {
-        // Try GetKeyNameText first for most keys
-        string? keyName = TestGetKeyName(dik);
-        if (!string.IsNullOrWhiteSpace(keyName))
-        {
-            // Use GetKeyNameText for all keys except modifiers (to ensure L/R distinction)
-            if (!IsModifierKey(dik))
-            {
-                display = keyName.ToUpperInvariant();
-                return true;
-            }
-        }
-
-        // Fallback to switch only for modifier keys that need specific L/R names
+        // First, check explicit mappings for consistency (e.g., Numpad, Modifiers)
         display = dik switch
         {
-            // Special keys
+            // Legacy specials - now via GetKeyNameText
             /*DirectInputKeyCode.DikEscape => "Esc",
             DirectInputKeyCode.DikSpace => "Space",
             DirectInputKeyCode.DikReturn => "Enter",
@@ -132,7 +138,7 @@ internal static partial class DirectInputDisplayMapper
             DirectInputKeyCode.DikNumlock => "NumLock",
             DirectInputKeyCode.DikScroll => "ScrollLock",*/
 
-            // Modifiers
+            // Modifiers - explicit for L/R distinction
             DirectInputKeyCode.DikLshift => "L-Shift",
             DirectInputKeyCode.DikRshift => "R-Shift",
             DirectInputKeyCode.DikLcontrol => "L-Ctrl",
@@ -140,7 +146,7 @@ internal static partial class DirectInputDisplayMapper
             DirectInputKeyCode.DikLalt => "L-Alt",
             DirectInputKeyCode.DikRalt => "R-Alt",
 
-            // Navigation
+            // Navigation - now handled by GetKeyNameText with RemoveDikPrefix
             DirectInputKeyCode.DikUp => "Up",
             DirectInputKeyCode.DikDown => "Down",
             DirectInputKeyCode.DikLeft => "Left",
@@ -152,8 +158,8 @@ internal static partial class DirectInputDisplayMapper
             DirectInputKeyCode.DikInsert => "Ins",
             DirectInputKeyCode.DikDelete => "Del",
 
-            // Numpad
-            /*DirectInputKeyCode.DikNumpad0 => "Num0",
+            // Numpad - explicit for consistency
+            DirectInputKeyCode.DikNumpad0 => "Num0",
             DirectInputKeyCode.DikNumpad1 => "Num1",
             DirectInputKeyCode.DikNumpad2 => "Num2",
             DirectInputKeyCode.DikNumpad3 => "Num3",
@@ -168,18 +174,78 @@ internal static partial class DirectInputDisplayMapper
             DirectInputKeyCode.DikSubtract => "Num-",
             DirectInputKeyCode.DikDivide => "Num/",
             DirectInputKeyCode.DikDecimal => "Num.",
-            DirectInputKeyCode.DikNumpadenter => "NumEnter",*/
+            DirectInputKeyCode.DikNumpadenter => "NumEnter",
 
             _ => string.Empty
         };
 
-        return !string.IsNullOrEmpty(display);
+        if (!string.IsNullOrEmpty(display))
+        {
+            return true;
+        }
+
+        // Fallback to GetKeyNameText for other keys
+        string? keyName = TryGetKeyNameTextFromDik(dik);
+
+        if (!string.IsNullOrWhiteSpace(keyName) && !IsModifierKey(dik))
+        {
+            display = ToTitleCase(RemoveDikPrefix(keyName));
+            return true;
+        }
+
+        if (IsModifierKey(dik))
+        {
+            return false;
+        }
+
+        display = ToTitleCase(RemoveDikPrefix(dik.ToString()));
+        return true;
     }
 
-    private static bool IsModifierKey(DirectInputKeyCode dik)
+    #endregion
+
+    #region Windows API Helpers
+
+    /// <summary>
+    ///     Gets localized key name for DIK using GetKeyNameText.
+    /// </summary>
+    internal static string? TryGetKeyNameTextFromDik(DirectInputKeyCode dik)
     {
-        return dik is DirectInputKeyCode.DikLshift or DirectInputKeyCode.DikRshift or
-               DirectInputKeyCode.DikLcontrol or DirectInputKeyCode.DikRcontrol or
-               DirectInputKeyCode.DikLalt or DirectInputKeyCode.DikRalt;
+        uint scanCode = (uint)dik;
+        return GetKeyNameTextFromScanCode(scanCode);
     }
+
+    /// <summary>
+    ///     Gets key name via Windows API.
+    /// </summary>
+    private static string? GetKeyNameTextFromScanCode(uint scanCode)
+    {
+        char[] buffer = new char[BufferSize];
+        long lParam = scanCode << LParamShift; // lParam format for GetKeyNameText
+        int result = GetKeyNameText(lParam, buffer, BufferSize);
+        return result > 0 ? new string(buffer, 0, result) : null;
+    }
+
+    #endregion
+
+    #region Utility Methods
+
+    /// <summary>
+    ///     Removes 'Dik' or 'dik' prefix from key name if present.
+    /// </summary>
+    private static string RemoveDikPrefix(string keyName)
+    {
+        return keyName.StartsWith("Dik", StringComparison.OrdinalIgnoreCase) ? keyName[3..] : keyName;
+    }
+
+    /// <summary>
+    ///     Converts string to title case (first letter uppercase, rest lowercase).
+    /// </summary>
+    private static string ToTitleCase(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return input;
+        return char.ToUpperInvariant(input[0]) + input[1..].ToLowerInvariant();
+    }
+
+    #endregion
 }

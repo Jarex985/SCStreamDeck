@@ -9,9 +9,9 @@ namespace SCStreamDeck.SCCore.Services.Core;
 /// <summary>
 ///     Provides localization services for Star Citizen UI strings.
 /// </summary>
-public sealed class LocalizationService : ILocalizationService
+public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocalizationService
 {
-    private static readonly ImmutableHashSet<string> SupportedLanguages = ImmutableHashSet.Create(
+    private static readonly ImmutableHashSet<string> s_supportedLanguages = ImmutableHashSet.Create(
         StringComparer.OrdinalIgnoreCase,
         "chinese_(simplified)", "chinese_(traditional)", "english", "french_(france)",
         "german_(germany)", "italian_(italy)", "japanese_(japan)", "korean_(south_korea)",
@@ -20,10 +20,7 @@ public sealed class LocalizationService : ILocalizationService
     private readonly Dictionary<(string channelPath, string language), Dictionary<string, string>> _cache = new();
     private readonly object _cacheLock = new();
 
-    private readonly IP4KArchiveService _p4kService;
-
-    public LocalizationService(IP4KArchiveService p4kService) =>
-        _p4kService = p4kService ?? throw new ArgumentNullException(nameof(p4kService));
+    private readonly IP4KArchiveService _p4KService = p4KService ?? throw new ArgumentNullException(nameof(p4KService));
 
     public async Task<IReadOnlyDictionary<string, string>> LoadGlobalIniAsync(
         string channelPath,
@@ -132,14 +129,13 @@ public sealed class LocalizationService : ILocalizationService
     private static string NormalizeLanguage(string language)
     {
         language = language.Trim().ToUpperInvariant();
-        if (!SupportedLanguages.Contains(language))
+        if (s_supportedLanguages.Contains(language))
         {
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[Localization] Unsupported language '{language}', using {LocalizationConstants.DefaultLanguage}");
-            return LocalizationConstants.DefaultLanguage;
+            return language;
         }
-
-        return language;
+        Logger.Instance.LogMessage(TracingLevel.WARN,
+            $"[Localization] Unsupported language '{language}', using {LocalizationConstants.DefaultLanguage}");
+        return LocalizationConstants.DefaultLanguage;
     }
 
     private async Task<string?> TryLoadContentAsync(
@@ -210,7 +206,7 @@ public sealed class LocalizationService : ILocalizationService
 
         try
         {
-            bool opened = await _p4kService.OpenArchiveAsync(dataP4kPath, cancellationToken).ConfigureAwait(false);
+            bool opened = await _p4KService.OpenArchiveAsync(dataP4kPath, cancellationToken).ConfigureAwait(false);
             if (!opened)
             {
                 Logger.Instance.LogMessage(TracingLevel.ERROR, "[Localization] Failed to open Data.p4k");
@@ -220,7 +216,7 @@ public sealed class LocalizationService : ILocalizationService
             try
             {
                 string directory = $"{P4KConstants.LocalizationBaseDirectory}/{language}";
-                IReadOnlyList<P4KFileEntry> entries = await _p4kService
+                IReadOnlyList<P4KFileEntry> entries = await _p4KService
                     .ScanDirectoryAsync(directory, P4KConstants.GlobalIniFileName, cancellationToken)
                     .ConfigureAwait(false);
 
@@ -231,14 +227,14 @@ public sealed class LocalizationService : ILocalizationService
                     return null;
                 }
 
-                string? content = await _p4kService.ReadFileAsTextAsync(entries[0], cancellationToken)
+                string? content = await _p4KService.ReadFileAsTextAsync(entries[0], cancellationToken)
                     .ConfigureAwait(false);
                 return content;
             }
 
             finally
             {
-                _p4kService.CloseArchive();
+                _p4KService.CloseArchive();
             }
         }
 
@@ -331,7 +327,7 @@ public sealed class LocalizationService : ILocalizationService
             }
 
             string normalized = value.ToUpperInvariant();
-            if (SupportedLanguages.Contains(normalized))
+            if (s_supportedLanguages.Contains(normalized))
             {
                 Logger.Instance.LogMessage(TracingLevel.INFO, $"[Localization] Detected language: {normalized}");
                 return normalized;
