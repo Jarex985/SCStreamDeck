@@ -1,6 +1,6 @@
-using BarRaider.SdTools;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using BarRaider.SdTools;
 using SCStreamDeck.Logging;
 
 namespace SCStreamDeck.Models;
@@ -26,8 +26,11 @@ public sealed record PluginState(
     InstallationState? EptuInstallation
 )
 {
-    private static readonly JsonSerializerOptions s_loadOptions = new() { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } };
-    private static readonly JsonSerializerOptions s_saveOptions = new() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
+    private static readonly JsonSerializerOptions s_loadOptions =
+        new() { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } };
+
+    private static readonly JsonSerializerOptions s_saveOptions =
+        new() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
 
     /// <summary>
     ///     Gets the installation state for the specified channel.

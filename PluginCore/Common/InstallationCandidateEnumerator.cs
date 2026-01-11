@@ -89,9 +89,10 @@ internal static class InstallationCandidateEnumerator
                 continue;
             }
 
-            string actualRootPath = starCitizenFolder.EndsWith(SCConstants.Paths.StarCitizenFolderName, StringComparison.OrdinalIgnoreCase)
-                ? Path.GetDirectoryName(starCitizenFolder) ?? root
-                : root;
+            string actualRootPath =
+                starCitizenFolder.EndsWith(SCConstants.Paths.StarCitizenFolderName, StringComparison.OrdinalIgnoreCase)
+                    ? Path.GetDirectoryName(starCitizenFolder) ?? root
+                    : root;
 
             yield return new SCInstallCandidate(
                 actualRootPath,

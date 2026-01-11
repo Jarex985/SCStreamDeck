@@ -1,4 +1,3 @@
-using SCStreamDeck.Common;
 using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Services.Keybinding;

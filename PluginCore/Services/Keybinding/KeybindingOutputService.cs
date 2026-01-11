@@ -1,6 +1,5 @@
 using System.Text;
 using Newtonsoft.Json;
-using SCStreamDeck.Common;
 using SCStreamDeck.Models;
 using Formatting = Newtonsoft.Json.Formatting;
 

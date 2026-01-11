@@ -23,7 +23,7 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,$"{GetType().Name}: {ex.Message}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR, $"{GetType().Name}: {ex.Message}");
         }
     }
 
@@ -35,7 +35,7 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,$"{GetType().Name}: {ex.Message}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR, $"{GetType().Name}: {ex.Message}");
         }
     }
 
@@ -45,7 +45,7 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
 
     private async Task ProcessKeyEventAsync(bool isKeyDown)
     {
-        var validationResult = ValidateAndResolve();
+        (KeybindingAction, string)? validationResult = ValidateAndResolve();
         if (validationResult == null)
         {
             return;
@@ -113,7 +113,7 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,$"{GetType().Name}: '{context.ActionName}': {ex.Message}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR, $"{GetType().Name}: '{context.ActionName}': {ex.Message}");
         }
     }
 

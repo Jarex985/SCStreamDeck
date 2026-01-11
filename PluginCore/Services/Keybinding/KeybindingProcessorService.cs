@@ -21,9 +21,16 @@ public sealed class KeybindingProcessorService(
     : IKeybindingProcessorService
 {
     private readonly ICryXmlParserService _cryXmlParser = cryXmlParser ?? throw new ArgumentNullException(nameof(cryXmlParser));
-    private readonly ILocalizationService _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
-    private readonly IKeybindingMetadataService _metadataService = metadataService ?? throw new ArgumentNullException(nameof(metadataService));
-    private readonly IKeybindingOutputService _outputService = outputService ?? throw new ArgumentNullException(nameof(outputService));
+
+    private readonly ILocalizationService _localizationService =
+        localizationService ?? throw new ArgumentNullException(nameof(localizationService));
+
+    private readonly IKeybindingMetadataService _metadataService =
+        metadataService ?? throw new ArgumentNullException(nameof(metadataService));
+
+    private readonly IKeybindingOutputService _outputService =
+        outputService ?? throw new ArgumentNullException(nameof(outputService));
+
     private readonly IP4KArchiveService _p4KService = p4KService ?? throw new ArgumentNullException(nameof(p4KService));
     private readonly IKeybindingXmlParserService _xmlParser = xmlParser ?? throw new ArgumentNullException(nameof(xmlParser));
 

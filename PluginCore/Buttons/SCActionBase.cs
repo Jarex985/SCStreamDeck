@@ -83,19 +83,12 @@ public abstract class SCActionBase : KeyAndEncoderBase
             IntPtr hkl = KeyboardLayoutDetector.DetectCurrent().Hkl;
             JArray groups = FunctionsPayloadBuilder.BuildGroupedFunctionsPayload(allActions, hkl);
 
-            Connection.SendToPropertyInspectorAsync(new JObject
-            {
-                ["functionsLoaded"] = true,
-                ["functions"] = groups
-            });
+            Connection.SendToPropertyInspectorAsync(new JObject { ["functionsLoaded"] = true, ["functions"] = groups });
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,$"[{GetType().Name}]: {ex.Message}");
-            Connection.SendToPropertyInspectorAsync(new JObject
-            {
-                ["functionsLoaded"] = false, ["functions"] = new JArray()
-            });
+            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[{GetType().Name}]: {ex.Message}");
+            Connection.SendToPropertyInspectorAsync(new JObject { ["functionsLoaded"] = false, ["functions"] = new JArray() });
         }
     }
 
@@ -206,5 +199,6 @@ public abstract class SCActionBase : KeyAndEncoderBase
     {
         // Not implemented for keys
     }
+
     #endregion
 }

@@ -8,16 +8,6 @@ namespace SCStreamDeck.Common;
 /// </summary>
 internal static class DirectInputDisplayMapper
 {
-    #region Constants and Imports
-
-    private const int BufferSize = 256;
-    private const int LParamShift = 16;
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern int GetKeyNameText(long lParam, [Out] char[] lpString, int cchSize);
-
-    #endregion
-
     #region Public Interface
 
     /// <summary>
@@ -39,26 +29,6 @@ internal static class DirectInputDisplayMapper
 
     #endregion
 
-    #region Binding Parsing
-
-    /// <summary>
-    ///     Parses binding into token parts.
-    /// </summary>
-    private static string[] ParseBindingParts(string scKeyboardBind)
-    {
-        return scKeyboardBind.Split(['+'], StringSplitOptions.TrimEntries);
-    }
-
-    /// <summary>
-    ///     Formats display by converting tokens and joining.
-    /// </summary>
-    private static string FormatDisplayString(string[] parts, nint hkl)
-    {
-        return string.Join(" + ", parts.Select(p => TokenToDisplay(p, hkl)));
-    }
-
-    #endregion
-
     #region Token Processing
 
     private static string TokenToDisplay(string token, nint hkl)
@@ -66,57 +36,8 @@ internal static class DirectInputDisplayMapper
         token = token.Trim().ToLowerInvariant();
 
         return SCKeyToDirectInputMapper.TryGetDirectInputKeyCode(token, out DirectInputKeyCode dik)
-            ? ToDisplay(dik, hkl) : token;
-    }
-
-    #endregion
-
-    #region Key Resolution
-
-    /// <summary>
-    ///     Converts DIK to display string for given layout.
-    ///     1. Try fixed names for special/modifier keys.
-    ///     2. For typeable keys: DIK → VK → layout-aware char.
-    /// </summary>
-    /// <param name="dik">DirectInput key code</param>
-    /// <param name="hkl">Keyboard layout handle</param>
-    /// <returns>User-friendly display string</returns>
-    private static string ToDisplay(DirectInputKeyCode dik, nint hkl)
-    {
-        if (TryGetFixedDisplay(dik, out string fixedDisplay))
-        {
-            return fixedDisplay;
-        }
-
-        // Typeable keys: Use Windows API for layout-aware detection
-        uint scanCode = (uint)dik;
-        uint vk = NativeMethods.MapVirtualKeyEx(scanCode, 3, hkl);
-
-        if (vk == 0)
-        {
-            return dik.ToString();
-        }
-
-        VirtualKeyCode virtualKey = (VirtualKeyCode)vk;
-        string? ch = WindowsKeyLayoutCharMapper.TryGetChar(hkl, virtualKey, scanCode, false, false);
-
-        if (string.IsNullOrWhiteSpace(ch))
-        {
-            return dik.ToString();
-        }
-
-        string result = ToTitleCase(ch.Length == 1 ? ch.ToUpperInvariant() : ch);
-        return result;
-    }
-
-    /// <summary>
-    ///     Checks if DIK is a modifier key requiring L/R distinction.
-    /// </summary>
-    internal static bool IsModifierKey(DirectInputKeyCode dik)
-    {
-        return dik is DirectInputKeyCode.DikLshift or DirectInputKeyCode.DikRshift or
-               DirectInputKeyCode.DikLcontrol or DirectInputKeyCode.DikRcontrol or
-               DirectInputKeyCode.DikLalt or DirectInputKeyCode.DikRalt;
+            ? ToDisplay(dik, hkl)
+            : token;
     }
 
     #endregion
@@ -204,6 +125,80 @@ internal static class DirectInputDisplayMapper
 
     #endregion
 
+    #region Constants and Imports
+
+    private const int BufferSize = 256;
+    private const int LParamShift = 16;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetKeyNameText(long lParam, [Out] char[] lpString, int cchSize);
+
+    #endregion
+
+    #region Binding Parsing
+
+    /// <summary>
+    ///     Parses binding into token parts.
+    /// </summary>
+    private static string[] ParseBindingParts(string scKeyboardBind) =>
+        scKeyboardBind.Split(['+'], StringSplitOptions.TrimEntries);
+
+    /// <summary>
+    ///     Formats display by converting tokens and joining.
+    /// </summary>
+    private static string FormatDisplayString(string[] parts, nint hkl) =>
+        string.Join(" + ", parts.Select(p => TokenToDisplay(p, hkl)));
+
+    #endregion
+
+    #region Key Resolution
+
+    /// <summary>
+    ///     Converts DIK to display string for given layout.
+    ///     1. Try fixed names for special/modifier keys.
+    ///     2. For typeable keys: DIK → VK → layout-aware char.
+    /// </summary>
+    /// <param name="dik">DirectInput key code</param>
+    /// <param name="hkl">Keyboard layout handle</param>
+    /// <returns>User-friendly display string</returns>
+    private static string ToDisplay(DirectInputKeyCode dik, nint hkl)
+    {
+        if (TryGetFixedDisplay(dik, out string fixedDisplay))
+        {
+            return fixedDisplay;
+        }
+
+        // Typeable keys: Use Windows API for layout-aware detection
+        uint scanCode = (uint)dik;
+        uint vk = NativeMethods.MapVirtualKeyEx(scanCode, 3, hkl);
+
+        if (vk == 0)
+        {
+            return dik.ToString();
+        }
+
+        VirtualKeyCode virtualKey = (VirtualKeyCode)vk;
+        string? ch = WindowsKeyLayoutCharMapper.TryGetChar(hkl, virtualKey, scanCode, false, false);
+
+        if (string.IsNullOrWhiteSpace(ch))
+        {
+            return dik.ToString();
+        }
+
+        string result = ToTitleCase(ch.Length == 1 ? ch.ToUpperInvariant() : ch);
+        return result;
+    }
+
+    /// <summary>
+    ///     Checks if DIK is a modifier key requiring L/R distinction.
+    /// </summary>
+    internal static bool IsModifierKey(DirectInputKeyCode dik) =>
+        dik is DirectInputKeyCode.DikLshift or DirectInputKeyCode.DikRshift or
+            DirectInputKeyCode.DikLcontrol or DirectInputKeyCode.DikRcontrol or
+            DirectInputKeyCode.DikLalt or DirectInputKeyCode.DikRalt;
+
+    #endregion
+
     #region Windows API Helpers
 
     /// <summary>
@@ -233,17 +228,19 @@ internal static class DirectInputDisplayMapper
     /// <summary>
     ///     Removes 'Dik' or 'dik' prefix from key name if present.
     /// </summary>
-    private static string RemoveDikPrefix(string keyName)
-    {
-        return keyName.StartsWith("Dik", StringComparison.OrdinalIgnoreCase) ? keyName[3..] : keyName;
-    }
+    private static string RemoveDikPrefix(string keyName) =>
+        keyName.StartsWith("Dik", StringComparison.OrdinalIgnoreCase) ? keyName[3..] : keyName;
 
     /// <summary>
     ///     Converts string to title case (first letter uppercase, rest lowercase).
     /// </summary>
     private static string ToTitleCase(string input)
     {
-        if (string.IsNullOrEmpty(input)) return input;
+        if (string.IsNullOrEmpty(input))
+        {
+            return input;
+        }
+
         return char.ToUpperInvariant(input[0]) + input[1..].ToLowerInvariant();
     }
 

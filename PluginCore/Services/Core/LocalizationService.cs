@@ -133,6 +133,7 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
         {
             return language;
         }
+
         Logger.Instance.LogMessage(TracingLevel.WARN,
             $"[Localization] Unsupported language '{language}', using {SCConstants.Localization.DefaultLanguage}");
         return SCConstants.Localization.DefaultLanguage;

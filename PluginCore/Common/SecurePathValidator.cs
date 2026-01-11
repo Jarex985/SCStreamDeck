@@ -57,11 +57,10 @@ public static class SecurePathValidator
 
         catch (Exception ex) when (ex is ArgumentException or SecurityException or NotSupportedException or PathTooLongException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,$"[{nameof(SecurePathValidator)}] '{path}': {ex.Message}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[{nameof(SecurePathValidator)}] '{path}': {ex.Message}");
             normalizedPath = string.Empty;
             return false;
         }
-
     }
 
     /// <summary>
@@ -71,11 +70,10 @@ public static class SecurePathValidator
     /// <param name="baseDirectory">The base directory that the path must be within.</param>
     /// <returns>The normalized full path.</returns>
     /// <exception cref="SecurityException">Thrown when path traversal is detected or path is invalid.</exception>
-    public static string GetSecurePath(string path, string baseDirectory)
-    {
-        return !IsValidPath(path, baseDirectory, out string normalized) ?
-            throw new SecurityException($"Invalid or unsafe path detected. Path must be within: {baseDirectory}") : normalized;
-    }
+    public static string GetSecurePath(string path, string baseDirectory) =>
+        !IsValidPath(path, baseDirectory, out string normalized)
+            ? throw new SecurityException($"Invalid or unsafe path detected. Path must be within: {baseDirectory}")
+            : normalized;
 
     /// <summary>
     ///     Validates a path without requiring a specific base directory.
@@ -107,7 +105,7 @@ public static class SecurePathValidator
 
         catch (Exception ex) when (ex is ArgumentException or SecurityException or NotSupportedException or PathTooLongException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,$"[{nameof(SecurePathValidator)}] '{path}': {ex.Message}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[{nameof(SecurePathValidator)}] '{path}': {ex.Message}");
             return false;
         }
     }

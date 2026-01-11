@@ -37,7 +37,7 @@ internal sealed class UserOverrideParser
 
         catch (Exception ex) when (ex is XmlException or ArgumentException or IOException or UnauthorizedAccessException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,$"[{nameof(UserOverrideParser)}]: {ex.Message}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[{nameof(UserOverrideParser)}]: {ex.Message}");
             return null;
         }
     }

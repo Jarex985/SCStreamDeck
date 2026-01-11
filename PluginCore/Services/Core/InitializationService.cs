@@ -385,6 +385,7 @@ public sealed class InitializationService : IInitializationService, IDisposable
             {
                 _initialized = true;
             }
+
             InitializationResult result = InitializationResult.Success(_currentChannel, candidates.Count);
 
             return result;
