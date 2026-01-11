@@ -12,10 +12,10 @@ public static partial class KeyboardLayoutDetector
     ///     Default US English keyboard layout HKL (0x04090409).
     ///     Used as fallback if GetKeyboardLayout fails.
     /// </summary>
-    private static readonly nint DefaultUsEnglishHkl = new(0x04090409);
+    private static readonly nint s_defaultUsEnglishHkl = new(0x04090409);
 
-    private static readonly object _lock = new();
-    private static KeyboardLayoutInfo? _cached;
+    private static readonly object s_lock = new();
+    private static KeyboardLayoutInfo? s_cached;
 
     [LibraryImport("user32.dll")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
@@ -28,21 +28,21 @@ public static partial class KeyboardLayoutDetector
     /// </summary>
     public static KeyboardLayoutInfo DetectCurrent()
     {
-        lock (_lock)
+        lock (s_lock)
         {
-            if (_cached is not null)
+            if (s_cached is not null)
             {
-                return _cached;
+                return s_cached;
             }
 
             IntPtr hklPtr = GetKeyboardLayout(0);
 
             // GetKeyboardLayout returns 0 (IntPtr.Zero) on failure
             // Fall back to US English layout if detection fails, although this is unlikely
-            IntPtr hkl = hklPtr == IntPtr.Zero ? DefaultUsEnglishHkl : hklPtr;
+            IntPtr hkl = hklPtr == IntPtr.Zero ? s_defaultUsEnglishHkl : hklPtr;
 
-            _cached = new KeyboardLayoutInfo(hkl);
-            return _cached;
+            s_cached = new KeyboardLayoutInfo(hkl);
+            return s_cached;
         }
     }
 
@@ -54,9 +54,9 @@ public static partial class KeyboardLayoutDetector
     /// </summary>
     public static void InvalidateCache()
     {
-        lock (_lock)
+        lock (s_lock)
         {
-            _cached = null;
+            s_cached = null;
         }
     }
 }

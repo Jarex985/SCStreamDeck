@@ -8,11 +8,11 @@ namespace SCStreamDeck.Services.Keybinding.ActivationHandlers;
 /// </summary>
 internal sealed class ImmediatePressHandler : IActivationModeHandler
 {
-    public IEnumerable<string> SupportedModes => new[]
-    {
+    public IEnumerable<string> SupportedModes =>
+    [
         "press", "press_quicker", "tap", "tap_quicker", "double_tap", "double_tap_nonblocking", "hold_toggle", "smart_toggle",
         "all"
-    };
+    ];
 
     public bool Execute(ActivationExecutionContext context, ActivationModeMetadata metadata, IInputExecutor executor)
     {
@@ -80,7 +80,7 @@ internal sealed class ImmediatePressHandler : IActivationModeHandler
 internal sealed class DelayedPressHandler : IActivationModeHandler
 {
     public IEnumerable<string> SupportedModes =>
-        new[] { "delayed_press", "delayed_press_quicker", "delayed_press_medium", "delayed_press_long" };
+        ["delayed_press", "delayed_press_quicker", "delayed_press_medium", "delayed_press_long"];
 
     public bool Execute(ActivationExecutionContext context, ActivationModeMetadata metadata, IInputExecutor executor)
     {
@@ -116,10 +116,10 @@ internal sealed class DelayedPressHandler : IActivationModeHandler
 /// </summary>
 internal sealed class HoldHandler : IActivationModeHandler
 {
-    public IEnumerable<string> SupportedModes => new[]
-    {
+    public IEnumerable<string> SupportedModes =>
+    [
         "hold", "hold_no_retrigger", "delayed_hold", "delayed_hold_long", "delayed_hold_no_retrigger"
-    };
+    ];
 
     public bool Execute(ActivationExecutionContext context, ActivationModeMetadata metadata, IInputExecutor executor)
     {

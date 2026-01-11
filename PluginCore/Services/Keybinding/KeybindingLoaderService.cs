@@ -60,9 +60,9 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
                     {
                         ActionName = action.Name ?? string.Empty,
                         MapName = action.MapName ?? string.Empty,
-                        UILabel = action.Label ?? string.Empty,
-                        UIDescription = action.Description ?? string.Empty,
-                        UICategory = action.Category ?? string.Empty,
+                        UiLabel = action.Label ?? string.Empty,
+                        UiDescription = action.Description ?? string.Empty,
+                        UiCategory = action.Category ?? string.Empty,
                         KeyboardBinding = action.Bindings?.Keyboard ?? string.Empty,
                         MouseBinding = action.Bindings?.Mouse ?? string.Empty,
                         JoystickBinding = action.Bindings?.Joystick ?? string.Empty,

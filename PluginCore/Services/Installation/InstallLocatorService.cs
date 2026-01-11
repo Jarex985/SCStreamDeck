@@ -45,7 +45,7 @@ public sealed class InstallLocatorService : IInstallLocatorService
         // De-duplicate based on Data.p4k path
         int beforeDedup = candidates.Count;
         candidates = candidates
-            .DistinctBy(c => NormalizePath(c.DataP4kPath))
+            .DistinctBy(c => NormalizePath(c.DataP4KPath))
             .OrderBy(c => c.Channel)
             .ToList();
 

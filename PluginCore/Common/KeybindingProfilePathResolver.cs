@@ -6,11 +6,6 @@ namespace SCStreamDeck.Common;
 /// </summary>
 public static class KeybindingProfilePathResolver
 {
-    /// <summary>
-    ///     Tries to find the actionmaps.xml file in the user profile directory.
-    /// </summary>
-    /// <param name="channelPath">The Star Citizen installation channel path (e.g., LIVE or PTU folder).</param>
-    /// <returns>The normalized path to actionmaps.xml, or null if not found.</returns>
     public static string? TryFindActionMapsXml(string? channelPath)
     {
         if (string.IsNullOrWhiteSpace(channelPath))

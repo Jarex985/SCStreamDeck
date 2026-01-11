@@ -173,7 +173,7 @@ public sealed class InitializationService : IInitializationService, IDisposable
 
         foreach (SCInstallCandidate cached in cachedCandidates)
         {
-            if (File.Exists(cached.DataP4kPath) && Directory.Exists(cached.ChannelPath))
+            if (File.Exists(cached.DataP4KPath) && Directory.Exists(cached.ChannelPath))
             {
                 validCandidates.Add(cached);
             }
@@ -293,7 +293,7 @@ public sealed class InitializationService : IInitializationService, IDisposable
 
         _installLocator.SetSelectedInstallation(selectedCandidate);
         Logger.Instance.LogMessage(TracingLevel.INFO,
-            $"[InitializationService] Selected {selectedCandidate.Channel} at '{selectedCandidate.DataP4kPath}'");
+            $"[InitializationService] Selected {selectedCandidate.Channel} at '{selectedCandidate.DataP4KPath}'");
 
         return selectedCandidate;
     }

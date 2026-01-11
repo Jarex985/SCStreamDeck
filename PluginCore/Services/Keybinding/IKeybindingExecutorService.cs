@@ -7,8 +7,5 @@ namespace SCStreamDeck.Services.Keybinding;
 /// </summary>
 public interface IKeybindingExecutorService
 {
-    /// <summary>
-    ///     Executes a keybinding asynchronously.
-    /// </summary>
     Task<bool> ExecuteAsync(KeybindingExecutionContext context, CancellationToken cancellationToken = default);
 }

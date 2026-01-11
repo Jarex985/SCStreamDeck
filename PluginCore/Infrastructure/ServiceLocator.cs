@@ -8,8 +8,8 @@ namespace SCStreamDeck.Infrastructure;
 /// </summary>
 public static class ServiceLocator
 {
-    private static volatile IServiceProvider? _serviceProvider;
-    private static readonly object _lock = new();
+    private static volatile IServiceProvider? s_serviceProvider;
+    private static readonly object s_lock = new();
 
     /// <summary>
     ///     Initializes the service provider with registered services.
@@ -17,9 +17,9 @@ public static class ServiceLocator
     /// </summary>
     public static void Initialize(IServiceProvider serviceProvider)
     {
-        lock (_lock)
+        lock (s_lock)
         {
-            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+            s_serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         }
     }
 
@@ -29,11 +29,11 @@ public static class ServiceLocator
     /// <typeparam name="T">The service type to retrieve</typeparam>
     public static T GetService<T>() where T : notnull
     {
-        lock (_lock)
+        lock (s_lock)
         {
-            return _serviceProvider == null
+            return s_serviceProvider == null
                 ? throw new InvalidOperationException("ServiceLocator is not initialized.")
-                : _serviceProvider.GetRequiredService<T>();
+                : s_serviceProvider.GetRequiredService<T>();
         }
     }
 }

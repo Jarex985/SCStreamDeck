@@ -18,13 +18,13 @@ public sealed record InstallationState(
     ///     Gets the computed channel path (e.g., "F:\Roberts Space Industries\StarCitizen\LIVE").
     /// </summary>
     [JsonIgnore]
-    public string ChannelPath => Path.Combine(RootPath, SCConstants.Paths.StarCitizenFolderName, Channel.ToString());
+    private string ChannelPath => Path.Combine(RootPath, SCConstants.Paths.StarCitizenFolderName, Channel.ToString());
 
     /// <summary>
     ///     Gets the computed Data.p4k path.
     /// </summary>
     [JsonIgnore]
-    public string DataP4kPath => Path.Combine(ChannelPath, SCConstants.Files.DataP4KFileName);
+    private string DataP4KPath => Path.Combine(ChannelPath, SCConstants.Files.DataP4KFileName);
 
     /// <summary>
     ///     Converts to an SCInstallCandidate for use in initialization.
@@ -34,13 +34,13 @@ public sealed record InstallationState(
             RootPath,
             Channel,
             ChannelPath,
-            DataP4kPath
+            DataP4KPath
         );
 
     /// <summary>
     ///     Validates that the installation still exists and is accessible.
     /// </summary>
-    public bool Validate() => Directory.Exists(ChannelPath) && File.Exists(DataP4kPath);
+    public bool Validate() => Directory.Exists(ChannelPath) && File.Exists(DataP4KPath);
 
     /// <summary>
     ///     Creates InstallationState from a detected candidate.

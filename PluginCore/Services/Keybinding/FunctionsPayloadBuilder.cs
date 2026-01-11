@@ -20,9 +20,9 @@ internal static class FunctionsPayloadBuilder
         List<ResolvedAction> resolved = actions
             .Select(a => new ResolvedAction(
                 a,
-                a.UICategory,
-                a.UILabel,
-                a.UIDescription))
+                a.UiCategory,
+                a.UiLabel,
+                a.UiDescription))
             .Where(x => !string.IsNullOrWhiteSpace(x.ActionLabel))
             .ToList();
 

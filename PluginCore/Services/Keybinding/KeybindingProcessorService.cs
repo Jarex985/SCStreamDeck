@@ -40,7 +40,7 @@ public sealed class KeybindingProcessorService(
 
         try
         {
-            byte[]? xmlBytes = await ExtractDefaultProfileAsync(installation.DataP4kPath, cancellationToken)
+            byte[]? xmlBytes = await ExtractDefaultProfileAsync(installation.DataP4KPath, cancellationToken)
                 .ConfigureAwait(false);
             if (xmlBytes == null)
             {
@@ -100,14 +100,14 @@ public sealed class KeybindingProcessorService(
 
     #region Pipeline Steps
 
-    private async Task<byte[]?> ExtractDefaultProfileAsync(string dataP4kPath, CancellationToken cancellationToken)
+    private async Task<byte[]?> ExtractDefaultProfileAsync(string dataP4KPath, CancellationToken cancellationToken)
     {
         try
         {
-            if (!SecurePathValidator.TryNormalizePath(dataP4kPath, out string normalizedPath))
+            if (!SecurePathValidator.TryNormalizePath(dataP4KPath, out string normalizedPath))
             {
                 Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"[{nameof(KeybindingProcessorService)}] {ErrorMessages.InvalidPath} {dataP4kPath}");
+                    $"[{nameof(KeybindingProcessorService)}] {ErrorMessages.InvalidPath} {dataP4KPath}");
                 return null;
             }
 
@@ -178,7 +178,7 @@ public sealed class KeybindingProcessorService(
             IReadOnlyDictionary<string, string>? localization = await _localizationService.LoadGlobalIniAsync(
                 installation.ChannelPath,
                 language,
-                installation.DataP4kPath,
+                installation.DataP4KPath,
                 cancellationToken).ConfigureAwait(false);
 
             if (localization == null || localization.Count == 0)

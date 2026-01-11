@@ -80,8 +80,8 @@ public sealed class KeybindingMetadataService : IKeybindingMetadataService
             }
 
             // Check Data.p4k timestamp
-            FileInfo p4kInfo = new(installation.DataP4kPath);
-            if (data.Metadata.DataP4kSize != p4kInfo.Length || data.Metadata.DataP4kLastWrite != p4kInfo.LastWriteTime)
+            FileInfo p4KInfo = new(installation.DataP4KPath);
+            if (data.Metadata.DataP4KSize != p4KInfo.Length || data.Metadata.DataP4KLastWrite != p4KInfo.LastWriteTime)
             {
                 return true;
             }

@@ -12,13 +12,13 @@ public interface ILocalizationService
     /// </summary>
     /// <param name="channelPath">Path to SC channel folder.</param>
     /// <param name="language">Language identifier (e.g., "german_(germany)").</param>
-    /// <param name="dataP4kPath">Path to Data.p4k file.</param>
+    /// <param name="dataP4KPath">Path to Data.p4k file.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Dictionary of localized strings.</returns>
     Task<IReadOnlyDictionary<string, string>> LoadGlobalIniAsync(
         string channelPath,
         string language,
-        string dataP4kPath,
+        string dataP4KPath,
         CancellationToken cancellationToken = default);
 
     /// <summary>

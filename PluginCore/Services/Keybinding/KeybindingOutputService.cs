@@ -58,16 +58,16 @@ public sealed class KeybindingOutputService : IKeybindingOutputService
         string language,
         Dictionary<string, ActivationModeMetadata> activationModes)
     {
-        FileInfo p4kInfo = new(installation.DataP4kPath);
+        FileInfo p4KInfo = new(installation.DataP4KPath);
         KeybindingMetadata metadata = new()
         {
             Version = "1.0",
             ExtractedAt = DateTime.UtcNow,
             KeyboardHkl = keyboardLayout.Hkl,
             Language = language,
-            DataP4kPath = NormalizePath(installation.DataP4kPath),
-            DataP4kSize = p4kInfo.Length,
-            DataP4kLastWrite = p4kInfo.LastWriteTime,
+            DataP4KPath = NormalizePath(installation.DataP4KPath),
+            DataP4KSize = p4KInfo.Length,
+            DataP4KLastWrite = p4KInfo.LastWriteTime,
             ActivationModes = activationModes
         };
 

@@ -26,11 +26,11 @@ public sealed class KeybindingMetadata
 
     [JsonProperty("language")] public string Language { get; set; } = "english";
 
-    [JsonProperty("dataP4kPath")] public string DataP4kPath { get; set; } = "";
+    [JsonProperty("dataP4kPath")] public string DataP4KPath { get; set; } = "";
 
-    [JsonProperty("dataP4kSize")] public long DataP4kSize { get; set; }
+    [JsonProperty("dataP4kSize")] public long DataP4KSize { get; set; }
 
-    [JsonProperty("dataP4kLastWrite")] public DateTime DataP4kLastWrite { get; set; }
+    [JsonProperty("dataP4kLastWrite")] public DateTime DataP4KLastWrite { get; set; }
 
     [JsonProperty("actionMapsPath")] public string? ActionMapsPath { get; set; }
 

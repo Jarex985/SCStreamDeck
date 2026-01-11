@@ -38,7 +38,7 @@ public sealed class KeybindingProcessResult
 {
     public bool IsSuccess { get; init; }
     public string? DetectedLanguage { get; init; }
-    public string? ErrorMessage { get; init; }
+    public string? ErrorMessage { get; private init; }
 
     public static KeybindingProcessResult Success(string detectedLanguage) =>
         new() { IsSuccess = true, DetectedLanguage = detectedLanguage };

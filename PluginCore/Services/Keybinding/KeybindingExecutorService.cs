@@ -109,9 +109,8 @@ public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDis
 
         // Get activation mode metadata from loader service
         IReadOnlyDictionary<string, ActivationModeMetadata> activationModes = _loaderService.GetActivationModes();
-        ActivationModeMetadata? metadata;
         string modeKey = context.ActivationMode.ToString();
-        if (!activationModes.TryGetValue(modeKey, out metadata))
+        if (!activationModes.TryGetValue(modeKey, out ActivationModeMetadata? metadata))
         {
             metadata = new ActivationModeMetadata { OnPress = true }; // Fallback
         }

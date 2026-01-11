@@ -15,10 +15,10 @@ public interface IP4KArchiveService
     /// <summary>
     ///     Opens a P4K archive file for reading.
     /// </summary>
-    /// <param name="p4kPath">Path to the Data.p4k file</param>
+    /// <param name="p4KPath">Path to the Data.p4k file</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>True if archive was opened successfully</returns>
-    Task<bool> OpenArchiveAsync(string p4kPath, CancellationToken cancellationToken = default);
+    Task<bool> OpenArchiveAsync(string p4KPath, CancellationToken cancellationToken = default);
 
     /// <summary>
     ///     Scans the archive for files matching a pattern in a specific directory.

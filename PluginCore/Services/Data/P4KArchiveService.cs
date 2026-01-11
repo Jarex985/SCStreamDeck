@@ -43,9 +43,9 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
         }
     }
 
-    public Task<bool> OpenArchiveAsync(string p4kPath, CancellationToken cancellationToken = default)
+    public Task<bool> OpenArchiveAsync(string p4KPath, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(p4kPath))
+        if (string.IsNullOrWhiteSpace(p4KPath))
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR, $"[SCCore.P4K] {ErrorMessages.InvalidPath}");
             return Task.FromResult(false);
@@ -57,7 +57,7 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (!SecurePathValidator.TryNormalizePath(p4kPath, out string validatedPath))
+                if (!SecurePathValidator.TryNormalizePath(p4KPath, out string validatedPath))
                 {
                     Logger.Instance.LogMessage(TracingLevel.ERROR, $"[SCCore.P4K] {ErrorMessages.InvalidPath}");
                     return false;

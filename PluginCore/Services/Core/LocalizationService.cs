@@ -25,12 +25,12 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
     public async Task<IReadOnlyDictionary<string, string>> LoadGlobalIniAsync(
         string channelPath,
         string language,
-        string dataP4kPath,
+        string dataP4KPath,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channelPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(language);
-        ArgumentException.ThrowIfNullOrWhiteSpace(dataP4kPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(dataP4KPath);
 
         language = NormalizeLanguage(language);
         (string channelPath, string language) cacheKey = (channelPath, language);
@@ -46,7 +46,7 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
 
 
         // Load from sources
-        string? content = await TryLoadContentAsync(channelPath, language, dataP4kPath, cancellationToken)
+        string? content = await TryLoadContentAsync(channelPath, language, dataP4KPath, cancellationToken)
             .ConfigureAwait(false);
 
         if (content != null)
@@ -65,7 +65,7 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
         {
             Logger.Instance.LogMessage(TracingLevel.WARN,
                 $"[Localization] Language '{language}' not found, falling back to {SCConstants.Localization.DefaultLanguage}");
-            return await LoadGlobalIniAsync(channelPath, SCConstants.Localization.DefaultLanguage, dataP4kPath,
+            return await LoadGlobalIniAsync(channelPath, SCConstants.Localization.DefaultLanguage, dataP4KPath,
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -141,7 +141,7 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
     private async Task<string?> TryLoadContentAsync(
         string channelPath,
         string language,
-        string dataP4kPath,
+        string dataP4KPath,
         CancellationToken cancellationToken)
     {
         // Priority 1: Override folder
@@ -152,7 +152,7 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
         }
 
         // Priority 2: P4K
-        return await LoadFromP4KAsync(dataP4kPath, language, cancellationToken).ConfigureAwait(false);
+        return await LoadFromP4KAsync(dataP4KPath, language, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task<string?> LoadFromOverrideFolderAsync(
@@ -194,19 +194,19 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
     }
 
     private async Task<string?> LoadFromP4KAsync(
-        string dataP4kPath,
+        string dataP4KPath,
         string language,
         CancellationToken cancellationToken)
     {
-        if (!File.Exists(dataP4kPath))
+        if (!File.Exists(dataP4KPath))
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[Localization] Data.p4k not found: {dataP4kPath}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[Localization] Data.p4k not found: {dataP4KPath}");
             return null;
         }
 
         try
         {
-            bool opened = await _p4KService.OpenArchiveAsync(dataP4kPath, cancellationToken).ConfigureAwait(false);
+            bool opened = await _p4KService.OpenArchiveAsync(dataP4KPath, cancellationToken).ConfigureAwait(false);
             if (!opened)
             {
                 Logger.Instance.LogMessage(TracingLevel.ERROR, "[Localization] Failed to open Data.p4k");

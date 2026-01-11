@@ -7,5 +7,5 @@ public sealed record SCInstallCandidate(
     string RootPath,
     SCChannel Channel,
     string ChannelPath,
-    string DataP4kPath
+    string DataP4KPath
 );
