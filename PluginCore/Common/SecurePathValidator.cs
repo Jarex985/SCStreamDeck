@@ -24,32 +24,57 @@ public static class SecurePathValidator
             return false;
         }
 
+        // Prevent using system directories as base
+        if (baseDirectory.Contains("Windows", StringComparison.OrdinalIgnoreCase) ||
+            baseDirectory.Contains("System32", StringComparison.OrdinalIgnoreCase) ||
+            baseDirectory.StartsWith(@"\\", StringComparison.Ordinal) ||
+            !Directory.Exists(baseDirectory))
+        {
+            return false;
+        }
+
+        // Prevent path traversal attacks
+        if (path.Contains("...."))
+        {
+            return false;
+        }
+
         try
         {
-            string fullPath = Path.GetFullPath(path);
+            string fullPath = Path.GetFullPath(Path.Combine(baseDirectory, path));
             string fullBase = Path.GetFullPath(baseDirectory);
-            normalizedPath = fullPath;
 
-            return fullPath.StartsWith(fullBase, StringComparison.OrdinalIgnoreCase);
+            if (fullPath.StartsWith(fullBase, StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedPath = fullPath;
+                return true;
+            }
+
+            normalizedPath = string.Empty;
+            return false;
         }
         catch (ArgumentException)
         {
             // Path contains invalid characters or is malformed
+            normalizedPath = string.Empty;
             return false;
         }
         catch (SecurityException)
         {
             // Caller does not have required permissions
+            normalizedPath = string.Empty;
             return false;
         }
         catch (NotSupportedException)
         {
             // Path contains a colon in an invalid position
+            normalizedPath = string.Empty;
             return false;
         }
         catch (PathTooLongException)
         {
             // Path exceeds system-defined maximum length
+            normalizedPath = string.Empty;
             return false;
         }
     }
@@ -83,6 +108,12 @@ public static class SecurePathValidator
         normalizedPath = string.Empty;
 
         if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        // Check for invalid colon usage (more than one colon indicates malformed path)
+        if (path.Count(c => c == ':') > 1)
         {
             return false;
         }

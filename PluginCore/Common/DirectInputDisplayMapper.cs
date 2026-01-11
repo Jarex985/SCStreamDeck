@@ -46,7 +46,7 @@ internal static class DirectInputDisplayMapper
     /// </summary>
     private static string[] ParseBindingParts(string scKeyboardBind)
     {
-        return scKeyboardBind.Split(['+'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return scKeyboardBind.Split(['+'], StringSplitOptions.TrimEntries);
     }
 
     /// <summary>
