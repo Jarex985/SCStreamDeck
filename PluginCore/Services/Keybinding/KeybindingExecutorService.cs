@@ -41,12 +41,16 @@ public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDis
             return;
         }
 
-        foreach (KeyValuePair<string, Timer> kvp in _activationTimers)
+        // Collect all timers first
+        Timer[] timers = _activationTimers.Values.ToArray();
+
+        // Clear the dictionary
+        _activationTimers.Clear();
+
+        // Dispose all timers
+        foreach (Timer timer in timers)
         {
-            if (_activationTimers.TryRemove(kvp.Key, out Timer? timer))
-            {
-                timer.Dispose();
-            }
+            timer.Dispose();
         }
 
         _holdStates.Clear();

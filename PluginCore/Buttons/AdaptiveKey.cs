@@ -66,7 +66,7 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
 
     private (KeybindingAction, string)? ValidateAndResolve()
     {
-        if (!(!string.IsNullOrWhiteSpace(Settings.Function) || !IsReady))
+        if (string.IsNullOrWhiteSpace(Settings.Function) || !IsReady)
         {
             return null;
         }

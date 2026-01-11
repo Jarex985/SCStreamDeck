@@ -1,4 +1,4 @@
-﻿using BarRaider.SdTools;
+﻿﻿using BarRaider.SdTools;
 using Newtonsoft.Json;
 using SCStreamDeck.Common;
 using SCStreamDeck.Logging;
@@ -15,8 +15,9 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
     private readonly nint _currentKeyboardLayout = NativeMethods.GetKeyboardLayout(0);
     private readonly object _lock = new();
     private Dictionary<string, ActivationModeMetadata> _activationModes = new(StringComparer.OrdinalIgnoreCase);
+    private volatile bool _isLoaded;
 
-    public bool IsLoaded { get; private set; }
+    public bool IsLoaded => _isLoaded;
 
     public async Task<bool> LoadKeybindingsAsync(string jsonPath, CancellationToken cancellationToken = default)
     {
@@ -24,7 +25,7 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
         {
             if (!SecurePathValidator.TryNormalizePath(jsonPath, out string validatedPath))
             {
-                IsLoaded = false;
+                _isLoaded = false;
                 Logger.Instance.LogMessage(TracingLevel.ERROR,
                     $"[{nameof(KeybindingLoaderService)}]: {ErrorMessages.InvalidPath}");
                 return false;
@@ -32,7 +33,7 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
 
             if (!File.Exists(validatedPath))
             {
-                IsLoaded = false;
+                _isLoaded = false;
                 Logger.Instance.LogMessage(TracingLevel.ERROR,
                     $"[{nameof(KeybindingLoaderService)}]: {ErrorMessages.FileReadFailed}");
                 return false;
@@ -43,7 +44,7 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
 
             if (dataFile?.Actions == null)
             {
-                IsLoaded = false;
+                _isLoaded = false;
                 Logger.Instance.LogMessage(TracingLevel.ERROR,
                     $"[{nameof(KeybindingLoaderService)}]: {ErrorMessages.JsonParseFailed}");
                 return false;
@@ -78,28 +79,28 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
                     _activationModes = dataFile.Metadata.ActivationModes;
                 }
 
-                IsLoaded = true;
+                _isLoaded = true;
             }
 
             return true;
         }
         catch (IOException ex)
         {
-            IsLoaded = false;
+            _isLoaded = false;
             Logger.Instance.LogMessage(TracingLevel.ERROR,
                 $"[{nameof(KeybindingLoaderService)}]: {ErrorMessages.FileReadFailed} '{Path.GetFileName(jsonPath)}': {ex.Message}");
             return false;
         }
         catch (UnauthorizedAccessException ex)
         {
-            IsLoaded = false;
+            _isLoaded = false;
             Logger.Instance.LogMessage(TracingLevel.ERROR,
                 $"[{nameof(KeybindingLoaderService)}]: {ErrorMessages.FileAccessDenied} '{Path.GetFileName(jsonPath)}': {ex.Message}");
             return false;
         }
         catch (JsonException ex)
         {
-            IsLoaded = false;
+            _isLoaded = false;
             Logger.Instance.LogMessage(TracingLevel.ERROR,
                 $"[{nameof(KeybindingLoaderService)}]: {ErrorMessages.JsonParseFailed} '{Path.GetFileName(jsonPath)}': {ex.Message}");
             return false;

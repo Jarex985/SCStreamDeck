@@ -22,7 +22,7 @@ public sealed class InitializationService : IInitializationService, IDisposable
 
     private SCChannel _currentChannel = SCChannel.Live;
     private Task<InitializationResult>? _initializationTask;
-    private volatile bool _initialized;
+    private bool _initialized;
 
     public InitializationService(
         IKeybindingService keybindingService,
@@ -139,6 +139,7 @@ public sealed class InitializationService : IInitializationService, IDisposable
         lock (_lock)
         {
             _initialized = false;
+            _initializationTask = null;
         }
 
         _stateService.InvalidateState();
