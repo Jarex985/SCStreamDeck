@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
+using SCStreamDeck.Common;
 
-namespace SCStreamDeck.SCCore.Models;
+namespace SCStreamDeck.Models;
 
 /// <summary>
 ///     Minimal state information for a Star Citizen installation.
@@ -17,20 +18,13 @@ public sealed record InstallationState(
     ///     Gets the computed channel path (e.g., "F:\Roberts Space Industries\StarCitizen\LIVE").
     /// </summary>
     [JsonIgnore]
-    public string ChannelPath => Path.Combine(RootPath, "StarCitizen", Channel.ToString());
+    public string ChannelPath => Path.Combine(RootPath, SCConstants.Paths.StarCitizenFolderName, Channel.ToString());
 
     /// <summary>
     ///     Gets the computed Data.p4k path.
     /// </summary>
     [JsonIgnore]
-    public string DataP4kPath => Path.Combine(ChannelPath, "Data.p4k");
-
-    /// <summary>
-    ///     Gets the computed actionmaps.xml path.
-    /// </summary>
-    [JsonIgnore]
-    public string ActionMapsPath =>
-        Path.Combine(ChannelPath, "user", "client", "0", "Profiles", "default", "actionmaps.xml");
+    public string DataP4kPath => Path.Combine(ChannelPath, SCConstants.Files.DataP4KFileName);
 
     /// <summary>
     ///     Converts to an SCInstallCandidate for use in initialization.

@@ -1,6 +1,6 @@
-﻿using SCStreamDeck.SCCore.Models;
+﻿using SCStreamDeck.Models;
 
-namespace SCStreamDeck.SCCore.Services.Core;
+namespace SCStreamDeck.Services.Core;
 
 /// <summary>
 ///     Service for plugin initialization and state management.

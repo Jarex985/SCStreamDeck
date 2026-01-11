@@ -1,6 +1,6 @@
-﻿using SCStreamDeck.SCCore.Models;
+﻿using SCStreamDeck.Models;
 
-namespace SCStreamDeck.SCCore.Services.Keybinding;
+namespace SCStreamDeck.Services.Keybinding;
 
 /// <summary>
 ///     Core keybinding service that orchestrates loading, parsing, and execution.

@@ -1,6 +1,6 @@
 using Newtonsoft.Json;
 
-namespace SCStreamDeck.SCCore.Models;
+namespace SCStreamDeck.Models;
 
 /// <summary>
 ///     Root structure for the processed keybindings JSON file.

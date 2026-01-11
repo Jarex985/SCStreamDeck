@@ -1,6 +1,6 @@
-﻿using SCStreamDeck.SCCore.Models;
+﻿using SCStreamDeck.Models;
 
-namespace SCStreamDeck.SCCore.Services.Keybinding.ActivationHandlers;
+namespace SCStreamDeck.Services.Keybinding.ActivationHandlers;
 
 /// <summary>
 ///     Strategy interface for handling different activation modes.

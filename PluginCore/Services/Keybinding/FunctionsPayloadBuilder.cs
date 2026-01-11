@@ -1,9 +1,9 @@
 using System.Globalization;
 using Newtonsoft.Json.Linq;
-using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Models;
+using SCStreamDeck.Common;
+using SCStreamDeck.Models;
 
-namespace SCStreamDeck.SCCore.Services.Keybinding;
+namespace SCStreamDeck.Services.Keybinding;
 
 /// <summary>
 ///     Builds grouped Property Inspector payload for keybinding functions.

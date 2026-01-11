@@ -1,8 +1,8 @@
 ﻿using BarRaider.SdTools;
-using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Models;
+using SCStreamDeck.Common;
+using SCStreamDeck.Models;
 
-namespace SCStreamDeck.SCCore.Services.Installation;
+namespace SCStreamDeck.Services.Installation;
 
 /// <summary>
 ///     Modern installation locator service with async operations and caching.

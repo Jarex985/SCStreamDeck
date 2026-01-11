@@ -1,4 +1,4 @@
-namespace SCStreamDeck.SCCore.Services.Installation;
+namespace SCStreamDeck.Services.Installation;
 
 /// <summary>
 ///     Provides plugin version information.

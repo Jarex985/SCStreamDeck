@@ -1,4 +1,4 @@
-namespace SCStreamDeck.SCCore.Common;
+namespace SCStreamDeck.Common;
 
 /// <summary>
 ///     Attempts to locate the user profile folder containing actionmaps.xml.
@@ -30,7 +30,7 @@ public static class KeybindingProfilePathResolver
             // Iterate through instance directories (typically "0", but could be others in the future)
             foreach (string instanceDir in Directory.GetDirectories(clientDir))
             {
-                string candidate = Path.Combine(instanceDir, "Profiles", "default", "actionmaps.xml");
+                string candidate = Path.Combine(instanceDir, "Profiles", "default", SCConstants.Files.ActionMapsFileName);
 
                 if (!File.Exists(candidate))
                 {

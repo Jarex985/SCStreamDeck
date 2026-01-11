@@ -1,10 +1,10 @@
 using System.Text;
 using Newtonsoft.Json;
-using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Models;
+using SCStreamDeck.Common;
+using SCStreamDeck.Models;
 using Formatting = Newtonsoft.Json.Formatting;
 
-namespace SCStreamDeck.SCCore.Services.Keybinding;
+namespace SCStreamDeck.Services.Keybinding;
 
 /// <summary>
 ///     Service for writing keybinding data to JSON files.

@@ -1,4 +1,4 @@
-namespace SCStreamDeck.SCCore.Models;
+namespace SCStreamDeck.Models;
 
 /// <summary>
 ///     Represents a detected Star Citizen installation.

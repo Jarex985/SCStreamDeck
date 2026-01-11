@@ -1,7 +1,7 @@
 using BarRaider.SdTools;
 using WindowsInput.Native;
 
-namespace SCStreamDeck.SCCore.Common;
+namespace SCStreamDeck.Common;
 
 /// <summary>
 ///     Windows helper to translate a physical key (virtual key + scan code) into a character

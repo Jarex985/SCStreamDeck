@@ -1,4 +1,4 @@
-namespace SCStreamDeck.SCCore.Services.Core;
+namespace SCStreamDeck.Services.Core;
 
 /// <summary>
 ///     Provides localization services for Star Citizen UI strings.

@@ -1,6 +1,6 @@
 using System.Security;
 
-namespace SCStreamDeck.SCCore.Common;
+namespace SCStreamDeck.Common;
 
 /// <summary>
 ///     Provides secure path validation to prevent path traversal attacks.

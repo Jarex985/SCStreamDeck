@@ -1,7 +1,7 @@
-﻿using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Models;
+﻿using SCStreamDeck.Common;
+using SCStreamDeck.Models;
 
-namespace SCStreamDeck.SCCore.Services.Keybinding;
+namespace SCStreamDeck.Services.Keybinding;
 
 /// <summary>
 ///     Service for processing Star Citizen keybindings.

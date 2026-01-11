@@ -1,11 +1,11 @@
 ﻿using BarRaider.SdTools;
-using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Logging;
-using SCStreamDeck.SCCore.Models;
-using SCStreamDeck.SCCore.Services.Installation;
-using SCStreamDeck.SCCore.Services.Keybinding;
+using SCStreamDeck.Common;
+using SCStreamDeck.Logging;
+using SCStreamDeck.Models;
+using SCStreamDeck.Services.Installation;
+using SCStreamDeck.Services.Keybinding;
 
-namespace SCStreamDeck.SCCore.Services.Core;
+namespace SCStreamDeck.Services.Core;
 
 /// <summary>
 ///     Handles plugin startup, installation detection, and channel management.

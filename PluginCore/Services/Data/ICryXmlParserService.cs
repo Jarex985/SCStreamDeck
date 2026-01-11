@@ -1,4 +1,4 @@
-﻿namespace SCStreamDeck.SCCore.Services.Data;
+﻿namespace SCStreamDeck.Services.Data;
 
 /// <summary>
 ///     Service for parsing CryEngine binary XML files.

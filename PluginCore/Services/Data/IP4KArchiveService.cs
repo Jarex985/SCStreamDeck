@@ -1,6 +1,6 @@
-﻿using SCStreamDeck.SCCore.Models;
+﻿using SCStreamDeck.Models;
 
-namespace SCStreamDeck.SCCore.Services.Data;
+namespace SCStreamDeck.Services.Data;
 
 /// <summary>
 ///     Service for reading Star Citizen P4K archive files.

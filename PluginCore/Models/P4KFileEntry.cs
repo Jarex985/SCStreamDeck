@@ -1,4 +1,4 @@
-﻿namespace SCStreamDeck.SCCore.Models;
+﻿namespace SCStreamDeck.Models;
 
 /// <summary>
 ///     Represents a file entry in a P4K archive.

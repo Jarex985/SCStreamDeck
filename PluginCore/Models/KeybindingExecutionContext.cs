@@ -1,4 +1,4 @@
-﻿namespace SCStreamDeck.SCCore.Models;
+﻿namespace SCStreamDeck.Models;
 
 /// <summary>
 ///     Parameter object for keybinding execution to avoid primitive obsession.

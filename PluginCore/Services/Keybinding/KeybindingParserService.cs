@@ -1,8 +1,8 @@
-﻿using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Models;
+﻿using SCStreamDeck.Common;
+using SCStreamDeck.Models;
 using WindowsInput.Native;
 
-namespace SCStreamDeck.SCCore.Services.Keybinding;
+namespace SCStreamDeck.Services.Keybinding;
 
 /// <summary>
 ///     Service for parsing keybinding strings into executable inputs.
@@ -37,13 +37,13 @@ public sealed class KeybindingParserService : IKeybindingParserService
         }
 
         // Check standalone mouse wheel (no modifiers)
-        if (normalized.Contains(InputConstants.Mouse.WheelUp, StringComparison.Ordinal))
+        if (normalized.Contains(SCConstants.Input.Mouse.WheelUp, StringComparison.Ordinal))
         {
             // Windows VerticalScroll: negative = content scrolls UP
             return new ParsedInputResult(InputType.MouseWheel, -1);
         }
 
-        if (normalized.Contains(InputConstants.Mouse.WheelDown, StringComparison.Ordinal))
+        if (normalized.Contains(SCConstants.Input.Mouse.WheelDown, StringComparison.Ordinal))
         {
             // Windows VerticalScroll: positive = content scrolls DOWN
             return new ParsedInputResult(InputType.MouseWheel, 1);
@@ -69,7 +69,7 @@ public sealed class KeybindingParserService : IKeybindingParserService
             return false;
         }
 
-        if (!binding.Contains(InputConstants.Mouse.WheelPrefix, StringComparison.Ordinal))
+        if (!binding.Contains(SCConstants.Input.Mouse.WheelPrefix, StringComparison.Ordinal))
         {
             return false;
         }
@@ -89,11 +89,11 @@ public sealed class KeybindingParserService : IKeybindingParserService
             {
                 modifierList.Add(modifier);
             }
-            else if (trimmed == InputConstants.Mouse.WheelUp)
+            else if (trimmed == SCConstants.Input.Mouse.WheelUp)
             {
                 wheelDirection = -1; // Negative = scroll UP
             }
-            else if (trimmed == InputConstants.Mouse.WheelDown)
+            else if (trimmed == SCConstants.Input.Mouse.WheelDown)
             {
                 wheelDirection = 1; // Positive = scroll DOWN
             }
@@ -112,31 +112,31 @@ public sealed class KeybindingParserService : IKeybindingParserService
     {
         button = VirtualKeyCode.LBUTTON;
 
-        if (normalized.Contains(InputConstants.Mouse.Button1) || normalized == InputConstants.Mouse.LeftButton)
+        if (normalized.Contains(SCConstants.Input.Mouse.Button1) || normalized == SCConstants.Input.Mouse.LeftButton)
         {
             button = VirtualKeyCode.LBUTTON;
             return true;
         }
 
-        if (normalized.Contains(InputConstants.Mouse.Button2) || normalized == InputConstants.Mouse.RightButton)
+        if (normalized.Contains(SCConstants.Input.Mouse.Button2) || normalized == SCConstants.Input.Mouse.RightButton)
         {
             button = VirtualKeyCode.RBUTTON;
             return true;
         }
 
-        if (normalized.Contains(InputConstants.Mouse.Button3) || normalized == InputConstants.Mouse.MiddleButton)
+        if (normalized.Contains(SCConstants.Input.Mouse.Button3) || normalized == SCConstants.Input.Mouse.MiddleButton)
         {
             button = VirtualKeyCode.MBUTTON;
             return true;
         }
 
-        if (normalized.Contains(InputConstants.Mouse.Button4))
+        if (normalized.Contains(SCConstants.Input.Mouse.Button4))
         {
             button = VirtualKeyCode.XBUTTON1;
             return true;
         }
 
-        if (normalized.Contains(InputConstants.Mouse.Button5))
+        if (normalized.Contains(SCConstants.Input.Mouse.Button5))
         {
             button = VirtualKeyCode.XBUTTON2;
             return true;
@@ -188,12 +188,12 @@ public sealed class KeybindingParserService : IKeybindingParserService
 
         return token switch
         {
-            InputConstants.Keyboard.LAlt => SetModifier(DirectInputKeyCode.DikLalt, out modifier),
-            InputConstants.Keyboard.RAlt => SetModifier(DirectInputKeyCode.DikRalt, out modifier),
-            InputConstants.Keyboard.LShift => SetModifier(DirectInputKeyCode.DikLshift, out modifier),
-            InputConstants.Keyboard.RShift => SetModifier(DirectInputKeyCode.DikRshift, out modifier),
-            InputConstants.Keyboard.LCtrl => SetModifier(DirectInputKeyCode.DikLcontrol, out modifier),
-            InputConstants.Keyboard.RCtrl => SetModifier(DirectInputKeyCode.DikRcontrol, out modifier),
+            SCConstants.Input.Keyboard.LAlt => SetModifier(DirectInputKeyCode.DikLalt, out modifier),
+            SCConstants.Input.Keyboard.RAlt => SetModifier(DirectInputKeyCode.DikRalt, out modifier),
+            SCConstants.Input.Keyboard.LShift => SetModifier(DirectInputKeyCode.DikLshift, out modifier),
+            SCConstants.Input.Keyboard.RShift => SetModifier(DirectInputKeyCode.DikRshift, out modifier),
+            SCConstants.Input.Keyboard.LCtrl => SetModifier(DirectInputKeyCode.DikLcontrol, out modifier),
+            SCConstants.Input.Keyboard.RCtrl => SetModifier(DirectInputKeyCode.DikRcontrol, out modifier),
             _ => false
         };
 
@@ -211,36 +211,36 @@ public sealed class KeybindingParserService : IKeybindingParserService
         // Special keys mapping
         bool specialKeyResult = token switch
         {
-            InputConstants.Keyboard.F1 => SetKey(DirectInputKeyCode.DikF1, out key),
-            InputConstants.Keyboard.F2 => SetKey(DirectInputKeyCode.DikF2, out key),
-            InputConstants.Keyboard.F3 => SetKey(DirectInputKeyCode.DikF3, out key),
-            InputConstants.Keyboard.F4 => SetKey(DirectInputKeyCode.DikF4, out key),
-            InputConstants.Keyboard.F5 => SetKey(DirectInputKeyCode.DikF5, out key),
-            InputConstants.Keyboard.F6 => SetKey(DirectInputKeyCode.DikF6, out key),
-            InputConstants.Keyboard.F7 => SetKey(DirectInputKeyCode.DikF7, out key),
-            InputConstants.Keyboard.F8 => SetKey(DirectInputKeyCode.DikF8, out key),
-            InputConstants.Keyboard.F9 => SetKey(DirectInputKeyCode.DikF9, out key),
-            InputConstants.Keyboard.F10 => SetKey(DirectInputKeyCode.DikF10, out key),
-            InputConstants.Keyboard.F11 => SetKey(DirectInputKeyCode.DikF11, out key),
-            InputConstants.Keyboard.F12 => SetKey(DirectInputKeyCode.DikF12, out key),
-            InputConstants.Keyboard.Space => SetKey(DirectInputKeyCode.DikSpace, out key),
-            InputConstants.Keyboard.Enter => SetKey(DirectInputKeyCode.DikReturn, out key),
-            InputConstants.Keyboard.Tab => SetKey(DirectInputKeyCode.DikTab, out key),
-            InputConstants.Keyboard.Escape => SetKey(DirectInputKeyCode.DikEscape, out key),
-            InputConstants.Keyboard.Backspace => SetKey(DirectInputKeyCode.DikBackspace, out key),
-            InputConstants.Keyboard.CapsLock => SetKey(DirectInputKeyCode.DikCapital, out key),
-            InputConstants.Keyboard.NumLock => SetKey(DirectInputKeyCode.DikNumlock, out key),
-            InputConstants.Keyboard.ScrollLock => SetKey(DirectInputKeyCode.DikScroll, out key),
-            InputConstants.Keyboard.Up => SetKey(DirectInputKeyCode.DikUp, out key),
-            InputConstants.Keyboard.Down => SetKey(DirectInputKeyCode.DikDown, out key),
-            InputConstants.Keyboard.Left => SetKey(DirectInputKeyCode.DikLeft, out key),
-            InputConstants.Keyboard.Right => SetKey(DirectInputKeyCode.DikRight, out key),
-            InputConstants.Keyboard.Home => SetKey(DirectInputKeyCode.DikHome, out key),
-            InputConstants.Keyboard.End => SetKey(DirectInputKeyCode.DikEnd, out key),
-            InputConstants.Keyboard.PgUp => SetKey(DirectInputKeyCode.DikPageUp, out key),
-            InputConstants.Keyboard.PgDown => SetKey(DirectInputKeyCode.DikPageDown, out key),
-            InputConstants.Keyboard.Insert => SetKey(DirectInputKeyCode.DikInsert, out key),
-            InputConstants.Keyboard.Delete => SetKey(DirectInputKeyCode.DikDelete, out key),
+            SCConstants.Input.Keyboard.F1 => SetKey(DirectInputKeyCode.DikF1, out key),
+            SCConstants.Input.Keyboard.F2 => SetKey(DirectInputKeyCode.DikF2, out key),
+            SCConstants.Input.Keyboard.F3 => SetKey(DirectInputKeyCode.DikF3, out key),
+            SCConstants.Input.Keyboard.F4 => SetKey(DirectInputKeyCode.DikF4, out key),
+            SCConstants.Input.Keyboard.F5 => SetKey(DirectInputKeyCode.DikF5, out key),
+            SCConstants.Input.Keyboard.F6 => SetKey(DirectInputKeyCode.DikF6, out key),
+            SCConstants.Input.Keyboard.F7 => SetKey(DirectInputKeyCode.DikF7, out key),
+            SCConstants.Input.Keyboard.F8 => SetKey(DirectInputKeyCode.DikF8, out key),
+            SCConstants.Input.Keyboard.F9 => SetKey(DirectInputKeyCode.DikF9, out key),
+            SCConstants.Input.Keyboard.F10 => SetKey(DirectInputKeyCode.DikF10, out key),
+            SCConstants.Input.Keyboard.F11 => SetKey(DirectInputKeyCode.DikF11, out key),
+            SCConstants.Input.Keyboard.F12 => SetKey(DirectInputKeyCode.DikF12, out key),
+            SCConstants.Input.Keyboard.Space => SetKey(DirectInputKeyCode.DikSpace, out key),
+            SCConstants.Input.Keyboard.Enter => SetKey(DirectInputKeyCode.DikReturn, out key),
+            SCConstants.Input.Keyboard.Tab => SetKey(DirectInputKeyCode.DikTab, out key),
+            SCConstants.Input.Keyboard.Escape => SetKey(DirectInputKeyCode.DikEscape, out key),
+            SCConstants.Input.Keyboard.Backspace => SetKey(DirectInputKeyCode.DikBackspace, out key),
+            SCConstants.Input.Keyboard.CapsLock => SetKey(DirectInputKeyCode.DikCapital, out key),
+            SCConstants.Input.Keyboard.NumLock => SetKey(DirectInputKeyCode.DikNumlock, out key),
+            SCConstants.Input.Keyboard.ScrollLock => SetKey(DirectInputKeyCode.DikScroll, out key),
+            SCConstants.Input.Keyboard.Up => SetKey(DirectInputKeyCode.DikUp, out key),
+            SCConstants.Input.Keyboard.Down => SetKey(DirectInputKeyCode.DikDown, out key),
+            SCConstants.Input.Keyboard.Left => SetKey(DirectInputKeyCode.DikLeft, out key),
+            SCConstants.Input.Keyboard.Right => SetKey(DirectInputKeyCode.DikRight, out key),
+            SCConstants.Input.Keyboard.Home => SetKey(DirectInputKeyCode.DikHome, out key),
+            SCConstants.Input.Keyboard.End => SetKey(DirectInputKeyCode.DikEnd, out key),
+            SCConstants.Input.Keyboard.PgUp => SetKey(DirectInputKeyCode.DikPageUp, out key),
+            SCConstants.Input.Keyboard.PgDown => SetKey(DirectInputKeyCode.DikPageDown, out key),
+            SCConstants.Input.Keyboard.Insert => SetKey(DirectInputKeyCode.DikInsert, out key),
+            SCConstants.Input.Keyboard.Delete => SetKey(DirectInputKeyCode.DikDelete, out key),
             _ => false
         };
 

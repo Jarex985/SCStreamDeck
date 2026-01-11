@@ -1,8 +1,7 @@
-﻿using SCStreamDeck.SCCore.Buttons;
-using SCStreamDeck.SCCore.Services.Core;
-using SCStreamDeck.SCCore.Infrastructure;
+﻿using SCStreamDeck.Buttons;
+using SCStreamDeck.Services.Core;
+using SCStreamDeck.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-using SCStreamDeck.SCCore.Buttons.Base;
 
 namespace UnitTests;
 

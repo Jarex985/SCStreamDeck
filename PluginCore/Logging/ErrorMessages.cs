@@ -1,4 +1,4 @@
-namespace SCStreamDeck.SCCore.Logging;
+namespace SCStreamDeck.Logging;
 
 /// <summary>
 ///     Centralized error messages.

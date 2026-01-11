@@ -1,5 +1,5 @@
-using SCStreamDeck.SCCore.Services.Keybinding;
-using SCStreamDeck.SCCore.Models;
+using SCStreamDeck.Services.Keybinding;
+using SCStreamDeck.Models;
 using WindowsInput;
 using WindowsInput.Native;
 using Moq;

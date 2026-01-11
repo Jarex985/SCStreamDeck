@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace SCStreamDeck.SCCore.Common;
+namespace SCStreamDeck.Common;
 
 /// <summary>
 ///     Centralized Windows API P/Invoke declarations.

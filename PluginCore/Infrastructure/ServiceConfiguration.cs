@@ -1,11 +1,11 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using SCStreamDeck.SCCore.Services.Core;
-using SCStreamDeck.SCCore.Services.Data;
-using SCStreamDeck.SCCore.Services.Installation;
-using SCStreamDeck.SCCore.Services.Keybinding;
+using SCStreamDeck.Services.Core;
+using SCStreamDeck.Services.Data;
+using SCStreamDeck.Services.Installation;
+using SCStreamDeck.Services.Keybinding;
 using WindowsInput;
 
-namespace SCStreamDeck.SCCore.Infrastructure;
+namespace SCStreamDeck.Infrastructure;
 
 /// <summary>
 ///     Configures and registers all SCCore services for dependency injection.

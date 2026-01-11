@@ -1,7 +1,7 @@
 ﻿using BarRaider.SdTools;
-using SCStreamDeck.SCCore.Models;
+using SCStreamDeck.Models;
 
-namespace SCStreamDeck.SCCore.Common;
+namespace SCStreamDeck.Common;
 
 /// <summary>
 ///     Enumerates Star Citizen installation candidates from filesystem paths.
@@ -45,7 +45,7 @@ internal static class InstallationCandidateEnumerator
         bool foundAny = false;
 
         // RSI style: root + StarCitizen (e.g., "F:\Roberts Space Industries" + "StarCitizen")
-        string rsiStarCitizen = Path.Combine(root, P4KConstants.StarCitizenFolderName);
+        string rsiStarCitizen = Path.Combine(root, SCConstants.Paths.StarCitizenFolderName);
         if (Directory.Exists(rsiStarCitizen))
         {
             foreach (SCInstallCandidate candidate in EnumerateCandidates(root, rsiStarCitizen))
@@ -57,7 +57,7 @@ internal static class InstallationCandidateEnumerator
 
         // Direct style: root already points at StarCitizen folder
         // Only check if we didn't find anything via RSI style to avoid duplicates
-        if (!foundAny && root.EndsWith(P4KConstants.StarCitizenFolderName, StringComparison.OrdinalIgnoreCase))
+        if (!foundAny && root.EndsWith(SCConstants.Paths.StarCitizenFolderName, StringComparison.OrdinalIgnoreCase))
         {
             foreach (SCInstallCandidate candidate in EnumerateCandidates(root, root))
             {
@@ -82,14 +82,14 @@ internal static class InstallationCandidateEnumerator
         {
             string folderName = channel.GetFolderName();
             string channelPath = Path.Combine(starCitizenFolder, folderName);
-            string dataP4K = Path.Combine(channelPath, P4KConstants.DataP4kFileName);
+            string dataP4K = Path.Combine(channelPath, SCConstants.Files.DataP4KFileName);
 
             if (!Directory.Exists(channelPath) || !File.Exists(dataP4K))
             {
                 continue;
             }
 
-            string actualRootPath = starCitizenFolder.EndsWith(P4KConstants.StarCitizenFolderName, StringComparison.OrdinalIgnoreCase)
+            string actualRootPath = starCitizenFolder.EndsWith(SCConstants.Paths.StarCitizenFolderName, StringComparison.OrdinalIgnoreCase)
                 ? Path.GetDirectoryName(starCitizenFolder) ?? root
                 : root;
 

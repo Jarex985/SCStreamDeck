@@ -1,6 +1,6 @@
-﻿using SCStreamDeck.SCCore.Infrastructure;
-using SCStreamDeck.SCCore.Services.Core;
-using SCStreamDeck.SCCore.Services.Keybinding;
+﻿using SCStreamDeck.Infrastructure;
+using SCStreamDeck.Services.Core;
+using SCStreamDeck.Services.Keybinding;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace UnitTests;

@@ -1,11 +1,10 @@
 ﻿using BarRaider.SdTools;
-using SCStreamDeck.SCCore.Buttons.Base;
-using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Models;
+using SCStreamDeck.Common;
+using SCStreamDeck.Models;
 
 // ReSharper disable once UnusedType.Global
 
-namespace SCStreamDeck.SCCore.Buttons;
+namespace SCStreamDeck.Buttons;
 
 /// <summary>
 ///     Adaptive Star Citizen Key.

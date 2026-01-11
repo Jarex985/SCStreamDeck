@@ -1,10 +1,10 @@
 using BarRaider.SdTools;
 using Newtonsoft.Json;
-using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Logging;
-using SCStreamDeck.SCCore.Models;
+using SCStreamDeck.Common;
+using SCStreamDeck.Logging;
+using SCStreamDeck.Models;
 
-namespace SCStreamDeck.SCCore.Services.Keybinding;
+namespace SCStreamDeck.Services.Keybinding;
 
 /// <summary>
 ///     Service for keybinding metadata operations.
@@ -22,17 +22,17 @@ public sealed class KeybindingMetadataService : IKeybindingMetadataService
         {
             // user.cfg is directly in the channel folder (e.g., LIVE/user.cfg)
             // If we don't find any g_language entry, use english as default
-            string userCfgPath = Path.Combine(channelPath, P4KConstants.UserConfigFileName);
+            string userCfgPath = Path.Combine(channelPath, SCConstants.Files.UserConfigFileName);
             if (!File.Exists(userCfgPath))
             {
-                return LocalizationConstants.DefaultLanguage;
+                return SCConstants.Localization.DefaultLanguage;
             }
 
             string[] lines = File.ReadAllLines(userCfgPath);
             foreach (string line in lines)
             {
                 string trimmed = line.Trim();
-                if (trimmed.StartsWith(LocalizationConstants.LanguageConfigKey, StringComparison.OrdinalIgnoreCase) &&
+                if (trimmed.StartsWith(SCConstants.Localization.LanguageConfigKey, StringComparison.OrdinalIgnoreCase) &&
                     trimmed.Contains('='))
                 {
                     string[] parts = trimmed.Split('=', 2);
@@ -40,19 +40,19 @@ public sealed class KeybindingMetadataService : IKeybindingMetadataService
                     {
                         string lang = parts[1].Trim().Trim('"').ToUpperInvariant();
                         Logger.Instance.LogMessage(TracingLevel.INFO,
-                            $"[KeybindingMetadataService] Detected language from {P4KConstants.UserConfigFileName}: {lang}");
+                            $"[KeybindingMetadataService] Detected language from {SCConstants.Files.UserConfigFileName}: {lang}");
                         return lang;
                     }
                 }
             }
 
-            return LocalizationConstants.DefaultLanguage;
+            return SCConstants.Localization.DefaultLanguage;
         }
         catch (Exception ex)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
                 $"[{nameof(KeybindingMetadataService)}] {ErrorMessages.LanguageDetectionFailed} {ex.Message}");
-            return LocalizationConstants.DefaultLanguage;
+            return SCConstants.Localization.DefaultLanguage;
         }
     }
 

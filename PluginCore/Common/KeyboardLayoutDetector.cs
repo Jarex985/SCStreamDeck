@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace SCStreamDeck.SCCore.Common;
+namespace SCStreamDeck.Common;
 
 /// <summary>
 ///     Detects the current Windows keyboard layout.

@@ -1,4 +1,4 @@
-﻿using SCStreamDeck.SCCore.Common;
+﻿using SCStreamDeck.Common;
 using WindowsInput.Native;
 
 namespace UnitTests;

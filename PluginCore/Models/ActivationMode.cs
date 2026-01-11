@@ -3,7 +3,7 @@
 
 #pragma warning disable CA1707
 
-namespace SCStreamDeck.SCCore.Models;
+namespace SCStreamDeck.Models;
 
 /// <summary>
 ///     Represents Star Citizen activation modes that determine how keybindings trigger.

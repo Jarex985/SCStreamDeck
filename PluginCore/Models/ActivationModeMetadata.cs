@@ -1,6 +1,6 @@
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
-namespace SCStreamDeck.SCCore.Models;
+namespace SCStreamDeck.Models;
 
 /// <summary>
 ///     Metadata describing the behavior of an activation mode based on Star Citizen's defaultProfile.xml definitions.

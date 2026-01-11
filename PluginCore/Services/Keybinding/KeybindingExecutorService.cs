@@ -1,11 +1,11 @@
 ﻿using System.Collections.Concurrent;
 using BarRaider.SdTools;
-using SCStreamDeck.SCCore.Logging;
-using SCStreamDeck.SCCore.Models;
-using SCStreamDeck.SCCore.Services.Keybinding.ActivationHandlers;
+using SCStreamDeck.Logging;
+using SCStreamDeck.Models;
+using SCStreamDeck.Services.Keybinding.ActivationHandlers;
 using WindowsInput;
 
-namespace SCStreamDeck.SCCore.Services.Keybinding;
+namespace SCStreamDeck.Services.Keybinding;
 
 /// <summary>
 ///     Service for executing keybinding actions.

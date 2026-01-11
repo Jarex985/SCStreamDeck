@@ -1,9 +1,9 @@
 ﻿using System.Xml;
 using BarRaider.SdTools;
-using SCStreamDeck.SCCore.Logging;
-using SCStreamDeck.SCCore.Models;
+using SCStreamDeck.Logging;
+using SCStreamDeck.Models;
 
-namespace SCStreamDeck.SCCore.Common;
+namespace SCStreamDeck.Common;
 
 /// <summary>
 ///     Parses user keybinding overrides from Star Citizen's actionmaps.xml file.
@@ -15,7 +15,7 @@ internal sealed class UserOverrideParser
     /// </summary>
     /// <param name="actionMapsPath">Path to the actionmaps.xml file.</param>
     /// <returns>Parsed overrides, or null if file doesn't exist or parsing fails.</returns>
-    public UserOverrides? Parse(string actionMapsPath)
+    public static UserOverrides? Parse(string actionMapsPath)
     {
         if (!SecurePathValidator.TryNormalizePath(actionMapsPath, out string validPath))
         {

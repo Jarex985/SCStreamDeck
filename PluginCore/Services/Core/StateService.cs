@@ -1,10 +1,10 @@
 using System.Text.Json;
 using BarRaider.SdTools;
-using SCStreamDeck.SCCore.Logging;
-using SCStreamDeck.SCCore.Models;
-using SCStreamDeck.SCCore.Services.Installation;
+using SCStreamDeck.Logging;
+using SCStreamDeck.Models;
+using SCStreamDeck.Services.Installation;
 
-namespace SCStreamDeck.SCCore.Services.Core;
+namespace SCStreamDeck.Services.Core;
 
 /// <summary>
 ///     Handles persistent storage and validation of plugin state.

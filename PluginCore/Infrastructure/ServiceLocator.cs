@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
-namespace SCStreamDeck.SCCore.Infrastructure;
+namespace SCStreamDeck.Infrastructure;
 
 /// <summary>
 ///     Service locator for StreamDeck plugin dependency injection.

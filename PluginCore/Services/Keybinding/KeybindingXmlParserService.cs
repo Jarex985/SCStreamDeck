@@ -1,10 +1,10 @@
 using System.Globalization;
 using System.Xml;
 using BarRaider.SdTools;
-using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Models;
+using SCStreamDeck.Common;
+using SCStreamDeck.Models;
 
-namespace SCStreamDeck.SCCore.Services.Keybinding;
+namespace SCStreamDeck.Services.Keybinding;
 
 /// <summary>
 ///     Service for parsing Star Citizen keybinding XML data.
@@ -137,7 +137,7 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
     /// <param name="mapUiCategory">The current action map UI category</param>
     /// <param name="activationModes">Dictionary of activation mode metadata</param>
     /// <returns>Parsed action data or null if invalid</returns>
-    private KeybindingActionData? ParseAction(
+    private static KeybindingActionData? ParseAction(
         XmlReader xmlReader,
         string mapName,
         string mapUiLabel,
@@ -358,7 +358,7 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
         string normalizedGamepad = gamepad.Trim();
 
         // Remove HMD_ prefix from keyboard bindings
-        if (normalizedKeyboard.StartsWith(InputConstants.Keyboard.HmdPrefix, StringComparison.OrdinalIgnoreCase))
+        if (normalizedKeyboard.StartsWith(SCConstants.Input.Keyboard.HmdPrefix, StringComparison.OrdinalIgnoreCase))
         {
             normalizedKeyboard = string.Empty;
         }

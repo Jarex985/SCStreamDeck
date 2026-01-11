@@ -1,9 +1,9 @@
 ﻿using System.Collections.Concurrent;
-using SCStreamDeck.SCCore.Models;
+using SCStreamDeck.Models;
 using WindowsInput;
 using WindowsInput.Native;
 
-namespace SCStreamDeck.SCCore.Services.Keybinding.ActivationHandlers;
+namespace SCStreamDeck.Services.Keybinding.ActivationHandlers;
 
 /// <summary>
 ///     Adapts the KeybindingService's input simulation capabilities to the IInputExecutor interface.

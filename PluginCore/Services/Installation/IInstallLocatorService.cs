@@ -1,8 +1,8 @@
-﻿using SCStreamDeck.SCCore.Models;
+﻿using SCStreamDeck.Models;
 
 // ReSharper disable UnusedMember.Global
 
-namespace SCStreamDeck.SCCore.Services.Installation;
+namespace SCStreamDeck.Services.Installation;
 
 /// <summary>
 ///     Service for detecting Star Citizen installations.

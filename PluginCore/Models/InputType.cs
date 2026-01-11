@@ -1,4 +1,4 @@
-﻿namespace SCStreamDeck.SCCore.Models;
+﻿namespace SCStreamDeck.Models;
 
 /// <summary>
 ///     Represents the type of input device for a keybinding.

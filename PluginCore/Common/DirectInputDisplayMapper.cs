@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using WindowsInput.Native;
 
-namespace SCStreamDeck.SCCore.Common;
+namespace SCStreamDeck.Common;
 
 /// <summary>
 ///     Maps DirectInput key codes to user-friendly display strings.

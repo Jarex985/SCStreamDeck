@@ -2,11 +2,11 @@
 using System.Text;
 using BarRaider.SdTools;
 using ICSharpCode.SharpZipLib.Zip;
-using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Logging;
-using SCStreamDeck.SCCore.Models;
+using SCStreamDeck.Common;
+using SCStreamDeck.Logging;
+using SCStreamDeck.Models;
 
-namespace SCStreamDeck.SCCore.Services.Data;
+namespace SCStreamDeck.Services.Data;
 
 /// <summary>
 ///     Modern P4K archive service using SharpZipLib directly.
@@ -310,9 +310,9 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
         string normalized = NormalizePath(entryPath);
 
         // Try with Data/ prefix
-        if (!normalized.StartsWith(P4KConstants.DataPrefix, StringComparison.OrdinalIgnoreCase))
+        if (!normalized.StartsWith(SCConstants.Paths.DataPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            entry = zipFile.GetEntry(P4KConstants.DataPrefix + normalized);
+            entry = zipFile.GetEntry(SCConstants.Paths.DataPrefix + normalized);
             if (entry != null)
             {
                 return entry;
@@ -321,7 +321,7 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
         else
         {
             // Try without Data/ prefix
-            string withoutPrefix = normalized.Substring(P4KConstants.DataPrefix.Length);
+            string withoutPrefix = normalized.Substring(SCConstants.Paths.DataPrefix.Length);
             entry = zipFile.GetEntry(withoutPrefix);
             if (entry != null)
             {
@@ -391,7 +391,7 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
             }
 
             // Set the encryption key
-            keyProperty.SetValue(zipFile, P4KConstants.EncryptionKey);
+            keyProperty.SetValue(zipFile, SCConstants.EncryptionKey);
             return true;
         }
 

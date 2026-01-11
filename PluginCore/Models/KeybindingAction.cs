@@ -1,4 +1,4 @@
-﻿namespace SCStreamDeck.SCCore.Models;
+﻿namespace SCStreamDeck.Models;
 
 /// <summary>
 ///     Represents a Star Citizen action with its bindings and metadata.

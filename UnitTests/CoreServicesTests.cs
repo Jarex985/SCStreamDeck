@@ -1,7 +1,7 @@
 ﻿using Moq;
-using SCStreamDeck.SCCore.Services.Core;
-using SCStreamDeck.SCCore.Services.Installation;
-using SCStreamDeck.SCCore.Services.Data;
+using SCStreamDeck.Services.Core;
+using SCStreamDeck.Services.Installation;
+using SCStreamDeck.Services.Data;
 
 namespace UnitTests;
 

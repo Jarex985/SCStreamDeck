@@ -1,10 +1,10 @@
 using System.Collections.Immutable;
 using BarRaider.SdTools;
-using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Models;
-using SCStreamDeck.SCCore.Services.Data;
+using SCStreamDeck.Common;
+using SCStreamDeck.Models;
+using SCStreamDeck.Services.Data;
 
-namespace SCStreamDeck.SCCore.Services.Core;
+namespace SCStreamDeck.Services.Core;
 
 /// <summary>
 ///     Provides localization services for Star Citizen UI strings.
@@ -61,11 +61,11 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
         }
 
         // Fallback to English
-        if (!language.Equals(LocalizationConstants.DefaultLanguage, StringComparison.OrdinalIgnoreCase))
+        if (!language.Equals(SCConstants.Localization.DefaultLanguage, StringComparison.OrdinalIgnoreCase))
         {
             Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[Localization] Language '{language}' not found, falling back to {LocalizationConstants.DefaultLanguage}");
-            return await LoadGlobalIniAsync(channelPath, LocalizationConstants.DefaultLanguage, dataP4kPath,
+                $"[Localization] Language '{language}' not found, falling back to {SCConstants.Localization.DefaultLanguage}");
+            return await LoadGlobalIniAsync(channelPath, SCConstants.Localization.DefaultLanguage, dataP4kPath,
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -78,18 +78,18 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channelPath);
-        string userConfigPath = Path.Combine(channelPath, P4KConstants.UserConfigFileName);
+        string userConfigPath = Path.Combine(channelPath, SCConstants.Files.UserConfigFileName);
 
         if (!SecurePathValidator.TryNormalizePath(userConfigPath, out string validPath))
         {
             Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[Localization] Invalid {P4KConstants.UserConfigFileName} path: {userConfigPath}");
-            return LocalizationConstants.DefaultLanguage;
+                $"[Localization] Invalid {SCConstants.Files.UserConfigFileName} path: {userConfigPath}");
+            return SCConstants.Localization.DefaultLanguage;
         }
 
         if (!File.Exists(validPath))
         {
-            return LocalizationConstants.DefaultLanguage;
+            return SCConstants.Localization.DefaultLanguage;
         }
 
         try
@@ -101,14 +101,14 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
         catch (IOException ex)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[Localization] Failed to read {P4KConstants.UserConfigFileName} (I/O error): {ex.Message}");
-            return LocalizationConstants.DefaultLanguage;
+                $"[Localization] Failed to read {SCConstants.Files.UserConfigFileName} (I/O error): {ex.Message}");
+            return SCConstants.Localization.DefaultLanguage;
         }
         catch (UnauthorizedAccessException ex)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[Localization] Failed to read {P4KConstants.UserConfigFileName} (access denied): {ex.Message}");
-            return LocalizationConstants.DefaultLanguage;
+                $"[Localization] Failed to read {SCConstants.Files.UserConfigFileName} (access denied): {ex.Message}");
+            return SCConstants.Localization.DefaultLanguage;
         }
     }
 
@@ -134,8 +134,8 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
             return language;
         }
         Logger.Instance.LogMessage(TracingLevel.WARN,
-            $"[Localization] Unsupported language '{language}', using {LocalizationConstants.DefaultLanguage}");
-        return LocalizationConstants.DefaultLanguage;
+            $"[Localization] Unsupported language '{language}', using {SCConstants.Localization.DefaultLanguage}");
+        return SCConstants.Localization.DefaultLanguage;
     }
 
     private async Task<string?> TryLoadContentAsync(
@@ -160,8 +160,8 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
         string language,
         CancellationToken cancellationToken)
     {
-        string overridePath = Path.Combine(channelPath, "data", LocalizationConstants.LocalizationSubdirectory, language,
-            P4KConstants.GlobalIniFileName);
+        string overridePath = Path.Combine(channelPath, "data", SCConstants.Localization.LocalizationSubdirectory, language,
+            SCConstants.Files.GlobalIniFileName);
 
         if (!SecurePathValidator.TryNormalizePath(overridePath, out string validPath))
         {
@@ -215,15 +215,15 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
 
             try
             {
-                string directory = $"{P4KConstants.LocalizationBaseDirectory}/{language}";
+                string directory = $"{SCConstants.Paths.LocalizationBaseDirectory}/{language}";
                 IReadOnlyList<P4KFileEntry> entries = await _p4KService
-                    .ScanDirectoryAsync(directory, P4KConstants.GlobalIniFileName, cancellationToken)
+                    .ScanDirectoryAsync(directory, SCConstants.Files.GlobalIniFileName, cancellationToken)
                     .ConfigureAwait(false);
 
                 if (entries.Count == 0)
                 {
                     Logger.Instance.LogMessage(TracingLevel.WARN,
-                        $"[Localization] {P4KConstants.GlobalIniFileName} not found in P4K for {language}");
+                        $"[Localization] {SCConstants.Files.GlobalIniFileName} not found in P4K for {language}");
                     return null;
                 }
 
@@ -308,7 +308,7 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
                 continue;
             }
 
-            if (!trimmed.StartsWith(LocalizationConstants.LanguageConfigKey, StringComparison.OrdinalIgnoreCase))
+            if (!trimmed.StartsWith(SCConstants.Localization.LanguageConfigKey, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -334,10 +334,10 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
             }
 
             Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[Localization] Invalid language '{value}', using {LocalizationConstants.DefaultLanguage}");
-            return LocalizationConstants.DefaultLanguage;
+                $"[Localization] Invalid language '{value}', using {SCConstants.Localization.DefaultLanguage}");
+            return SCConstants.Localization.DefaultLanguage;
         }
 
-        return LocalizationConstants.DefaultLanguage;
+        return SCConstants.Localization.DefaultLanguage;
     }
 }

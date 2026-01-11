@@ -1,6 +1,6 @@
 using WindowsInput.Native;
 
-namespace SCStreamDeck.SCCore.Common;
+namespace SCStreamDeck.Common;
 
 /// <summary>
 ///     Maps Star Citizen key names to DirectInput keyboard scan codes (layout-independent).

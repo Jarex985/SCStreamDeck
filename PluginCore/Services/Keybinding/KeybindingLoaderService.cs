@@ -1,10 +1,10 @@
 ﻿using BarRaider.SdTools;
 using Newtonsoft.Json;
-using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Logging;
-using SCStreamDeck.SCCore.Models;
+using SCStreamDeck.Common;
+using SCStreamDeck.Logging;
+using SCStreamDeck.Models;
 
-namespace SCStreamDeck.SCCore.Services.Keybinding;
+namespace SCStreamDeck.Services.Keybinding;
 
 /// <summary>
 ///     Service for loading and caching keybinding actions and activation modes.
@@ -73,7 +73,7 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
                 }
 
                 // Load activation modes from metadata
-                if (dataFile.Metadata?.ActivationModes != null && dataFile.Metadata.ActivationModes.Count > 0)
+                if (dataFile.Metadata.ActivationModes is { Count: > 0 })
                 {
                     _activationModes = dataFile.Metadata.ActivationModes;
                 }
@@ -106,11 +106,11 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
         }
     }
 
-    public bool TryGetAction(string actionName, out KeybindingAction? action)
+    public bool TryGetAction(string? actionName, out KeybindingAction? action)
     {
         lock (_lock)
         {
-            return _actions.TryGetValue(actionName, out action);
+            return _actions.TryGetValue(actionName!, out action);
         }
     }
 

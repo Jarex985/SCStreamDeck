@@ -1,7 +1,7 @@
 using System.Text.Json;
-using SCStreamDeck.SCCore.Common;
+using SCStreamDeck.Common;
 
-namespace SCStreamDeck.SCCore.Services.Installation;
+namespace SCStreamDeck.Services.Installation;
 
 /// <summary>
 ///     Provides plugin version information from manifest.json.

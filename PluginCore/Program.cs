@@ -1,8 +1,8 @@
 ﻿using BarRaider.SdTools;
 using Microsoft.Extensions.DependencyInjection;
-using SCStreamDeck.SCCore.Buttons.Base;
-using SCStreamDeck.SCCore.Infrastructure;
-using SCStreamDeck.SCCore.Services.Core;
+using SCStreamDeck.Buttons;
+using SCStreamDeck.Infrastructure;
+using SCStreamDeck.Services.Core;
 
 namespace SCStreamDeck;
 

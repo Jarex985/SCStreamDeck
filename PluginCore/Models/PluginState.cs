@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace SCStreamDeck.SCCore.Models;
+namespace SCStreamDeck.Models;
 
 /// <summary>
 ///     Modern plugin state for caching installation data and initialization status.
@@ -16,12 +16,12 @@ public sealed record PluginState(
     SCChannel SelectedChannel,
     [property: JsonPropertyName("liveInstallation")]
     InstallationState? LiveInstallation,
+    [property: JsonPropertyName("hotfixInstallation")]
+    InstallationState? HotfixInstallation,
     [property: JsonPropertyName("ptuInstallation")]
     InstallationState? PtuInstallation,
     [property: JsonPropertyName("eptuInstallation")]
-    InstallationState? EptuInstallation,
-    [property: JsonPropertyName("hotfixInstallation")]
-    InstallationState? HotfixInstallation
+    InstallationState? EptuInstallation
 )
 {
     private static readonly JsonSerializerOptions s_loadOptions = new() { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } };
@@ -45,7 +45,7 @@ public sealed record PluginState(
     /// </summary>
     public IReadOnlyList<SCInstallCandidate> GetCachedCandidates()
     {
-        List<SCInstallCandidate> candidates = new();
+        List<SCInstallCandidate> candidates = [];
 
         if (LiveInstallation != null)
         {

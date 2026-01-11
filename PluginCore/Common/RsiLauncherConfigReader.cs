@@ -1,8 +1,8 @@
 ﻿using System.Text.RegularExpressions;
 using BarRaider.SdTools;
-using SCStreamDeck.SCCore.Logging;
+using SCStreamDeck.Logging;
 
-namespace SCStreamDeck.SCCore.Common;
+namespace SCStreamDeck.Common;
 
 /// <summary>
 ///     Reads and parses RSI Launcher configuration files and logs to extract Star Citizen installation paths.
@@ -129,7 +129,7 @@ internal sealed partial class RsiLauncherConfigReader
     /// </summary>
     private static void AddNormalizedRootPath(string starCitizenPath, HashSet<string> paths)
     {
-        if (!starCitizenPath.EndsWith("StarCitizen", StringComparison.OrdinalIgnoreCase))
+        if (!starCitizenPath.EndsWith(SCConstants.Paths.StarCitizenFolderName, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }

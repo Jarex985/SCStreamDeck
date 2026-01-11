@@ -1,6 +1,6 @@
-using SCStreamDeck.SCCore.Common;
+using SCStreamDeck.Common;
 
-namespace SCStreamDeck.SCCore.Services.Installation;
+namespace SCStreamDeck.Services.Installation;
 
 /// <summary>
 ///     Provides centralized path management for the plugin with security validation.

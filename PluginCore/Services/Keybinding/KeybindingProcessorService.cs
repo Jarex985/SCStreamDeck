@@ -1,40 +1,31 @@
-﻿using System.Text;
+﻿﻿using System.Text;
 using BarRaider.SdTools;
-using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Logging;
-using SCStreamDeck.SCCore.Models;
-using SCStreamDeck.SCCore.Services.Core;
-using SCStreamDeck.SCCore.Services.Data;
+using SCStreamDeck.Common;
+using SCStreamDeck.Logging;
+using SCStreamDeck.Models;
+using SCStreamDeck.Services.Core;
+using SCStreamDeck.Services.Data;
 
-namespace SCStreamDeck.SCCore.Services.Keybinding;
+namespace SCStreamDeck.Services.Keybinding;
 
 /// <summary>
 ///     Service for processing Star Citizen keybindings.
 /// </summary>
-public sealed class KeybindingProcessorService : IKeybindingProcessorService
+public sealed class KeybindingProcessorService(
+    IP4KArchiveService p4KService,
+    ICryXmlParserService cryXmlParser,
+    ILocalizationService localizationService,
+    IKeybindingXmlParserService xmlParser,
+    IKeybindingMetadataService metadataService,
+    IKeybindingOutputService outputService)
+    : IKeybindingProcessorService
 {
-    private readonly ICryXmlParserService _cryXmlParser;
-    private readonly ILocalizationService _localizationService;
-    private readonly IKeybindingMetadataService _metadataService;
-    private readonly IKeybindingOutputService _outputService;
-    private readonly IP4KArchiveService _p4kService;
-    private readonly IKeybindingXmlParserService _xmlParser;
-
-    public KeybindingProcessorService(
-        IP4KArchiveService p4kService,
-        ICryXmlParserService cryXmlParser,
-        ILocalizationService localizationService,
-        IKeybindingXmlParserService xmlParser,
-        IKeybindingMetadataService metadataService,
-        IKeybindingOutputService outputService)
-    {
-        _p4kService = p4kService ?? throw new ArgumentNullException(nameof(p4kService));
-        _cryXmlParser = cryXmlParser ?? throw new ArgumentNullException(nameof(cryXmlParser));
-        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
-        _xmlParser = xmlParser ?? throw new ArgumentNullException(nameof(xmlParser));
-        _metadataService = metadataService ?? throw new ArgumentNullException(nameof(metadataService));
-        _outputService = outputService ?? throw new ArgumentNullException(nameof(outputService));
-    }
+    private readonly ICryXmlParserService _cryXmlParser = cryXmlParser ?? throw new ArgumentNullException(nameof(cryXmlParser));
+    private readonly ILocalizationService _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
+    private readonly IKeybindingMetadataService _metadataService = metadataService ?? throw new ArgumentNullException(nameof(metadataService));
+    private readonly IKeybindingOutputService _outputService = outputService ?? throw new ArgumentNullException(nameof(outputService));
+    private readonly IP4KArchiveService _p4KService = p4KService ?? throw new ArgumentNullException(nameof(p4KService));
+    private readonly IKeybindingXmlParserService _xmlParser = xmlParser ?? throw new ArgumentNullException(nameof(xmlParser));
 
     public async Task<KeybindingProcessResult> ProcessKeybindingsAsync(
         SCInstallCandidate installation,
@@ -120,11 +111,11 @@ public sealed class KeybindingProcessorService : IKeybindingProcessorService
                 return null;
             }
 
-            await _p4kService.OpenArchiveAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
+            await _p4KService.OpenArchiveAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
 
-            IReadOnlyList<P4KFileEntry> entries = await _p4kService.ScanDirectoryAsync(
-                P4KConstants.KeybindingConfigDirectory,
-                P4KConstants.DefaultProfileFileName,
+            IReadOnlyList<P4KFileEntry> entries = await _p4KService.ScanDirectoryAsync(
+                SCConstants.Paths.KeybindingConfigDirectory,
+                SCConstants.Files.DefaultProfileFileName,
                 cancellationToken).ConfigureAwait(false);
 
             if (entries.Count == 0)
@@ -135,7 +126,7 @@ public sealed class KeybindingProcessorService : IKeybindingProcessorService
             }
 
             P4KFileEntry profileEntry = entries[0];
-            byte[]? bytes = await _p4kService.ReadFileAsync(profileEntry, cancellationToken).ConfigureAwait(false);
+            byte[]? bytes = await _p4KService.ReadFileAsync(profileEntry, cancellationToken).ConfigureAwait(false);
 
             if (bytes == null || bytes.Length == 0)
             {
@@ -240,7 +231,7 @@ public sealed class KeybindingProcessorService : IKeybindingProcessorService
         try
         {
             UserOverrideParser parser = new();
-            UserOverrides? overrides = parser.Parse(actionMapsPath);
+            UserOverrides? overrides = UserOverrideParser.Parse(actionMapsPath);
 
             if (overrides is not { HasOverrides: true })
             {

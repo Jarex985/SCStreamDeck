@@ -1,19 +1,20 @@
 using System.Buffers.Binary;
 using System.Text;
 using System.Xml;
+using SCStreamDeck.Common;
 
-namespace SCStreamDeck.SCCore.Services.Data;
+namespace SCStreamDeck.Services.Data;
 
 /// <summary>
 ///     Service for parsing CryEngine binary XML files.
 /// </summary>
 public sealed class CryXmlParserService : ICryXmlParserService
 {
-    private const string CryXmlSignature = "CryXmlB";
-    private const int HeaderSize = 44;
-    private const int NodeStructureSize = 28;
-    private const int AttributeEntrySize = 8;
-    private const int ChildIndexSize = 4;
+    private const string CryXmlSignature = SCConstants.CryXml.CryXmlSignature;
+    private const int HeaderSize = SCConstants.CryXml.HeaderSize;
+    private const int NodeStructureSize = SCConstants.CryXml.NodeStructureSize;
+    private const int AttributeEntrySize = SCConstants.CryXml.AttributeEntrySize;
+    private const int ChildIndexSize = SCConstants.CryXml.ChildIndexSize;
 
     public Task<string?> ConvertCryXmlToTextAsync(byte[] binaryXmlData, CancellationToken cancellationToken = default)
     {

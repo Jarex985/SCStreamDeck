@@ -1,35 +1,35 @@
-using System.Reflection;
-using System.Runtime.Serialization;
-
-namespace SCStreamDeck.SCCore.Models;
-
-/// <summary>
-///     Star Citizen installation channels.
-/// </summary>
-public enum SCChannel
-{
-    [EnumMember(Value = "LIVE")]
-    Live,
-    [EnumMember(Value = "HOTFIX")]
-    Hotfix,
-    [EnumMember(Value = "PTU")]
-    Ptu,
-    [EnumMember(Value = "EPTU")]
-    Eptu
-}
-
-/// <summary>
-///     Extension methods for SCChannel.
-/// </summary>
-public static class SCChannelExtensions
+namespace SCStreamDeck.Models
 {
     /// <summary>
-    ///     Gets the folder name for the channel (e.g., "LIVE" for Live).
+    ///     Star Citizen installation channels.
     /// </summary>
-    public static string GetFolderName(this SCChannel channel)
+    public enum SCChannel
     {
-        var member = typeof(SCChannel).GetMember(channel.ToString())[0];
-        var attribute = member.GetCustomAttribute<EnumMemberAttribute>();
-        return attribute?.Value ?? channel.ToString();
+        Live,
+        Hotfix,
+        Ptu,
+        Eptu
+    }
+
+    /// <summary>
+    ///     Extension methods for SCChannel.
+    /// </summary>
+    public static class SCChannelExtensions
+    {
+        private static readonly Dictionary<SCChannel, string> s_channelFolderNames = new()
+        {
+            { SCChannel.Live, "LIVE" },
+            { SCChannel.Hotfix, "HOTFIX" },
+            { SCChannel.Ptu, "PTU" },
+            { SCChannel.Eptu, "EPTU" }
+        };
+
+        /// <summary>
+        ///     Gets the folder name for the channel (e.g., "LIVE" for Live).
+        /// </summary>
+        public static string GetFolderName(this SCChannel channel)
+        {
+            return s_channelFolderNames[channel];
+        }
     }
 }

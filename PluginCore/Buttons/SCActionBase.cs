@@ -4,13 +4,13 @@ using BarRaider.SdTools.Payloads;
 using BarRaider.SdTools.Wrappers;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
-using SCStreamDeck.SCCore.Buttons.Settings;
-using SCStreamDeck.SCCore.Common;
-using SCStreamDeck.SCCore.Models;
-using SCStreamDeck.SCCore.Services.Core;
-using SCStreamDeck.SCCore.Services.Keybinding;
+using SCStreamDeck.Buttons.Settings;
+using SCStreamDeck.Common;
+using SCStreamDeck.Models;
+using SCStreamDeck.Services.Core;
+using SCStreamDeck.Services.Keybinding;
 
-namespace SCStreamDeck.SCCore.Buttons.Base;
+namespace SCStreamDeck.Buttons;
 
 /// <summary>
 ///     Base class for Star Citizen Stream Deck Keys and Dials.
