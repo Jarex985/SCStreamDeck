@@ -35,16 +35,9 @@ internal sealed class UserOverrideParser
             return ParseXml(xmlText);
         }
 
-        catch (IOException ex)
+        catch (Exception ex) when (ex is XmlException or ArgumentException or IOException or UnauthorizedAccessException)
         {
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[UserOverrideParser] Failed to read actionmaps.xml: {ex.Message}");
-            return null;
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[UserOverrideParser] Access denied to actionmaps.xml: {ex.Message}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR,$"[{nameof(UserOverrideParser)}]: {ex.Message}");
             return null;
         }
     }

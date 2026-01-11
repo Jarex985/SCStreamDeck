@@ -91,8 +91,7 @@ public abstract class SCActionBase : KeyAndEncoderBase
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"{GetType().Name}: SendPropertyInspectorUpdate failed: {ex.Message}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR,$"[{GetType().Name}]: {ex.Message}");
             Connection.SendToPropertyInspectorAsync(new JObject
             {
                 ["functionsLoaded"] = false, ["functions"] = new JArray()
@@ -128,7 +127,7 @@ public abstract class SCActionBase : KeyAndEncoderBase
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"{GetType().Name}: OnSendToPlugin error: {ex.Message}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[{GetType().Name}]: {ex.Message}");
         }
     }
 

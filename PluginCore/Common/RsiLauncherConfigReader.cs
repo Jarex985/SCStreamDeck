@@ -32,7 +32,7 @@ internal sealed partial class RsiLauncherConfigReader
         if (!Directory.Exists(launcherPath))
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[RsiLauncherConfigReader] {ErrorMessages.RsiLauncherDirNotFound}");
+                $"[{nameof(RsiLauncherConfigReader)}] {ErrorMessages.RsiLauncherDirNotFound}");
             return null;
         }
 
@@ -62,7 +62,7 @@ internal sealed partial class RsiLauncherConfigReader
         if (!Directory.Exists(logsDir))
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[RsiLauncherConfigReader] {ErrorMessages.RsiLauncherLogsNotFound}");
+                $"[{nameof(RsiLauncherConfigReader)}] {ErrorMessages.RsiLauncherLogsNotFound}");
             yield break;
         }
 
@@ -94,15 +94,10 @@ internal sealed partial class RsiLauncherConfigReader
             ExtractPathsFromContent(content, paths);
         }
 
-        catch (IOException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[RsiLauncherConfigReader] {ErrorMessages.FileReadFailed} '{Path.GetFileName(logFilePath)}': {ex.Message}");
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[RsiLauncherConfigReader] {ErrorMessages.FileAccessDenied} '{Path.GetFileName(logFilePath)}': {ex.Message}");
+                $"[{nameof(RsiLauncherConfigReader)}]: '{Path.GetFileName(logFilePath)}': {ex.Message}");
         }
 
         return paths;

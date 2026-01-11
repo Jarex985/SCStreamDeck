@@ -33,7 +33,7 @@ internal static class InstallationCandidateEnumerator
         catch (Exception ex)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[CandidateEnumerator] Error processing root '{root}': {ex.Message}");
+                $"[{nameof(InstallationCandidateEnumerator)}] Error processing root '{root}': {ex.Message}");
         }
     }
 

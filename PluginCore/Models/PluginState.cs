@@ -1,5 +1,7 @@
+using BarRaider.SdTools;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using SCStreamDeck.Logging;
 
 namespace SCStreamDeck.Models;
 
@@ -139,7 +141,8 @@ public sealed record PluginState(
         }
         catch (Exception ex) when (ex is JsonException or IOException)
         {
-            // Log error but don't throw - return null to trigger fresh initialization
+            Logger.Instance.LogMessage(TracingLevel.ERROR,
+                $"[{nameof(PluginState)}]: {ErrorMessages.StateLoadFailed}: {ex.Message}");
             return null;
         }
     }

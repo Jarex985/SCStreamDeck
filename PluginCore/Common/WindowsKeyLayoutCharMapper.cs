@@ -66,8 +66,7 @@ internal static class WindowsKeyLayoutCharMapper
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[WindowsKeyLayoutCharMapper] Exception: {ex.Message}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR,$"[{nameof(WindowsKeyLayoutCharMapper)}]: {ex.Message}");
             return null;
         }
     }

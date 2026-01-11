@@ -1,4 +1,5 @@
 using System.Security;
+using BarRaider.SdTools;
 
 namespace SCStreamDeck.Common;
 
@@ -53,30 +54,14 @@ public static class SecurePathValidator
             normalizedPath = string.Empty;
             return false;
         }
-        catch (ArgumentException)
+
+        catch (Exception ex) when (ex is ArgumentException or SecurityException or NotSupportedException or PathTooLongException)
         {
-            // Path contains invalid characters or is malformed
+            Logger.Instance.LogMessage(TracingLevel.ERROR,$"[{nameof(SecurePathValidator)}] '{path}': {ex.Message}");
             normalizedPath = string.Empty;
             return false;
         }
-        catch (SecurityException)
-        {
-            // Caller does not have required permissions
-            normalizedPath = string.Empty;
-            return false;
-        }
-        catch (NotSupportedException)
-        {
-            // Path contains a colon in an invalid position
-            normalizedPath = string.Empty;
-            return false;
-        }
-        catch (PathTooLongException)
-        {
-            // Path exceeds system-defined maximum length
-            normalizedPath = string.Empty;
-            return false;
-        }
+
     }
 
     /// <summary>
@@ -88,12 +73,8 @@ public static class SecurePathValidator
     /// <exception cref="SecurityException">Thrown when path traversal is detected or path is invalid.</exception>
     public static string GetSecurePath(string path, string baseDirectory)
     {
-        if (!IsValidPath(path, baseDirectory, out string normalized))
-        {
-            throw new SecurityException($"Invalid or unsafe path detected. Path must be within: {baseDirectory}");
-        }
-
-        return normalized;
+        return !IsValidPath(path, baseDirectory, out string normalized) ?
+            throw new SecurityException($"Invalid or unsafe path detected. Path must be within: {baseDirectory}") : normalized;
     }
 
     /// <summary>
@@ -123,20 +104,10 @@ public static class SecurePathValidator
             normalizedPath = Path.GetFullPath(path);
             return true;
         }
-        catch (ArgumentException)
+
+        catch (Exception ex) when (ex is ArgumentException or SecurityException or NotSupportedException or PathTooLongException)
         {
-            return false;
-        }
-        catch (SecurityException)
-        {
-            return false;
-        }
-        catch (NotSupportedException)
-        {
-            return false;
-        }
-        catch (PathTooLongException)
-        {
+            Logger.Instance.LogMessage(TracingLevel.ERROR,$"[{nameof(SecurePathValidator)}] '{path}': {ex.Message}");
             return false;
         }
     }
