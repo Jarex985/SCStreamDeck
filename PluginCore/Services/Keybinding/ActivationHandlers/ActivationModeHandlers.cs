@@ -1,94 +1,117 @@
-﻿using SCStreamDeck.Models;
+﻿using System.Collections.Concurrent;
+using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Services.Keybinding.ActivationHandlers;
 
 /// <summary>
 ///     Handler for immediate press activation modes.
-///     Triggers immediately on button press for modes like press, tap, double_tap, toggle, all.
+///     Triggers based on activation mode metadata (OnPress, OnHold, OnRelease, Retriggerable).
+///     All modes handled generically using metadata flags.
 /// </summary>
 internal sealed class ImmediatePressHandler : IActivationModeHandler
 {
+    /// <summary>
+    ///     Tracks which actions have been activated during the current key press cycle.
+    ///     Used for MultiTapBlock logic to prevent OnRelease from firing after OnPress.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, bool> _activationBlocks = new(StringComparer.OrdinalIgnoreCase);
+
     public IEnumerable<string> SupportedModes =>
-    [
-        "press", "press_quicker", "tap", "tap_quicker", "double_tap", "double_tap_nonblocking", "hold_toggle", "smart_toggle",
-        "all"
-    ];
+        [
+            "press", "press_quicker", "tap", "tap_quicker", "double_tap", "double_tap_nonblocking", "hold_toggle",
+            "all"
+        ];
 
-    public bool Execute(ActivationExecutionContext context, ActivationModeMetadata metadata, IInputExecutor executor)
+    public bool Execute(ActivationExecutionContext context, IInputExecutor executor)
     {
-        switch (context.Mode)
+        return context.IsKeyDown ? HandleKeyDown(context, executor) : HandleKeyUp(context, executor);
+    }
+
+    private bool HandleKeyDown(ActivationExecutionContext context, IInputExecutor executor)
+    {
+        // Clear any previous activation block for this action (new key press cycle)
+        _activationBlocks.TryRemove(context.ActionName, out _);
+
+        if (!context.Metadata.OnPress)
         {
-            case ActivationMode.press:
-            case ActivationMode.press_quicker:
-                // Press modes: KeyDown starts holding, KeyUp releases
-                if (context.IsKeyDown)
-                {
-                    return executor.ExecuteDown(context.Input, context.ActionName);
-                }
-
-                return executor.ExecuteUp(context.Input, context.ActionName);
-
-            case ActivationMode.tap:
-            case ActivationMode.tap_quicker:
-                // Tap modes trigger on key UP (release), not down
-                if (context.IsKeyDown)
-                {
-                    return true; // Ignore press, wait for release
-                }
-
-                return executor.ExecutePress(context.Input);
-
-            case ActivationMode.double_tap:
-            case ActivationMode.double_tap_nonblocking:
-                // Treat as simple press for StreamDeck use
-                if (!context.IsKeyDown)
-                {
-                    return true;
-                }
-
-                return executor.ExecutePress(context.Input);
-
-            case ActivationMode.hold_toggle:
-            case ActivationMode.smart_toggle:
-                // Toggle modes send a press on each button press
-                if (!context.IsKeyDown)
-                {
-                    return true;
-                }
-
-                return executor.ExecutePress(context.Input);
-
-            case ActivationMode.all:
-                // Hold while pressed - Star Citizen decides based on duration
-                if (context.IsKeyDown)
-                {
-                    return executor.ExecuteDown(context.Input, context.ActionName);
-                }
-
-                return executor.ExecuteUp(context.Input, context.ActionName);
-
-            default:
-                return false;
+            return true; // Ignore KeyDown, wait for KeyUp
         }
+
+        bool result;
+        if (context.Metadata.Retriggerable)
+        {
+            // Start hold with repetition (for firing, continuous actions)
+            result = executor.ExecuteDown(context.Input, context.ActionName);
+        }
+        else
+        {
+            // Single press without repetition (toggles, one-shot actions)
+            result = executor.ExecutePressNoRepeat(context.Input);
+        }
+
+        // If MultiTapBlock is set, block subsequent OnRelease execution
+        if (context.Metadata.MultiTapBlock > 0)
+        {
+            _activationBlocks[context.ActionName] = true;
+        }
+
+        return result;
+    }
+
+    private bool HandleKeyUp(ActivationExecutionContext context, IInputExecutor executor)
+    {
+        // Check if OnPress was executed with MultiTapBlock
+        bool wasBlocked = _activationBlocks.TryRemove(context.ActionName, out _);
+
+        // If OnRelease is true AND not blocked by MultiTapBlock, execute additional release press
+        if (context.Metadata.OnRelease && !wasBlocked)
+        {
+            // CRITICAL: Check ReleaseTriggerDelay FIRST (used by smart_toggle)
+            if (context.Metadata.ReleaseTriggerDelay > 0)
+            {
+                return executor.ScheduleDelayedPress(context.Input, context.ActionName, context.Metadata.ReleaseTriggerDelay);
+            }
+
+            // Then check ReleaseTriggerThreshold (used by tap modes)
+            if (context.Metadata.ReleaseTriggerThreshold > 0)
+            {
+                return executor.ScheduleDelayedPress(context.Input, context.ActionName, context.Metadata.ReleaseTriggerThreshold);
+            }
+
+            // No delay - execute immediately
+            return executor.ExecutePressNoRepeat(context.Input);
+        }
+
+        // ALWAYS release hold if Retriggerable was true (even if MultiTapBlock blocked OnRelease)
+        // This prevents "stuck" hold states for modes like "all" (Retriggerable=true)
+        if (context.Metadata.Retriggerable)
+        {
+            return executor.ExecuteUp(context.Input, context.ActionName);
+        }
+
+        // For non-retriggerable modes (e.g., hold_toggle with MultiTapBlock),
+        // OnRelease was already blocked above, so just return success
+        return true;
     }
 }
 
 /// <summary>
 ///     Handler for delayed press activation modes.
 ///     Starts holding the key after a delay threshold, continues until key is released.
+///     Respects PressTriggerThreshold and Retriggerable metadata.
 /// </summary>
 internal sealed class DelayedPressHandler : IActivationModeHandler
 {
     public IEnumerable<string> SupportedModes =>
         ["delayed_press", "delayed_press_quicker", "delayed_press_medium", "delayed_press_long"];
 
-    public bool Execute(ActivationExecutionContext context, ActivationModeMetadata metadata, IInputExecutor executor)
+    public bool Execute(ActivationExecutionContext context, IInputExecutor executor)
     {
         if (context.IsKeyDown)
         {
             // Schedule delayed hold start
-            float delay = metadata.PressTriggerThreshold > 0
-                ? metadata.PressTriggerThreshold
+            float delay = context.Metadata.PressTriggerThreshold > 0
+                ? context.Metadata.PressTriggerThreshold
                 : GetDefaultDelay(context.Mode);
 
             return executor.ScheduleDelayedHold(context.Input, context.ActionName, delay);
@@ -113,15 +136,16 @@ internal sealed class DelayedPressHandler : IActivationModeHandler
 /// <summary>
 ///     Handler for hold activation modes.
 ///     Key/button stays pressed while StreamDeck button is held.
+///     Respects Retriggerable, OnHold, and PressTriggerThreshold metadata.
 /// </summary>
 internal sealed class HoldHandler : IActivationModeHandler
 {
     public IEnumerable<string> SupportedModes =>
-    [
-        "hold", "hold_no_retrigger", "delayed_hold", "delayed_hold_long", "delayed_hold_no_retrigger"
-    ];
+        [
+            "hold", "hold_no_retrigger", "delayed_hold", "delayed_hold_long", "delayed_hold_no_retrigger"
+        ];
 
-    public bool Execute(ActivationExecutionContext context, ActivationModeMetadata metadata, IInputExecutor executor)
+    public bool Execute(ActivationExecutionContext context, IInputExecutor executor)
     {
         switch (context.Mode)
         {
@@ -129,6 +153,8 @@ internal sealed class HoldHandler : IActivationModeHandler
             case ActivationMode.hold_no_retrigger:
                 if (context.IsKeyDown)
                 {
+                    // For hold_no_retrigger, use ExecuteDown to allow repetition (Retriggerable=true by default for hold)
+                    // For hold, ExecuteDown starts repeat timer which is correct
                     return executor.ExecuteDown(context.Input, context.ActionName);
                 }
 
@@ -139,9 +165,9 @@ internal sealed class HoldHandler : IActivationModeHandler
             case ActivationMode.delayed_hold_no_retrigger:
                 if (context.IsKeyDown)
                 {
-                    // Schedule delayed hold
-                    float delay = metadata.PressTriggerThreshold > 0
-                        ? metadata.PressTriggerThreshold
+                    // Schedule delayed hold using PressTriggerThreshold from metadata
+                    float delay = context.Metadata.PressTriggerThreshold > 0
+                        ? context.Metadata.PressTriggerThreshold
                         : GetDefaultDelay(context.Mode);
 
                     return executor.ScheduleDelayedHold(context.Input, context.ActionName, delay);

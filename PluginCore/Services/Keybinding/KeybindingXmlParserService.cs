@@ -47,7 +47,9 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
 
             string? pressTriggerAttr = xmlReader.GetAttribute("pressTriggerThreshold");
             string? releaseTriggerAttr = xmlReader.GetAttribute("releaseTriggerThreshold");
+            string? releaseTriggerDelayAttr = xmlReader.GetAttribute("releaseTriggerDelay");
             string? multiTapAttr = xmlReader.GetAttribute("multiTap");
+            string? multiTapBlockAttr = xmlReader.GetAttribute("multiTapBlock");
 
             ActivationModeMetadata metadata = new()
             {
@@ -64,10 +66,19 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
                                               out float rt)
                     ? rt
                     : -1,
+                ReleaseTriggerDelay = !string.IsNullOrWhiteSpace(releaseTriggerDelayAttr) &&
+                                         float.TryParse(releaseTriggerDelayAttr, NumberStyles.Float, CultureInfo.InvariantCulture,
+                                             out float rtd)
+                    ? rtd
+                    : 0,
                 Retriggerable = xmlReader.GetAttribute("retriggerable") == "1",
                 MultiTap = !string.IsNullOrWhiteSpace(multiTapAttr) &&
                            int.TryParse(multiTapAttr, out int mt)
                     ? mt
+                    : 1,
+                MultiTapBlock = !string.IsNullOrWhiteSpace(multiTapBlockAttr) &&
+                               int.TryParse(multiTapBlockAttr, out int mtb)
+                    ? mtb
                     : 1
             };
 
@@ -84,7 +95,7 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
     /// <returns>List of parsed keybinding actions</returns>
     public List<KeybindingActionData> ParseXmlToActions(string xmlText)
     {
-        List<KeybindingActionData> actions = new();
+        List<KeybindingActionData> actions = [];
 
         // Parse activation modes first (needed for inference)
         Dictionary<string, ActivationModeMetadata> activationModes = ParseActivationModes(xmlText);
@@ -252,11 +263,11 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
         // Fallback: heuristic if no exact match found
         ActivationMode inferred = InferFromHeuristic(onPress, onHold, onRelease, retriggerable);
 
-        // Log warning if heuristic was used (not exact match)
-        /*Logger.Instance.LogMessage(TracingLevel.WARN,
+#if DEBUG
+        Logger.Instance.LogMessage(TracingLevel.WARN,
             $"[KeybindingXmlParser] Action '{actionName}' used heuristic activation mode: {inferred} " +
-            $"(onPress={onPress}, onHold={onHold}, onRelease={onRelease}, retriggerable={retriggerable})");*/
-
+            $"(onPress={onPress}, onHold={onHold}, onRelease={onRelease}, retriggerable={retriggerable})");
+#endif
         return inferred;
     }
 

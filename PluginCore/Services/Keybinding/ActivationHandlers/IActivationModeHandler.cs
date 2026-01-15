@@ -1,4 +1,5 @@
 ﻿using SCStreamDeck.Models;
+// ReSharper disable UnusedMember.Global
 
 namespace SCStreamDeck.Services.Keybinding.ActivationHandlers;
 
@@ -16,11 +17,10 @@ internal interface IActivationModeHandler
     /// <summary>
     ///     Executes the activation mode logic.
     /// </summary>
-    /// <param name="context">The execution context containing action info and key state.</param>
-    /// <param name="metadata">The activation mode metadata from the game config.</param>
+    /// <param name="context">The execution context containing action info, key state, and metadata.</param>
     /// <param name="executor">The executor for performing input actions.</param>
     /// <returns>True if execution was successful.</returns>
-    bool Execute(ActivationExecutionContext context, ActivationModeMetadata metadata, IInputExecutor executor);
+    bool Execute(ActivationExecutionContext context, IInputExecutor executor);
 }
 
 /// <summary>
@@ -32,6 +32,7 @@ internal sealed class ActivationExecutionContext
     public required ParsedInput Input { get; init; }
     public required bool IsKeyDown { get; init; }
     public required ActivationMode Mode { get; init; }
+    public required ActivationModeMetadata Metadata { get; init; }
 }
 
 /// <summary>
@@ -54,8 +55,15 @@ internal interface IInputExecutor
 {
     /// <summary>
     ///     Executes a press action (key/button down then up).
+    ///     Important: For toggle actions, this should NOT repeat while held.
     /// </summary>
     bool ExecutePress(ParsedInput input);
+
+    /// <summary>
+    ///     Executes a press action without repetition (for toggle modes).
+    ///     Does NOT start repeat timers even with modifier keys.
+    /// </summary>
+    bool ExecutePressNoRepeat(ParsedInput input);
 
     /// <summary>
     ///     Holds a key/button down.

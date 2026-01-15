@@ -2,7 +2,6 @@ namespace SCStreamDeck.Services.Core;
 
 /// <summary>
 ///     Provides localization services for Star Citizen UI strings.
-///     Replaces legacy static GlobalIniManager and UserConfigReader.
 /// </summary>
 public interface ILocalizationService
 {

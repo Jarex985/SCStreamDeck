@@ -36,4 +36,11 @@ public interface IKeybindingLoaderService
     ///     Gets the loaded activation modes.
     /// </summary>
     IReadOnlyDictionary<string, ActivationModeMetadata> GetActivationModes();
+
+    /// <summary>
+    ///     Gets the activation mode metadata for a specific action.
+    /// </summary>
+    /// <param name="actionName">The action name to get metadata for.</param>
+    /// <returns>The activation mode metadata, or null if not found.</returns>
+    ActivationModeMetadata? GetMetadata(string actionName);
 }

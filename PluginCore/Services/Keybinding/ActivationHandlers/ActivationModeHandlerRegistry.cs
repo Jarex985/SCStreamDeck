@@ -5,7 +5,6 @@ namespace SCStreamDeck.Services.Keybinding.ActivationHandlers;
 
 /// <summary>
 ///     Registry and factory for activation mode handlers.
-///     Implements the Strategy pattern for activation mode execution.
 /// </summary>
 internal sealed class ActivationModeHandlerRegistry
 {
@@ -15,12 +14,19 @@ internal sealed class ActivationModeHandlerRegistry
     public ActivationModeHandlerRegistry()
     {
         IActivationModeHandler[] handlers =
-            new IActivationModeHandler[] { new ImmediatePressHandler(), new DelayedPressHandler(), new HoldHandler() };
+        [
+            new ImmediatePressHandler(),
+            new DelayedPressHandler(),
+            new HoldHandler(),
+            new SmartToggleHandler()
+        ];
 
         foreach (IActivationModeHandler handler in handlers)
-        foreach (string mode in handler.SupportedModes)
         {
-            _handlers[mode] = handler;
+            foreach (string mode in handler.SupportedModes)
+            {
+                _handlers[mode] = handler;
+            }
         }
 
         // Default to press handler for unknown modes
@@ -30,7 +36,7 @@ internal sealed class ActivationModeHandlerRegistry
     /// <summary>
     ///     Gets the appropriate handler for the specified activation mode.
     /// </summary>
-    public IActivationModeHandler GetHandler(ActivationMode mode)
+    private IActivationModeHandler GetHandler(ActivationMode mode)
     {
         string modeName = mode.ToString();
 
@@ -50,10 +56,9 @@ internal sealed class ActivationModeHandlerRegistry
     /// </summary>
     public bool Execute(
         ActivationExecutionContext context,
-        ActivationModeMetadata metadata,
         IInputExecutor executor)
     {
         IActivationModeHandler handler = GetHandler(context.Mode);
-        return handler.Execute(context, metadata, executor);
+        return handler.Execute(context, executor);
     }
 }

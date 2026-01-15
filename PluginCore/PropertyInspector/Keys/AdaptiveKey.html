@@ -217,26 +217,36 @@
                 const groupName = group.label || 'Other';
                 const options = group.options || [];
 
-                options.forEach(opt =>
-                {
-                    // Filter out Joystick, Gamepad, and Mouse Axis only functions
-                    if (!opt.disabled)
-                    {
-                        // TODO: Remove this properly, quick fix for now
-                        // Remove device abbreviations from text (e.g., " (K+M)", " (J)")
-                        const cleanText = opt.text.replace(/ \([A-Z+]+\)$/, '');
+            options.forEach(opt =>
+            {
+                // Filter out Controller/Axis-only functions (not supported for static buttons)
+                const isControllerOnly = opt.disabledReason && (
+                    opt.disabledReason.includes('Controller') ||
+                    opt.disabledReason.includes('Axis')
+                );
 
-                        flat.push(
-                            {
-                                value: opt.value,
-                                text: cleanText,
-                                group: groupName,
-                                details: opt.details,
-                                disabled: opt.disabled || false,
-                                key: opt.key || ''
-                            });
-                    }
-                });
+                if (isControllerOnly)
+                {
+                    return; // Skip controller-only and axis-only options
+                }
+
+                // Determine category - unbound actions go to separate category
+                let category = groupName;
+                if (opt.disabledReason === 'No supported binding')
+                {
+                    category = 'Unbound Functions';
+                }
+
+                flat.push(
+                    {
+                        value: opt.value,
+                        text: opt.text,
+                        group: category,
+                        details: opt.details,
+                        disabled: opt.disabled || false,
+                        key: opt.key || ''
+                    });
+            });
             });
         }
 
@@ -341,6 +351,21 @@
         {
             dropdownArrow.classList.add('pi-dropdown__arrow--open');
         }
+
+        // If no search text, show all options; otherwise, filter
+        const inputEl = document.querySelector('.pi-dropdown__search');
+        if (inputEl)
+        {
+            const searchText = inputEl.value.trim();
+            if (searchText)
+            {
+                filterDropdown(searchText);
+            }
+            else
+            {
+                renderDropdownList(allOptions);
+            }
+        }
     }
 
     /**
@@ -390,18 +415,18 @@
         const searchLower = searchText.toLowerCase().trim();
 
         // Filter options
-        const filtered = allOptions.filter(opt =>
+        let filtered = allOptions.filter(opt =>
         {
             return opt.text.toLowerCase().includes(searchLower);
         });
 
-        renderDropdownList(filtered);
-
-        // Open dropdown if typing AND there are filtered results
-        if (searchLower && filtered.length > 0)
+        // Limit results to prevent performance issues
+        const maxResults = 50;
+        if (filtered.length > maxResults)
         {
-            openDropdown();
+            filtered = filtered.slice(0, maxResults);
         }
+        renderDropdownList(filtered);
     }
 
     /**
@@ -411,6 +436,13 @@
     {
         const searchText = e.target.value;
         filterDropdown(searchText);
+
+        // Open dropdown if not already open and there is search text
+        const dropdownEl = document.querySelector('.pi-dropdown');
+        if (dropdownEl && !dropdownEl.classList.contains('pi-dropdown--open') && searchText.trim())
+        {
+            openDropdown();
+        }
     }
 
     /**
@@ -420,12 +452,7 @@
      */
     function handleFocus()
     {
-        const inputEl = document.querySelector('.pi-dropdown__search');
-        if (!inputEl)
-        {
-            return;
-        }
-        inputEl.value = '';
+        // No longer clearing input on focus to prevent resetting user input
     }
 
     /**

@@ -39,14 +39,14 @@ public sealed class KeybindingParserService : IKeybindingParserService
         // Check standalone mouse wheel (no modifiers)
         if (normalized.Contains(SCConstants.Input.Mouse.WheelUp, StringComparison.Ordinal))
         {
-            // Windows VerticalScroll: negative = content scrolls UP
-            return new ParsedInputResult(InputType.MouseWheel, -1);
+            // Star Citizen: mwheel_up = positive value = scroll UP
+            return new ParsedInputResult(InputType.MouseWheel, 1);
         }
 
         if (normalized.Contains(SCConstants.Input.Mouse.WheelDown, StringComparison.Ordinal))
         {
-            // Windows VerticalScroll: positive = content scrolls DOWN
-            return new ParsedInputResult(InputType.MouseWheel, 1);
+            // Star Citizen: mwheel_down = negative value = scroll DOWN
+            return new ParsedInputResult(InputType.MouseWheel, -1);
         }
 
         return null;
@@ -91,11 +91,11 @@ public sealed class KeybindingParserService : IKeybindingParserService
             }
             else if (trimmed == SCConstants.Input.Mouse.WheelUp)
             {
-                wheelDirection = -1; // Negative = scroll UP
+                wheelDirection = 1; // Star Citizen: mwheel_up = positive = scroll UP
             }
             else if (trimmed == SCConstants.Input.Mouse.WheelDown)
             {
-                wheelDirection = 1; // Positive = scroll DOWN
+                wheelDirection = -1; // Star Citizen: mwheel_down = negative = scroll DOWN
             }
         }
 

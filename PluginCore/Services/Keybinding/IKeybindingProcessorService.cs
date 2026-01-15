@@ -4,7 +4,6 @@ namespace SCStreamDeck.Services.Keybinding;
 
 /// <summary>
 ///     Service for processing Star Citizen keybindings.
-///     Replaces legacy KeybindingProcessor with async service.
 /// </summary>
 public interface IKeybindingProcessorService
 {

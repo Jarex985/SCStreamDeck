@@ -2,7 +2,6 @@ namespace SCStreamDeck.Services.Installation;
 
 /// <summary>
 ///     Provides plugin version information.
-///     Replaces the legacy static PluginVersionProvider class with a DI-ready service.
 /// </summary>
 public interface IVersionProvider
 {

@@ -2,6 +2,7 @@ using System.Globalization;
 using Newtonsoft.Json.Linq;
 using SCStreamDeck.Common;
 using SCStreamDeck.Models;
+using InputDeviceType = SCStreamDeck.Models.InputType;
 
 namespace SCStreamDeck.Services.Keybinding;
 
@@ -26,9 +27,9 @@ internal static class FunctionsPayloadBuilder
             .Where(x => !string.IsNullOrWhiteSpace(x.ActionLabel))
             .ToList();
 
-        // Group by ActionName (each action is unique)
+        // Group by (ActionName, Category) to handle duplicates across different maps
         List<GroupedActionEntry> groupedEntries = resolved
-            .GroupBy(x => x.Action.ActionName)
+            .GroupBy(x => (x.Action.ActionName, x.GroupLabel))
             .Select(g => ToGroupedEntry(g, hkl))
             .ToList();
 
@@ -55,7 +56,7 @@ internal static class FunctionsPayloadBuilder
 
                 options.Add(new JObject
                 {
-                    ["value"] = groupedEntry.CanonicalActionName,
+                    ["value"] = $"{groupedEntry.ActionName}_{groupedEntry.GroupLabelResolved}",
                     ["text"] = text,
                     ["bindingType"] = InferBindingType(groupedEntry.Bindings),
                     ["searchText"] = searchText,
@@ -87,7 +88,7 @@ internal static class FunctionsPayloadBuilder
         foreach (IGrouping<(string GroupLabelResolved, string ActionLabelResolved), GroupedActionEntry> labelGroup in labelGroups)
         {
             List<GroupedActionEntry> actionsInGroup = labelGroup.ToList();
-            List<string> actionNames = actionsInGroup.Select(e => e.CanonicalActionName).ToList();
+            List<string> actionNames = actionsInGroup.Select(e => e.ActionName).ToList();
 
             // Find common prefix among all action names in this group
             string commonPrefix = FindCommonPrefix(actionNames);
@@ -95,9 +96,9 @@ internal static class FunctionsPayloadBuilder
             foreach (GroupedActionEntry entry in actionsInGroup)
             {
                 // Extract unique suffix from action name
-                string uniquePart = entry.CanonicalActionName.Length > commonPrefix.Length
-                    ? entry.CanonicalActionName.Substring(commonPrefix.Length)
-                    : entry.CanonicalActionName;
+                string uniquePart = entry.ActionName.Length > commonPrefix.Length
+                    ? entry.ActionName.Substring(commonPrefix.Length)
+                    : entry.ActionName;
 
                 // Clean up and format suffix
                 string suffix = FormatSuffix(uniquePart);
@@ -211,9 +212,9 @@ internal static class FunctionsPayloadBuilder
         nint hkl)
     {
         List<ResolvedAction> list = group.ToList();
-        string canonical = list.Select(x => x.Action.ActionName).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).First();
+        string name = list.Select(x => x.Action.ActionName).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).First();
 
-        List<BindingDisplay> bindings = new();
+        List<BindingDisplay> bindings = [];
 
         foreach (ResolvedAction item in list)
         {
@@ -221,7 +222,7 @@ internal static class FunctionsPayloadBuilder
 
             string keyboardRaw = a.KeyboardBinding.Trim();
 
-            // Some "keyboard" bindings in SC can actually represent modifier + mouse axis (e.g. "LAlt + maxis_z")
+
             if (IsMouseAxis(keyboardRaw))
             {
                 AddBinding(bindings, InputDeviceType.MouseAxis, keyboardRaw, keyboardRaw, a.ActionName);
@@ -232,12 +233,10 @@ internal static class FunctionsPayloadBuilder
                     DirectInputDisplayMapper.ToDisplay(keyboardRaw, hkl), a.ActionName);
             }
 
-            // Mouse bindings can be buttons (mouse1/mouse2) or axes (e.g. maxis_z = wheel)
             string mouseRaw = a.MouseBinding.Trim();
             InputDeviceType mouseDevice = IsMouseAxis(mouseRaw) ? InputDeviceType.MouseAxis : InputDeviceType.Mouse;
 
             AddBinding(bindings, mouseDevice, mouseRaw, mouseRaw, a.ActionName);
-
             AddBinding(bindings, InputDeviceType.Joystick, a.JoystickBinding, a.JoystickBinding.Trim(), a.ActionName);
             AddBinding(bindings, InputDeviceType.Gamepad, a.GamepadBinding, a.GamepadBinding.Trim(), a.ActionName);
         }
@@ -256,54 +255,20 @@ internal static class FunctionsPayloadBuilder
             first.GroupLabel,
             first.ActionLabel,
             string.IsNullOrWhiteSpace(first.Description) ? null : first.Description,
-            canonical,
+            name,
             bindings,
             first.Action.ActivationMode);
     }
 
     private static (string text, string searchText, JObject details) BuildPayloadEntry(GroupedActionEntry entry)
     {
-        // UX: keep option text compact; show full merged bindings in a separate PI details panel
-        if (entry.Bindings.Count == 0)
-        {
-            return ($"{entry.ActionLabelResolved} (unbound)", string.Empty, new JObject());
-        }
-
-        // Minimal device presence summary. Example: "(K+M+J)"
-        string deviceSummary = BuildDeviceSummary(entry.Bindings);
-        string text = string.IsNullOrWhiteSpace(deviceSummary)
-            ? entry.ActionLabelResolved
-            : $"{entry.ActionLabelResolved} {deviceSummary}";
-
+        string text = entry.ActionLabelResolved;
         string searchText = BuildSearchText(entry).ToLowerInvariant();
-
         JObject details = BuildDetailsPayload(entry);
 
         return (text, searchText, details);
     }
 
-    private static string BuildDeviceSummary(IEnumerable<BindingDisplay> bindings)
-    {
-        List<InputDeviceType> devices = bindings
-            .Where(b => !string.IsNullOrWhiteSpace(b.Raw))
-            .Select(b => b.Device)
-            .Distinct()
-            .OrderBy(d => d)
-            .ToList();
-
-        return devices.Count == 0 ? string.Empty : $"({string.Join("+", devices.Select(Abbrev))})";
-
-        static string Abbrev(InputDeviceType d) =>
-            d switch
-            {
-                InputDeviceType.Keyboard => "K",
-                InputDeviceType.Mouse => "M",
-                InputDeviceType.MouseAxis => "Axis",
-                InputDeviceType.Joystick => "J",
-                InputDeviceType.Gamepad => "G",
-                _ => "?"
-            };
-    }
 
     private static JObject BuildDetailsPayload(GroupedActionEntry entry)
     {
@@ -311,11 +276,11 @@ internal static class FunctionsPayloadBuilder
         {
             ["label"] = entry.ActionLabelResolved,
             ["description"] = entry.DescriptionResolved ?? string.Empty,
-            ["canonicalActionName"] = entry.CanonicalActionName,
+            ["actionName"] = entry.ActionName,
             ["activationMode"] = entry.ActivationMode.ToString()
         };
 
-        // Group bindings by device for a clean PI view
+
         IOrderedEnumerable<IGrouping<InputDeviceType, BindingDisplay>> byDevice = entry.Bindings
             .Where(b => !string.IsNullOrWhiteSpace(b.Raw))
             .GroupBy(b => b.Device)
@@ -333,6 +298,7 @@ internal static class FunctionsPayloadBuilder
             devices.Add(new JObject { ["device"] = g.Key.ToString(), ["bindings"] = new JArray(bindings) });
         }
 
+        // TODO: Come back later when able to test Dials
         details["devices"] = devices;
         details["isBound"] = devices.Count > 0;
 
@@ -348,7 +314,7 @@ internal static class FunctionsPayloadBuilder
 
     private static string BuildSearchText(GroupedActionEntry entry)
     {
-        List<string> parts = new() { entry.ActionLabelResolved, entry.DescriptionResolved ?? string.Empty };
+        List<string> parts = [entry.ActionLabelResolved, entry.DescriptionResolved ?? string.Empty];
 
         foreach (BindingDisplay b in entry.Bindings)
         {
@@ -455,16 +421,6 @@ internal static class FunctionsPayloadBuilder
     }
 }
 
-internal enum InputDeviceType
-{
-    Keyboard,
-    Mouse,
-    MouseAxis,
-    Joystick,
-    Gamepad,
-    Unbound
-}
-
 /// <summary>
 ///     Strongly-typed intermediate representation for resolved action data.
 ///     Replaces dynamic typing for compile-time null checks and type safety.
@@ -485,10 +441,6 @@ internal sealed record GroupedActionEntry(
     string GroupLabelResolved,
     string ActionLabelResolved,
     string? DescriptionResolved,
-    string CanonicalActionName,
+    string ActionName,
     IReadOnlyList<BindingDisplay> Bindings,
-    ActivationMode ActivationMode)
-{
-    // Mutable label for disambiguation
-    public string ActionLabelResolved { get; init; } = ActionLabelResolved;
-}
+    ActivationMode ActivationMode);

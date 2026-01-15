@@ -3,6 +3,8 @@ using Newtonsoft.Json;
 using SCStreamDeck.Common;
 using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
+// ReSharper disable NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
+// ReSharper disable ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
 
 namespace SCStreamDeck.Services.Keybinding;
 
@@ -42,7 +44,7 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
             string json = await File.ReadAllTextAsync(validatedPath, cancellationToken).ConfigureAwait(false);
             KeybindingDataFile? dataFile = JsonConvert.DeserializeObject<KeybindingDataFile>(json);
 
-            if (dataFile?.Actions == null)
+            if (dataFile == null || dataFile.Actions.Count == 0)
             {
                 _isLoaded = false;
                 Logger.Instance.LogMessage(TracingLevel.ERROR,
@@ -55,25 +57,23 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
                 _actions.Clear();
 
                 // Map DTO actions to domain model
-                foreach (KeybindingActionData action in dataFile.Actions)
+                foreach (KeybindingAction keybindingAction in dataFile.Actions.Select(action => new KeybindingAction
+                         {
+                             ActionName = action.Name ?? string.Empty,
+                             MapName = action.MapName ?? string.Empty,
+                             UiLabel = action.Label ?? string.Empty,
+                             UiDescription = action.Description ?? string.Empty,
+                             UiCategory = action.Category ?? string.Empty,
+                             KeyboardBinding = action.Bindings?.Keyboard ?? string.Empty,
+                             MouseBinding = action.Bindings?.Mouse ?? string.Empty,
+                             JoystickBinding = action.Bindings?.Joystick ?? string.Empty,
+                             GamepadBinding = action.Bindings?.Gamepad ?? string.Empty,
+                             ActivationMode = action.ActivationMode
+                         }))
                 {
-                    KeybindingAction keybindingAction = new()
-                    {
-                        ActionName = action.Name ?? string.Empty,
-                        MapName = action.MapName ?? string.Empty,
-                        UiLabel = action.Label ?? string.Empty,
-                        UiDescription = action.Description ?? string.Empty,
-                        UiCategory = action.Category ?? string.Empty,
-                        KeyboardBinding = action.Bindings?.Keyboard ?? string.Empty,
-                        MouseBinding = action.Bindings?.Mouse ?? string.Empty,
-                        JoystickBinding = action.Bindings?.Joystick ?? string.Empty,
-                        GamepadBinding = action.Bindings?.Gamepad ?? string.Empty,
-                        ActivationMode = action.ActivationMode
-                    };
-                    _actions[keybindingAction.ActionName] = keybindingAction;
+                    _actions[$"{keybindingAction.ActionName}_{keybindingAction.UiCategory}"] = keybindingAction;
                 }
 
-                // Load activation modes from metadata
                 if (dataFile.Metadata.ActivationModes is { Count: > 0 })
                 {
                     _activationModes = dataFile.Metadata.ActivationModes;
@@ -84,25 +84,19 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
 
             return true;
         }
-        catch (IOException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             _isLoaded = false;
+            string errorMessage = ex switch
+            {
+                IOException => ErrorMessages.FileReadFailed,
+                UnauthorizedAccessException => ErrorMessages.FileAccessDenied,
+                JsonException => ErrorMessages.JsonParseFailed,
+                _ => string.Empty
+            };
+
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingLoaderService)}]: {ErrorMessages.FileReadFailed} '{Path.GetFileName(jsonPath)}': {ex.Message}");
-            return false;
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            _isLoaded = false;
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingLoaderService)}]: {ErrorMessages.FileAccessDenied} '{Path.GetFileName(jsonPath)}': {ex.Message}");
-            return false;
-        }
-        catch (JsonException ex)
-        {
-            _isLoaded = false;
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingLoaderService)}]: {ErrorMessages.JsonParseFailed} '{Path.GetFileName(jsonPath)}': {ex.Message}");
+                $"[{nameof(KeybindingLoaderService)}]: {errorMessage} '{Path.GetFileName(jsonPath)}': {ex.Message}");
             return false;
         }
     }
@@ -130,6 +124,25 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
         lock (_lock)
         {
             return new Dictionary<string, ActivationModeMetadata>(_activationModes);
+        }
+    }
+
+    public ActivationModeMetadata? GetMetadata(string actionName)
+    {
+        if (string.IsNullOrWhiteSpace(actionName))
+        {
+            return null;
+        }
+
+        lock (_lock)
+        {
+            if (!_actions.TryGetValue(actionName, out KeybindingAction? action))
+            {
+                return null;
+            }
+
+            string modeKey = action.ActivationMode.ToString();
+            return _activationModes.GetValueOrDefault(modeKey);
         }
     }
 }

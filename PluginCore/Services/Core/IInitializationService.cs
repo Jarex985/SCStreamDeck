@@ -4,7 +4,6 @@ namespace SCStreamDeck.Services.Core;
 
 /// <summary>
 ///     Service for plugin initialization and state management.
-///     Replaces legacy PluginInitializer singleton with DI-ready async service.
 /// </summary>
 public interface IInitializationService
 {

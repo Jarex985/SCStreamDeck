@@ -103,22 +103,18 @@ public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDis
             return false;
         }
 
+        // Get activation mode metadata for the specific action
+        ActivationModeMetadata metadata = _loaderService.GetMetadata(context.ActionName) ?? ActivationModeMetadata.Empty();
+
         ActivationExecutionContext executionContext = new()
         {
             ActionName = context.ActionName,
             Input = new ParsedInput { Type = parsedInput.Type, Value = parsedInput.Value },
             IsKeyDown = context.IsKeyDown,
-            Mode = context.ActivationMode
+            Mode = context.ActivationMode,
+            Metadata = metadata
         };
 
-        // Get activation mode metadata from loader service
-        IReadOnlyDictionary<string, ActivationModeMetadata> activationModes = _loaderService.GetActivationModes();
-        string modeKey = context.ActivationMode.ToString();
-        if (!activationModes.TryGetValue(modeKey, out ActivationModeMetadata? metadata))
-        {
-            metadata = new ActivationModeMetadata { OnPress = true }; // Fallback
-        }
-
-        return _handlerRegistry.Execute(executionContext, metadata, _inputExecutor);
+        return _handlerRegistry.Execute(executionContext, _inputExecutor);
     }
 }

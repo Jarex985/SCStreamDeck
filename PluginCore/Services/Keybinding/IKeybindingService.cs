@@ -4,7 +4,6 @@ namespace SCStreamDeck.Services.Keybinding;
 
 /// <summary>
 ///     Service for loading, managing, and executing Star Citizen keybindings.
-///     Consolidates functionality from legacy Cache, Execution, Processing, and Options folders.
 /// </summary>
 public interface IKeybindingService
 {

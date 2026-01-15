@@ -2,7 +2,6 @@
 
 /// <summary>
 ///     Parameter object for keybinding execution to avoid primitive obsession.
-///     Consolidates 8+ parameters into a single, validated context object.
 /// </summary>
 public sealed class KeybindingExecutionContext
 {

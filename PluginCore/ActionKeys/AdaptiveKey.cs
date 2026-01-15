@@ -110,7 +110,7 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
             if (success)
             {
 #if DEBUG
-                LogSuccessfulExecution(context);
+                LogExec(context);
 #endif
             }
         }
@@ -120,7 +120,7 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
         }
     }
 
-    private void LogSuccessfulExecution(KeybindingExecutionContext context)
+    private void LogExec(KeybindingExecutionContext context)
     {
         string actionText = context.IsKeyDown ? "pressed" : "released";
         Logger.Instance.LogMessage(TracingLevel.DEBUG,

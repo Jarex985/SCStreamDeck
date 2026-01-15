@@ -257,13 +257,17 @@ public sealed class KeybindingProcessorService(
     private static List<KeybindingActionData> FilterActionsWithBindings(List<KeybindingActionData> actions) =>
         actions.Where(a =>
         {
-            // Must have at least one binding
+            // Must have at least one binding OR a valid label/category
             bool hasBinding = !string.IsNullOrWhiteSpace(a.Bindings.Keyboard) ||
                               !string.IsNullOrWhiteSpace(a.Bindings.Mouse) ||
                               !string.IsNullOrWhiteSpace(a.Bindings.Joystick) ||
                               !string.IsNullOrWhiteSpace(a.Bindings.Gamepad);
 
-            if (!hasBinding)
+            bool isValidAction = !string.IsNullOrWhiteSpace(a.Label) &&
+                                 !string.IsNullOrWhiteSpace(a.Category);
+
+            // Keep if it has bindings OR if it's a valid bindable action
+            if (!hasBinding && !isValidAction)
             {
                 return false;
             }
