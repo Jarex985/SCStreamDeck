@@ -1,6 +1,6 @@
 using Newtonsoft.Json;
 
-namespace SCStreamDeck.Buttons.Settings;
+namespace SCStreamDeck.ActionKeys.Settings;
 
 /// <summary>
 ///     Shared settings schema for buttons that execute a single Star Citizen function.

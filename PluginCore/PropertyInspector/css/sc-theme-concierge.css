@@ -1,0 +1,470 @@
+﻿:root {
+    --color-bg-elgato: #2D2D2D;
+    --color-bg-darker: #121212;
+    --color-bg-card: #0F0F0F;
+    --color-border: #2A2A2A;
+
+    --color-primary: #D4AF37;
+    --color-primary-light: #FFD700;
+    --color-primary-glow: #D4AF374D;
+
+    --color-text-primary: #FFFFFF;
+    --color-text-secondary: #CCCCCC;
+    --color-text-tertiary: #999999;
+
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 12px;
+    --space-lg: 16px;
+    --space-xl: 20px;
+    --space-xxl: 24px;
+
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+
+    /* Component Sizes */
+    --dropdown-height: 36px;
+    --section-title-min-height: 36px;
+}
+
+* {
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background: var(--color-bg-elgato);
+    color: var(--color-text-primary);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--space-xs);
+    margin: 2px;
+}
+
+/* Root Container */
+.pi-container {
+    width: 100%;
+    max-width: 600px;
+    position: relative;
+    z-index: 1;
+}
+
+/* Main Panel */
+.pi-panel
+{
+    background: var(--color-bg-darker);
+    border-radius: var(--radius-lg);
+    padding: var(--space-xl) var(--space-sm);
+    box-shadow: 0 0 4px var(--color-primary-glow);
+    position: relative;
+    overflow: hidden;
+}
+
+/* CRT Overlay Effects */
+.pi-crt-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+    overflow: hidden;
+    opacity: 0.3;
+}
+
+.pi-crt-scanlines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent,
+        rgba(0, 0, 0, 0.4) 2px,
+        rgba(153, 153, 153, 0.04) 4px
+    );
+    background-size: 100% 4px;
+    animation: scanlines 8s linear infinite,
+    jitter 4s linear infinite alternate;
+}
+
+@keyframes scanlines
+{
+    0% { background-position: 0 0; }
+    100% { background-position: 0 40px; }
+}
+
+@keyframes jitter
+{
+    0%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-1px); }
+    75% { transform: translateY(1px); }
+}
+
+.pi-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+    opacity: 0.5;
+}
+
+.pi-panel::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+    opacity: 0.5;
+}
+
+.pi-panel__header
+{
+    display: flex;
+    color: var(--color-primary);
+    font-size: 14px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    align-content: center;
+    justify-content: center;
+    margin-bottom: var(--space-lg);
+    padding-bottom: var(--space-md);
+    border-bottom: 1px solid var(--color-border);
+}
+
+/* Dropdown Component */
+.pi-dropdown
+{
+    position: relative;
+    margin-bottom: var(--space-lg);
+}
+
+.pi-dropdown__input-row
+{
+    display: flex;
+    width: 100%;
+    gap: var(--space-xs);
+    height: var(--dropdown-height);
+}
+
+.pi-dropdown__input-wrapper
+{
+    flex: 1;
+    background: var(--color-bg-darker);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    height: 100%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 8px var(--color-primary-glow);
+    position: relative;
+}
+
+.pi-dropdown__input-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.pi-dropdown__input-wrapper:hover::before {
+    opacity: 1;
+}
+
+.pi-dropdown__input-wrapper input
+{
+    background: transparent;
+    border: none;
+    color: var(--color-text-primary);
+    font-size: 16px;
+    font-family: inherit;
+    width: 100%;
+    padding: 0 var(--space-md);
+    margin: 0;
+    outline: none;
+}
+
+.pi-dropdown__input-wrapper input::placeholder
+{
+    color: var(--color-text-tertiary);
+    background: transparent;
+}
+
+.pi-dropdown__toggle
+{
+    background: var(--color-bg-darker);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    height: 100%;
+    padding: var(--space-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+    position: relative;
+    box-shadow: 0 0 8px var(--color-primary-glow);
+}
+
+.pi-dropdown__toggle::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.pi-dropdown__toggle:hover::before {
+    opacity: 1;
+}
+
+.pi-dropdown__arrow
+{
+    transition: transform 0.3s ease;
+    color: var(--color-primary);
+}
+
+.pi-dropdown__arrow--open
+{
+    transform: rotate(180deg);
+}
+
+/* Dropdown Menu */
+.pi-dropdown__menu
+{
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--color-bg-darker);
+    border: 1px solid var(--color-border);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    margin-top: var(--space-xs);
+    max-height: 300px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: 1000;
+    display: none;
+    width: 100%;
+}
+
+/* Hide default scrollbar */
+.pi-dropdown__menu::-webkit-scrollbar
+{
+    width: 4px;
+}
+
+.pi-dropdown__menu::-webkit-scrollbar-track
+{
+    background: var(--color-border);
+}
+
+.pi-dropdown__menu::-webkit-scrollbar-thumb
+{
+    background: var(--color-primary);
+    border-radius: 2px;
+}
+
+.pi-dropdown__menu::-webkit-scrollbar-thumb:hover
+{
+    background: var(--color-primary-light);
+}
+
+.pi-dropdown--open .pi-dropdown__menu
+{
+    display: block;
+}
+
+/* Empty State */
+.pi-dropdown__empty-state
+{
+    color: var(--color-text-tertiary);
+    font-size: 12px;
+    text-align: center;
+    padding: var(--space-xs);
+}
+
+/* Dropdown Group Header */
+.pi-dropdown__group-header
+{
+    padding: var(--space-sm) var(--space-lg);
+    background: repeating-linear-gradient(var(--color-bg-darker), var(--color-primary-glow) 2px);
+    border-bottom: 1px solid var(--color-border);
+    font-weight: bold;
+    color: var(--color-primary);
+    font-size: 14px;
+}
+
+/* Dropdown Option */
+.pi-dropdown__option
+{
+    padding: 10px var(--space-lg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s ease;
+    border-top: 1px solid var(--color-primary-glow);
+    border-left: var(--space-sm) solid transparent;
+    width: 100%;
+}
+
+.pi-dropdown__option:hover
+{
+    background: var(--color-primary-glow);
+    border-left-color: var(--color-primary);
+    box-shadow: -5px 0 10px var(--color-primary-glow);
+}
+
+.pi-dropdown__option.disabled
+{
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pi-dropdown__option-label
+{
+    flex: 1;
+}
+
+/* Details Panel */
+.pi-details
+{
+    background: var(--color-bg-darker);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-lg);
+    margin-top: var(--space-lg);
+    box-shadow: 0 0 8px var(--color-primary-glow);
+    position: relative;
+}
+
+.pi-details::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+    opacity: 0.5;
+}
+
+.pi-section-title
+{
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    margin-bottom: var(--space-lg);
+    color: var(--color-primary);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    min-height: var(--section-title-min-height);
+    position: relative;
+}
+
+.pi-section-title::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+    opacity: 0.5;
+}
+
+.pi-details__title
+{
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+}
+
+.pi-details__binding
+{
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    margin: var(--space-xs);
+    padding: var(--space-xs);
+    background: var(--color-bg-darker);
+    border-radius: var(--radius-sm);
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+    gap: var(--space-md);
+}
+
+.pi-details__binding-label
+{
+    color: var(--color-text-secondary);
+    font-weight: bold;
+    text-align: left;
+    width: 120px;
+    padding:  0 0 0 8px;
+    border-right: 4px solid var(--color-border);
+    border-left: 4px solid var(--color-primary);
+}
+
+.pi-details__binding-value
+{
+    color: var(--color-text-primary);
+    font-weight: bold;
+    text-align: left;
+}
+
+/* Description Panel */
+.pi-description
+{
+    background: var(--color-bg-darker);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-lg);
+    margin-top: var(--space-lg);
+    box-shadow: 0 0 8px var(--color-primary-glow);
+    position: relative;
+}
+
+.pi-description::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+    opacity: 0.5;
+}
+
+.pi-description__content
+{
+    color: var(--color-text-primary);
+    font-size: 14px;
+}

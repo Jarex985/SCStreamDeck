@@ -4,7 +4,7 @@ using SCStreamDeck.Models;
 
 // ReSharper disable once UnusedType.Global
 
-namespace SCStreamDeck.Buttons;
+namespace SCStreamDeck.ActionKeys;
 
 /// <summary>
 ///     Adaptive Star Citizen Key.
@@ -76,20 +76,7 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
             return null;
         }
 
-        string? executableBinding;
-        if (!string.IsNullOrWhiteSpace(action.KeyboardBinding))
-        {
-            executableBinding = action.KeyboardBinding;
-        }
-        else if (!string.IsNullOrWhiteSpace(action.MouseBinding))
-        {
-            InputType bindingType = action.MouseBinding.GetInputType();
-            executableBinding = bindingType is InputType.MouseButton or InputType.MouseWheel ? action.MouseBinding : null;
-        }
-        else
-        {
-            executableBinding = null;
-        }
+        string? executableBinding = GetExecutableBinding(action);
 
         if (executableBinding == null)
         {
@@ -97,6 +84,22 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
         }
 
         return (action, executableBinding);
+    }
+
+    private static string? GetExecutableBinding(KeybindingAction action)
+    {
+        if (!string.IsNullOrWhiteSpace(action.KeyboardBinding))
+        {
+            return action.KeyboardBinding;
+        }
+
+        if (string.IsNullOrWhiteSpace(action.MouseBinding))
+        {
+            return null;
+        }
+
+        InputType bindingType = action.MouseBinding.GetInputType();
+        return bindingType is InputType.MouseButton or InputType.MouseWheel ? action.MouseBinding : null;
     }
 
     private async Task ExecuteKeybindingAsync(KeybindingExecutionContext context)

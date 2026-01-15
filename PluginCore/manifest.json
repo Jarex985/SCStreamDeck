@@ -5,7 +5,7 @@
             "Name": "Adaptive Key",
             "States": [
                 {
-                    "Image": "Images/pluginAction",
+                    "Image": "PropertyInspector/svg/key",
                     "TitleAlignment": "bottom",
                     "FontSize": 8
                 }
@@ -13,7 +13,7 @@
             "SupportedInMultiActions": true,
             "Tooltip": "Star Citizen Adaptive Key",
             "UUID": "com.jarex985.scstreamdeck.adaptivekey",
-            "PropertyInspectorPath": "PropertyInspector/Buttons/AdaptiveButton.html"
+            "PropertyInspectorPath": "PropertyInspector/Keys/AdaptiveKey.html"
         }
     ],
     "Author": "Jarex985",
@@ -22,7 +22,7 @@
     "Description": "Plugin that provides bindable actions for Star Citizen via Stream Deck.",
     "Icon": "Images/pluginIcon",
     "URL": "https://github.com/Jarex985/SCStreamDeck",
-    "Version": "0.1.0.0",
+    "Version": "0.1.0.1",
     "CodePath": "com.jarex985.scstreamdeck.exe",
     "Category": "Star Citizen Stream Deck",
     "CategoryIcon": "Images/categoryIcon",

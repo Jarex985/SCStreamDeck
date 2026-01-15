@@ -1,8 +1,11 @@
-﻿# ***Star Citizen Stream Deck Plugin***
+﻿[![BuyMeACoffee](https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-donate-white.svg)](https://www.buymeacoffee.com/jarex9851)
+
+# ***Star Citizen Stream Deck Plugin***
 
 A Stream Deck plugin that provides bindable actions for Star Citizen, allowing seamless integration of game controls with your Stream Deck device.
 
-> ⚠ **Note:** This is, just like Star Citizen, an alpha build. Some features are still missing and may not be fully stable.
+> [!WARNING]
+>  **Note:** This is, just like Star Citizen, an alpha build. Some features are still missing and may not be fully stable.
 
 ### <ins>_Current Features_</ins>
 

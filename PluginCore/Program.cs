@@ -1,6 +1,6 @@
 ﻿using BarRaider.SdTools;
 using Microsoft.Extensions.DependencyInjection;
-using SCStreamDeck.Buttons;
+using SCStreamDeck.ActionKeys;
 using SCStreamDeck.Infrastructure;
 using SCStreamDeck.Services.Core;
 

@@ -2,6 +2,7 @@ using SCStreamDeck.Models;
 using SCStreamDeck.Services.Keybinding;
 using Newtonsoft.Json;
 using Xunit;
+#pragma warning disable CS8604 // Possible null reference argument.
 
 namespace SCStreamDeck.UnitTests.IntegrationTests;
 

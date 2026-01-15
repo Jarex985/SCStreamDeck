@@ -1,0 +1,639 @@
+﻿<!--suppress CssUnusedSymbol, CssNonIntegerLengthInPixels, JSUnusedGlobalSymbols -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Star Citizen Stream Deck Plugin Property Inspector</title>
+    <link rel="stylesheet" href="../css/sc-theme-concierge.css">
+</head>
+<body>
+<div class="pi-container">
+    <div class="pi-panel">
+        <div class="pi-crt-overlay">
+            <div class="pi-crt-scanlines"></div>
+        </div>
+
+        <div class="pi-dropdown">
+            <div class="pi-dropdown__input-row">
+                <div class="pi-dropdown__input-wrapper">
+                    <input class="pi-dropdown__search" placeholder="Search functions..." type="text">
+                </div>
+                <div class="pi-dropdown__toggle">
+                    <svg class="pi-dropdown__arrow" fill="none" height="20" width="20" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke="var(--color-primary)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 7.5 5 5 5-5"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="pi-dropdown__menu">
+            </div>
+        </div>
+
+        <div class="pi-panel__header">Selected Function</div>
+        <div class="pi-details">
+            <div class="pi-section-title pi-details__title"></div>
+            <div class="pi-details__binding">
+                <span class="pi-details__binding-label">KEYBOARD</span>
+                <span class="pi-details__binding-value" id="pi-details__binding-keyboard"></span>
+            </div>
+            <div class="pi-details__binding">
+                <span class="pi-details__binding-label">MOUSE</span>
+                <span class="pi-details__binding-value" id="pi-details__binding-mouse"></span>
+            </div>
+            <div class="pi-details__binding">
+                <span class="pi-details__binding-label">GAMEPAD</span>
+                <span class="pi-details__binding-value" id="pi-details__binding-gamepad"></span>
+            </div>
+            <div class="pi-details__binding">
+                <span class="pi-details__binding-label">JOYSTICK</span>
+                <span class="pi-details__binding-value" id="pi-details__binding-joystick"></span>
+            </div>
+        </div>
+
+        <div class="pi-description">
+            <div class="pi-section-title">Function Description</div>
+            <div class="pi-description__content">
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+
+<script src="../js/sdpi-components.js"></script>
+<script src="../js/sc-common.js"></script>
+
+<script>
+
+    // #region Global State
+
+    /**
+     * Store all function data for details lookup
+     * Structure: Array of { label: string, options: Array<{value, text, details}> }
+     * @type {Array}
+     */
+    let allFunctionsData = [];
+
+    /**
+     * Flattened list of all options for searching
+     * @type {Array}
+     */
+    let allOptions = [];
+
+    /**
+     * Currently selected function value
+     * @type {string}
+     */
+    let currentFunctionValue = '';
+
+    /**
+     * Currently selected function text (for display)
+     * @type {string}
+     */
+    let currentFunctionText = '';
+
+    /**
+     * Flag to prevent blur from canceling when clicking an option
+     * Needed because blur fires before click event
+     * @type {boolean}
+     */
+    let isSelectingOption = false;
+
+    /**
+     * Flag indicating if function data has been loaded from plugin
+     * @type {boolean}
+     */
+    let isFunctionsLoaded = false;
+
+    // #endregion
+
+    // #region SDK Settings Integration
+
+    /**
+     * Get and set function value using SDK Settings API
+     */
+    const [getFunctionSetting, setFunctionSetting] = globalThis.SDPIComponents.useSettings(
+        'function',
+        (value) =>
+        {
+            if (!isSelectingOption)
+            {
+                currentFunctionValue = value;
+                selectFunctionByValue(value);
+            }
+        }
+    );
+
+    // #endregion
+
+    // #region Dropdown Rendering
+
+    /**
+     * Render the custom dropdown list with options
+     * @param {Array} options - Array of options to render
+     */
+    function renderDropdownList(options)
+    {
+        const listEl = document.querySelector('.pi-dropdown__menu');
+        if (!listEl) return;
+
+        // Clear current list
+        listEl.innerHTML = '';
+
+        // Show empty state if no options
+        if (!options || options.length === 0)
+        {
+            listEl.innerHTML = '<div class="pi-dropdown__empty-state">No matching functions found</div>';
+            return;
+        }
+
+        // Group options by category
+        const grouped = {};
+        options.forEach(opt =>
+        {
+            if (!grouped[opt.group])
+            {
+                grouped[opt.group] = [];
+            }
+            grouped[opt.group].push(opt);
+        });
+
+        // Render groups and options
+        for (const groupName in grouped)
+        {
+            const groupHeader = document.createElement('div');
+            groupHeader.className = 'pi-dropdown__group-header';
+            groupHeader.textContent = groupName;
+            listEl.appendChild(groupHeader);
+
+            grouped[groupName].forEach(opt =>
+            {
+                const optionEl = document.createElement('div');
+                optionEl.className = 'pi-dropdown__option';
+                if (opt.disabled)
+                {
+                    optionEl.classList.add('disabled');
+                }
+
+                const nameEl = document.createElement('span');
+                nameEl.className = 'pi-dropdown__option-label';
+                nameEl.textContent = opt.text;
+
+                optionEl.appendChild(nameEl);
+                optionEl.dataset.value = opt.value;
+                optionEl.dataset.text = opt.text;
+                optionEl.dataset.group = opt.group;
+
+                optionEl.addEventListener('mousedown', () =>
+                {
+                    isSelectingOption = true;
+                });
+
+                optionEl.addEventListener('click', () =>
+                {
+                    if (!opt.disabled)
+                    {
+                        selectOption(opt);
+                    }
+                });
+                listEl.appendChild(optionEl);
+            });
+        }
+    }
+
+    /**
+     * Flatten grouped functions data into a searchable array
+     * @param {Array} groups - Array of grouped function data
+     * @returns {Array} - Flattened array of options
+     */
+    function flattenFunctionsData(groups)
+    {
+        const flat = [];
+
+        if (Array.isArray(groups))
+        {
+            groups.forEach(group =>
+            {
+                const groupName = group.label || 'Other';
+                const options = group.options || [];
+
+                options.forEach(opt =>
+                {
+                    // Filter out Joystick, Gamepad, and Mouse Axis only functions
+                    if (!opt.disabled)
+                    {
+                        // TODO: Remove this properly, quick fix for now
+                        // Remove device abbreviations from text (e.g., " (K+M)", " (J)")
+                        const cleanText = opt.text.replace(/ \([A-Z+]+\)$/, '');
+
+                        flat.push(
+                            {
+                                value: opt.value,
+                                text: cleanText,
+                                group: groupName,
+                                details: opt.details,
+                                disabled: opt.disabled || false,
+                                key: opt.key || ''
+                            });
+                    }
+                });
+            });
+        }
+
+        return flat;
+    }
+
+    /**
+     * Populate the dropdown with functions data
+     * @param {Array} functionsData - Array of grouped function data
+     */
+    function populateFunctionsDropdown(functionsData)
+    {
+        // Mark functions as loaded
+        isFunctionsLoaded = true;
+
+        // Flatten data for easier searching
+        allOptions = flattenFunctionsData(functionsData);
+        renderDropdownList(allOptions);
+
+        if (currentFunctionValue)
+        {
+            selectFunctionByValue(currentFunctionValue);
+        }
+    }
+
+    // #endregion
+
+    // #region Option Selection
+
+    /**
+     * Select an option and update the display
+     * @param {Object} opt - The option object to select
+     */
+    function selectOption(opt) {
+        // Set flag to prevent blur from canceling
+        isSelectingOption = true;
+
+        // Update state
+        currentFunctionValue = opt.value;
+        currentFunctionText = opt.text;
+
+        // Update input display - clear it since it's for search only
+        const inputEl = document.querySelector('.pi-dropdown__search');
+        if (inputEl) {
+            inputEl.value = '';
+        }
+
+        // Update hidden input for settings persistence
+        const hiddenEl = document.querySelector('#function');
+        if (!hiddenEl) {
+            const newHidden = document.createElement('input');
+            newHidden.type = 'hidden';
+            newHidden.id = 'function';
+            newHidden.className = 'sdProperty';
+            document.querySelector('.pi-dropdown').appendChild(newHidden);
+        }
+        document.querySelector('#function').value = opt.value;
+
+        closeDropdown();
+        updateFunctionDetails(opt);
+
+        // Save settings via SDK
+        setFunctionSetting(opt.value);
+
+        // Reset flag after a longer delay to allow loadConfiguration to complete
+        setTimeout(() =>
+        {
+            isSelectingOption = false;
+        }, 200);
+    }
+
+    /**
+     * Select a function by its value
+     * @param {string} value - The function value to select
+     */
+    function selectFunctionByValue(value)
+    {
+        const opt = allOptions.find(o => o.value === value);
+        if (opt)
+        {
+            selectOption(opt);
+        }
+    }
+
+    // #endregion
+
+    // #region Dropdown Open/Close
+
+    /**
+     * Open the dropdown list
+     */
+    function openDropdown()
+    {
+        const dropdownEl = document.querySelector('.pi-dropdown');
+        if (dropdownEl)
+        {
+            dropdownEl.classList.add('pi-dropdown--open');
+        }
+
+        const dropdownArrow = document.querySelector('.pi-dropdown__arrow');
+        if (dropdownArrow)
+        {
+            dropdownArrow.classList.add('pi-dropdown__arrow--open');
+        }
+    }
+
+    /**
+     * Close the dropdown list
+     */
+    function closeDropdown()
+    {
+        const dropdownEl = document.querySelector('.pi-dropdown');
+        if (dropdownEl)
+        {
+            dropdownEl.classList.remove('pi-dropdown--open');
+        }
+
+        const dropdownArrow = document.querySelector('.pi-dropdown__arrow');
+        if (dropdownArrow)
+        {
+            dropdownArrow.classList.remove('pi-dropdown__arrow--open');
+        }
+    }
+
+    /**
+     * Toggle dropdown open/closed state
+     */
+    function toggleDropdown()
+    {
+        const dropdownEl = document.querySelector('.pi-dropdown');
+        if (dropdownEl && dropdownEl.classList.contains('pi-dropdown--open'))
+        {
+            closeDropdown();
+        }
+        else
+        {
+            openDropdown();
+        }
+    }
+
+    // #endregion
+
+    // #region Search/Filter
+
+    /**
+     * Filter dropdown options based on search text
+     * @param {string} searchText - The text to filter by
+     */
+    function filterDropdown(searchText)
+    {
+        const searchLower = searchText.toLowerCase().trim();
+
+        // Filter options
+        const filtered = allOptions.filter(opt =>
+        {
+            return opt.text.toLowerCase().includes(searchLower);
+        });
+
+        renderDropdownList(filtered);
+
+        // Open dropdown if typing AND there are filtered results
+        if (searchLower && filtered.length > 0)
+        {
+            openDropdown();
+        }
+    }
+
+    /**
+     * Handle input in search field
+     */
+    function handleInput(e)
+    {
+        const searchText = e.target.value;
+        filterDropdown(searchText);
+    }
+
+    /**
+     * Handle focus on input field
+     * Clears input to show placeholder
+     * Dropdown opens only when typing or clicking arrow
+     */
+    function handleFocus()
+    {
+        const inputEl = document.querySelector('.pi-dropdown__search');
+        if (!inputEl)
+        {
+            return;
+        }
+        inputEl.value = '';
+    }
+
+    /**
+     * Cancel selection - clear input to show placeholder
+     * Called when user clicks outside without selecting
+     */
+    function cancelSelection()
+    {
+        const inputEl = document.querySelector('.pi-dropdown__search');
+        if (!inputEl)
+        {
+            return;
+        }
+
+        // Clear input to show placeholder & show all options
+        inputEl.value = '';
+        renderDropdownList(allOptions);
+    }
+
+    /**
+     * Handle blur (focus lost) on input field
+     * Called when user clicks outside without selecting
+     */
+    function handleBlur()
+    {
+        // Don't cancel if user is selecting an option (click fires before blur)
+        if (isSelectingOption)
+        {
+            return;
+        }
+
+        // Cancel selection if dropdown is still open
+        const dropdownEl = document.querySelector('.pi-dropdown');
+        if (dropdownEl && dropdownEl.classList.contains('pi-dropdown--open'))
+        {
+            cancelSelection();
+            closeDropdown();
+        }
+
+        // Always clear input to show placeholder
+        const inputEl = document.querySelector('.pi-dropdown__search');
+        if (inputEl)
+        {
+            inputEl.value = '';
+        }
+    }
+
+    // #endregion
+
+    // #region Details Rendering
+
+    /**
+     * Render function details panel with binding information
+     * @param {Object|null} opt - The option object (contains details), null for empty state
+     */
+    function updateFunctionDetails(opt)
+    {
+        const detailsEl = document.querySelector('.pi-details');
+        if (!detailsEl)
+        {
+            return;
+        }
+
+        // Show empty state if no option selected
+        if (!opt || !opt.details)
+        {
+            const titleEl = document.querySelector('.pi-details__title');
+            if (titleEl)
+            {
+                titleEl.textContent = '';
+            }
+            const scContentEl = document.querySelector('.pi-description__content');
+            if (scContentEl)
+            {
+                scContentEl.textContent = '';
+            }
+            // Clear all binding values
+            document.getElementById('pi-details__binding-keyboard').textContent = '';
+            document.getElementById('pi-details__binding-mouse').textContent = '';
+            document.getElementById('pi-details__binding-gamepad').textContent = '';
+            document.getElementById('pi-details__binding-joystick').textContent = '';
+            return;
+        }
+
+        const details = opt.details;
+        const title = escapeHtml(details.label || opt.text);
+        const desc = escapeHtml(details.description || '');
+        const devices = Array.isArray(details.devices) ? details.devices : [];
+
+
+        const titleEl = document.querySelector('.pi-details__title');
+        if (titleEl)
+        {
+            titleEl.textContent = title;
+        }
+
+        // Update binding values for all four device types
+        const allDeviceTypes = ['keyboard', 'mouse', 'gamepad', 'joystick'];
+
+        allDeviceTypes.forEach(deviceType =>
+        {
+            const deviceData = devices.find(d => d.device && d.device.toLowerCase() === deviceType.toLowerCase());
+            const bindingEl = document.getElementById(`pi-details__binding-${deviceType}`);
+
+            let bindingValue = 'Unbound';
+
+            if (deviceData && Array.isArray(deviceData.bindings) && deviceData.bindings.length > 0)
+            {
+                const bindingLines = deviceData.bindings
+                    .map(b => escapeHtml(b.display || b.raw || ''))
+                    .filter(x => x);
+
+                if (bindingLines.length > 0)
+                {
+                    bindingValue = bindingLines.join(', ');
+                }
+            }
+
+            if (bindingEl)
+            {
+                bindingEl.textContent = bindingValue;
+            }
+        });
+
+        // Update Description content
+        const scContentEl = document.querySelector('.pi-description__content');
+        if (scContentEl)
+        {
+            scContentEl.textContent = desc || 'No description available.';
+        }
+    }
+
+    // #endregion
+
+    // #region WebSocket Communication
+
+    /**
+     * Handle incoming WebSocket messages from the plugin via SDK
+     * Processes 'sendToPropertyInspector' events for function data
+     */
+    globalThis.SDPIComponents.streamDeckClient.sendToPropertyInspector.subscribe((data) =>
+    {
+        if (data.event === 'sendToPropertyInspector' && data.payload)
+        {
+            if (data.payload.functionsLoaded)
+            {
+                // Store functions data
+                allFunctionsData = data.payload.functions || [];
+
+                // Populate dropdown with saved function value
+                populateFunctionsDropdown(allFunctionsData);
+            }
+        }
+    });
+
+    // #endregion
+
+    // #region Event Listeners
+
+    /**
+     * Initialize event listeners when DOM is ready
+     */
+    onDocumentReady(function ()
+    {
+        const savedFunctionValue = getFunctionSetting();
+
+        if (savedFunctionValue)
+        {
+            currentFunctionValue = savedFunctionValue;
+        }
+        else
+        {
+            updateFunctionDetails(null);
+        }
+
+        // Input focus handler - clears input and opens dropdown
+        const inputEl = document.querySelector('.pi-dropdown__search');
+        if (inputEl)
+        {
+            inputEl.addEventListener('focus', handleFocus);
+            const debouncedInput = debounce(handleInput, 150);
+            inputEl.addEventListener('input', debouncedInput);
+            inputEl.addEventListener('blur', handleBlur);
+        }
+
+        // Click on dropdown toggle (arrow click)
+        const dropdownToggle = document.querySelector('.pi-dropdown__toggle');
+        if (dropdownToggle)
+        {
+            dropdownToggle.addEventListener('click', (e) =>
+            {
+                e.stopPropagation();
+                toggleDropdown();
+            });
+        }
+
+        // Close dropdown when clicking outside
+        // TODO: Need to find a proper way to do this when clicking outside HTML but still inside Property Inspector area
+        document.addEventListener('click', function (event)
+        {
+            const dropdown = document.querySelector('.pi-dropdown');
+            if (dropdown && !dropdown.contains(event.target))
+            {
+                closeDropdown();
+            }
+        });
+
+    });
+
+    // #endregion
+</script>
