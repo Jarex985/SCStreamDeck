@@ -22,7 +22,7 @@
     "Description": "Plugin that provides bindable actions for Star Citizen via Stream Deck.",
     "Icon": "Images/pluginIcon",
     "URL": "https://github.com/Jarex985/SCStreamDeck",
-    "Version": "0.1.0.1",
+    "Version": "0.1.0.2",
     "CodePath": "com.jarex985.scstreamdeck.exe",
     "Category": "Star Citizen Stream Deck",
     "CategoryIcon": "Images/categoryIcon",

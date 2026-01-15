@@ -20,13 +20,13 @@ internal sealed class ImmediatePressHandler : IActivationModeHandler
         {
             case ActivationMode.press:
             case ActivationMode.press_quicker:
-                // Press modes trigger on key down, ignore key up
-                if (!context.IsKeyDown)
+                // Press modes: KeyDown starts holding, KeyUp releases
+                if (context.IsKeyDown)
                 {
-                    return true;
+                    return executor.ExecuteDown(context.Input, context.ActionName);
                 }
 
-                return executor.ExecutePress(context.Input);
+                return executor.ExecuteUp(context.Input, context.ActionName);
 
             case ActivationMode.tap:
             case ActivationMode.tap_quicker:
@@ -75,7 +75,7 @@ internal sealed class ImmediatePressHandler : IActivationModeHandler
 
 /// <summary>
 ///     Handler for delayed press activation modes.
-///     Triggers after a delay threshold when key is held.
+///     Starts holding the key after a delay threshold, continues until key is released.
 /// </summary>
 internal sealed class DelayedPressHandler : IActivationModeHandler
 {
@@ -86,17 +86,17 @@ internal sealed class DelayedPressHandler : IActivationModeHandler
     {
         if (context.IsKeyDown)
         {
-            // Schedule delayed execution
+            // Schedule delayed hold start
             float delay = metadata.PressTriggerThreshold > 0
                 ? metadata.PressTriggerThreshold
                 : GetDefaultDelay(context.Mode);
 
-            return executor.ScheduleDelayedPress(context.Input, context.ActionName, delay);
+            return executor.ScheduleDelayedHold(context.Input, context.ActionName, delay);
         }
 
-        // Cancel if released before delay
-        executor.CancelDelayedPress(context.ActionName);
-        return true;
+        // KeyUp: Cancel delayed hold if not started yet, or release if already holding
+        executor.CancelDelayedHold(context.ActionName);
+        return executor.ExecuteUp(context.Input, context.ActionName);
     }
 
     private static float GetDefaultDelay(ActivationMode mode) =>

@@ -182,7 +182,13 @@ internal sealed class KeybindingInputExecutor(
             existingTimer.Dispose();
         }
 
-        Timer timer = new(_ => ExecuteDown(input, actionKey), null, delayMs, Timeout.Infinite);
+        Timer timer = new(_ =>
+        {
+            // Execute delayed key down
+            ExecuteDown(input, actionKey);
+            // Remove timer from dictionary after execution
+            _activationTimers.TryRemove(actionKey, out Timer? _);
+        }, null, delayMs, Timeout.Infinite);
         _activationTimers[actionKey] = timer;
 
         return true;

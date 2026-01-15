@@ -185,6 +185,7 @@ body {
     border-radius: var(--radius-md);
     opacity: 0;
     transition: opacity 0.3s ease;
+    pointer-events: none;
 }
 
 .pi-dropdown__input-wrapper:hover::before {
@@ -238,6 +239,7 @@ body {
     border-radius: var(--radius-md);
     opacity: 0;
     transition: opacity 0.3s ease;
+    pointer-events: none;
 }
 
 .pi-dropdown__toggle:hover::before {
