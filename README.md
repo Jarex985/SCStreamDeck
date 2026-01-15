@@ -5,7 +5,7 @@
 
 ---
 
-## Table of Contents
+## *Table of Contents*
 
 1. [Requirements](#requirements)
 2. [Project Info](#project-info)
@@ -13,10 +13,10 @@
 4. [Installation](#installation)
 5. [Usage](#usage)
 6. [Acknowledgements](#acknowledgements)
-7. 
+
 ---
 
-## _Requirements_
+## *Requirements*
 
 [![Windows 10+](https://img.shields.io/badge/Windows-10%2B-blue?logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![Stream Deck v6.4+](https://img.shields.io/badge/Stream%20Deck%20App-6.4%2B-purple?logo=elgato&logoColor=white)](https://www.elgato.com/s/stream-deck-app)
@@ -24,9 +24,7 @@
 
 ---
 
-## _Project Info_
-
-___
+## *Project Info*
 
 #### Status
 [![GitHub release](https://img.shields.io/github/release/Jarex985/SCStreamDeck?include_prereleases=&sort=semver&color=2ea44f)](https://github.com/Jarex985/SCStreamDeck/releases/)
@@ -44,7 +42,9 @@ ___
 [![JetBrains WebStorm](https://img.shields.io/badge/JetBrains%20WebStorm-000000?logo=JetBrains&logoColor=white)](https://www.jetbrains.com/webstorm/)
 
 #### Support / Funding  
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-Link-2ea44f)](https://www.buymeacoffee.com/jarex9851)
+[![Buy Me A Coffee](https://img.shields.io/badge/BuyMeACoffee-Support-orange)](https://www.buymeacoffee.com/jarex9851)
+[![Ko-Fi](https://img.shields.io/badge/Ko--Fi-Support-orange?style=flat&logo=kofi&logoColor=white)](https://ko-fi.com/jarex985)
+
 
 ---
 
@@ -52,7 +52,7 @@ ___
 > [!WARNING]
 >  **Note:** This is, just like Star Citizen, an alpha build. Some features are still missing and may not be fully stable.
 
-## <ins>_Current Features_</ins>
+## _Current Features_
 
 - **Adaptive Key**: Dynamically bindable key actions for Star Citizen that execute only their assigned function based on the ActivationMode.
     - *Example:* Tap vs Hold on `Num-` executes only the Tap function.  
@@ -66,10 +66,8 @@ ___
 
 - **Basic Support for all Channels**: Basic implementation for supporting `HOTFIX, PTU, and EPTU` in the future. Currently only `LIVE` is fully supported, but the framework is in place for switching to other channels.
 
-___
 
-## <ins>_Installation_</ins>
-
+## _Installation_
 
 ### <ins>Prebuilt Installation</ins>
 
@@ -96,14 +94,14 @@ ___
 
 ___
 
-## <ins>_Usage_</ins>
+## *Usage*
 
 1. After installation, add the "Adaptive Key" action to a button on your Stream Deck.
 2. Configure the key binding in the property inspector to match your Star Citizen controls.
 
 ___
 
-## <ins>_Acknowledgements_</ins>
+## *Acknowledgements*
 
 This project was inspired by the following repositories (code rewritten from scratch and optimized):
 
