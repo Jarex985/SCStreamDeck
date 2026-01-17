@@ -1,4 +1,4 @@
-﻿using BarRaider.SdTools;
+using BarRaider.SdTools;
 using SCStreamDeck.Common;
 using SCStreamDeck.Models;
 
@@ -119,6 +119,66 @@ public sealed class InstallLocatorService : IInstallLocatorService
 
     private async Task<List<SCInstallCandidate>> FindInstallationsFromSourcesAsync(CancellationToken cancellationToken)
     {
+        List<SCInstallCandidate> candidates = new();
+
+        // Step 1: Load custom paths from INI file (takes priority)
+        string pluginDirectory = AppDomain.CurrentDomain.BaseDirectory;
+        CustomPathsConfig? customPaths = CustomPathsConfig.LoadFromIni(pluginDirectory);
+
+        if (customPaths is not null)
+        {
+            Logger.Instance.LogMessage(TracingLevel.INFO, "[InstallLocator] Custom paths configuration found");
+
+            foreach (SCChannel channel in customPaths.GetConfiguredChannels())
+            {
+                string? customPath = customPaths.GetPath(channel);
+                if (customPath is null)
+                {
+                    continue;
+                }
+
+                // Validate the custom path points to a valid Data.p4k
+                if (!File.Exists(customPath))
+                {
+                    Logger.Instance.LogMessage(TracingLevel.WARN,
+                        $"[InstallLocator] Custom path for {channel} is invalid (file not found): {customPath}");
+                    continue;
+                }
+
+                if (!customPath.EndsWith(SCConstants.Files.DataP4KFileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    Logger.Instance.LogMessage(TracingLevel.WARN,
+                        $"[InstallLocator] Custom path for {channel} does not point to Data.p4k: {customPath}");
+                    continue;
+                }
+
+                // Extract paths from the Data.p4k location
+                string dataP4KPath = NormalizePath(customPath);
+                string channelPath = NormalizePath(Path.GetDirectoryName(dataP4KPath) ?? string.Empty);
+                string rootPath = NormalizePath(Path.GetDirectoryName(channelPath) ?? string.Empty);
+
+                if (string.IsNullOrEmpty(channelPath) || string.IsNullOrEmpty(rootPath))
+                {
+                    Logger.Instance.LogMessage(TracingLevel.WARN,
+                        $"[InstallLocator] Custom path for {channel} has invalid directory structure: {customPath}");
+                    continue;
+                }
+
+                Logger.Instance.LogMessage(TracingLevel.INFO,
+                    $"[InstallLocator] Custom path configured for {channel}: {dataP4KPath}");
+
+                // Create candidate with UserProvided source
+                candidates.Add(new SCInstallCandidate(
+                    rootPath,
+                    channel,
+                    channelPath,
+                    dataP4KPath,
+                    InstallSource.UserProvided
+                ));
+            }
+        }
+
+        // Step 2: Continue with auto-detection from RSI Launcher logs
         HashSet<string> allRootPaths = new(StringComparer.OrdinalIgnoreCase);
 
         // RSI Launcher logs - collect ALL unique root paths from all log files
@@ -138,12 +198,20 @@ public sealed class InstallLocatorService : IInstallLocatorService
         if (allRootPaths.Count == 0)
         {
             Logger.Instance.LogMessage(TracingLevel.WARN, "[InstallLocator] No root paths found in launcher logs");
+            
+            // If we have custom paths, that's okay - return them
+            if (candidates.Count > 0)
+            {
+                return candidates;
+            }
+            
             return new List<SCInstallCandidate>();
         }
 
         // Log with better formatting
         List<string> sortedPaths = allRootPaths.OrderBy(p => p).ToList();
 
+#if DEBUG
         if (sortedPaths.Count == 1)
         {
             Logger.Instance.LogMessage(TracingLevel.DEBUG,
@@ -159,9 +227,9 @@ public sealed class InstallLocatorService : IInstallLocatorService
                 Logger.Instance.LogMessage(TracingLevel.DEBUG, $"  - {path}");
             }
         }
+#endif
 
         // Now enumerate candidates from all unique root paths
-        List<SCInstallCandidate> candidates = new();
         foreach (string rootPath in allRootPaths)
         {
             InstallationCandidateEnumerator.AddCandidatesFromRoot(candidates, rootPath);

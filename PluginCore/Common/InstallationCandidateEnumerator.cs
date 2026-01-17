@@ -1,4 +1,4 @@
-﻿using BarRaider.SdTools;
+using BarRaider.SdTools;
 using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Common;
@@ -38,67 +38,46 @@ internal static class InstallationCandidateEnumerator
     }
 
     /// <summary>
-    ///     Enumerates all valid installation candidates from a root path.
+    ///     Enumerates all valid installation candidates from a root path by detecting channel folders.
+    ///     Does not assume any specific folder structure - directly checks for channel folders.
     /// </summary>
     private static IEnumerable<SCInstallCandidate> EnumerateCandidates(string root)
     {
-        bool foundAny = false;
-
-        // RSI style: root + StarCitizen (e.g., "F:\Roberts Space Industries" + "StarCitizen")
-        string rsiStarCitizen = Path.Combine(root, SCConstants.Paths.StarCitizenFolderName);
-        if (Directory.Exists(rsiStarCitizen))
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
         {
-            foreach (SCInstallCandidate candidate in EnumerateCandidates(root, rsiStarCitizen))
-            {
-                foundAny = true;
-                yield return candidate;
-            }
+            yield break;
         }
 
-        // Direct style: root already points at StarCitizen folder
-        // Only check if we didn't find anything via RSI style to avoid duplicates
-        if (!foundAny && root.EndsWith(SCConstants.Paths.StarCitizenFolderName, StringComparison.OrdinalIgnoreCase))
+        bool foundAny = false;
+
+        // Direct enumeration: Check if root contains channel folders
+        foreach (SCChannel channel in Enum.GetValues<SCChannel>())
         {
-            foreach (SCInstallCandidate candidate in EnumerateCandidates(root, root))
+            string channelPath = Path.Combine(root, channel.GetFolderName());
+            string dataP4K = Path.Combine(channelPath, SCConstants.Files.DataP4KFileName);
+
+            if (Directory.Exists(channelPath) && File.Exists(dataP4K))
             {
                 foundAny = true;
-                yield return candidate;
+#if DEBUG
+                Logger.Instance.LogMessage(TracingLevel.DEBUG,
+                    $"[CandidateEnumerator] Found {channel} at: {channelPath}");
+#endif
+
+                yield return new SCInstallCandidate(
+                    NormalizePath(root),
+                    channel,
+                    NormalizePath(channelPath),
+                    dataP4K);
             }
         }
 
         if (!foundAny)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[CandidateEnumerator] No StarCitizen folder found under root: {root}");
-        }
-    }
-
-    /// <summary>
-    ///     Enumerates installation candidates under a StarCitizen folder (LIVE, PTU, EPTU channels).
-    /// </summary>
-    private static IEnumerable<SCInstallCandidate> EnumerateCandidates(string root, string starCitizenFolder)
-    {
-        foreach (SCChannel channel in Enum.GetValues<SCChannel>())
-        {
-            string folderName = channel.GetFolderName();
-            string channelPath = Path.Combine(starCitizenFolder, folderName);
-            string dataP4K = Path.Combine(channelPath, SCConstants.Files.DataP4KFileName);
-
-            if (!Directory.Exists(channelPath) || !File.Exists(dataP4K))
-            {
-                continue;
-            }
-
-            string actualRootPath =
-                starCitizenFolder.EndsWith(SCConstants.Paths.StarCitizenFolderName, StringComparison.OrdinalIgnoreCase)
-                    ? Path.GetDirectoryName(starCitizenFolder) ?? root
-                    : root;
-
-            yield return new SCInstallCandidate(
-                actualRootPath,
-                channel,
-                NormalizePath(channelPath),
-                dataP4K);
+#if DEBUG
+            Logger.Instance.LogMessage(TracingLevel.WARN,
+                $"[CandidateEnumerator] No valid channels found under root: {root}");
+#endif
         }
     }
 

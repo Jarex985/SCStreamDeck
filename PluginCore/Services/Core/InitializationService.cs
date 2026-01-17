@@ -1,4 +1,4 @@
-﻿using BarRaider.SdTools;
+using BarRaider.SdTools;
 using SCStreamDeck.Common;
 using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
@@ -206,73 +206,128 @@ public sealed class InitializationService : IInitializationService, IDisposable
     }
 
     /// <summary>
-    ///     Detects Star Citizen installations - either full detection or delta-detection for new installations.
+    ///     Detects Star Citizen installations by scanning RSI logs AND checking cached root paths.
+    ///     Always scans RSI logs to detect new installation locations (e.g., moved to different drive).
+    ///     Always checks cached paths to detect new channels in existing locations.
     /// </summary>
     private async Task<List<SCInstallCandidate>> DetectInstallationsAsync(CacheValidationResult validationResult,
         CancellationToken cancellationToken)
     {
-        List<SCInstallCandidate> candidates;
+        Dictionary<string, SCInstallCandidate> candidateMap = new(StringComparer.OrdinalIgnoreCase); // Key: RootPath|Channel
+        Dictionary<string, string> detectionSources = new(); // Channel -> Source
 
-        if (validationResult.NeedsFullDetection)
+        // Step 1: Always scan RSI Launcher logs to find all root paths (including new locations)
+        List<SCInstallCandidate> rsiLogCandidates =
+            (await _installLocator.FindInstallationsAsync(cancellationToken).ConfigureAwait(false)).ToList();
+
+        foreach (SCInstallCandidate candidate in rsiLogCandidates)
         {
-            // Full detection (no valid cache or all installations removed)
-            candidates =
-                (await _installLocator.FindInstallationsAsync(cancellationToken).ConfigureAwait(false)).ToList();
-
-            if (candidates.Count == 0)
-            {
-                Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"[InitializationService] {ErrorMessages.InstallDetectionFailed}");
-                throw new InvalidOperationException(ErrorMessages.InstallDetectionFailed);
-            }
-
-            // Save all newly detected installations to state
-            foreach (SCInstallCandidate candidate in candidates)
-            {
-                InstallationState installationState = InstallationState.FromCandidate(candidate);
-                await _stateService.UpdateInstallationAsync(candidate.Channel, installationState, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-
-            Logger.Instance.LogMessage(TracingLevel.INFO,
-                $"[{nameof(InitializationService)}] Detected {candidates.Count} installation(s): {string.Join(", ", candidates.Select(c => c.Channel))}");
+            string key = $"{candidate.RootPath}|{candidate.Channel}";
+            candidateMap[key] = candidate;
+            
+            // Set source based on candidate's Source property
+            detectionSources[candidate.Channel.ToString()] = candidate.Source == InstallSource.UserProvided 
+                ? "User Config" 
+                : "RSI Logs";
         }
-        else
+
+        // Step 2: If we have valid cached installations, also check their root paths for new channels
+        // This catches cases where user added a channel (e.g., HOTFIX) without the RSI Launcher logging it yet
+        if (!validationResult.NeedsFullDetection && validationResult.ValidCandidates.Count > 0)
         {
-            // Cache is valid, but check for new installations
-            List<SCInstallCandidate> freshCandidates =
-                (await _installLocator.FindInstallationsAsync(cancellationToken).ConfigureAwait(false)).ToList();
+            HashSet<string> cachedRootPaths = validationResult.ValidCandidates
+                .Select(c => c.RootPath)
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            // Find new channels that weren't in cache
-            HashSet<SCChannel> cachedChannels = validationResult.ValidCandidates.Select(c => c.Channel).ToHashSet();
-            List<SCInstallCandidate> newInstallations = freshCandidates.Where(c => !cachedChannels.Contains(c.Channel)).ToList();
+            HashSet<SCChannel> cachedChannels = validationResult.ValidCandidates
+                .Select(c => c.Channel)
+                .ToHashSet();
 
-            if (newInstallations.Count > 0)
+            List<SCInstallCandidate> cachedPathCandidates = new();
+            foreach (string rootPath in cachedRootPaths)
             {
-                Logger.Instance.LogMessage(TracingLevel.INFO,
-                    $"[InitializationService] Found {newInstallations.Count} new installation(s): " +
-                    $"{string.Join(", ", newInstallations.Select(c => c.Channel))}");
+                InstallationCandidateEnumerator.AddCandidatesFromRoot(cachedPathCandidates, rootPath);
+            }
 
-                // Add new installations to state
-                foreach (SCInstallCandidate newCandidate in newInstallations)
+            // Merge with RSI log results, tracking sources
+            foreach (SCInstallCandidate candidate in cachedPathCandidates)
+            {
+                string key = $"{candidate.RootPath}|{candidate.Channel}";
+
+                if (!candidateMap.ContainsKey(key))
                 {
-                    InstallationState installationState = InstallationState.FromCandidate(newCandidate);
-                    await _stateService
-                        .UpdateInstallationAsync(newCandidate.Channel, installationState, cancellationToken)
-                        .ConfigureAwait(false);
+                    // Found in cached paths but not in RSI logs - likely a new channel
+                    candidateMap[key] = candidate;
+                    detectionSources[candidate.Channel.ToString()] = "Cache (New Channel)";
                 }
-
-                // Combine cached and new installations
-                candidates = validationResult.ValidCandidates.Concat(newInstallations).ToList();
-            }
-            else
-            {
-                // No new installations, use cache
-                candidates = validationResult.ValidCandidates;
+                else if (cachedChannels.Contains(candidate.Channel))
+                {
+                    // Already in RSI logs AND was cached - prefer "Cache" as source
+                    detectionSources[candidate.Channel.ToString()] = "Cache";
+                }
+                // else: Already in map from RSI logs, keep "RSI Logs" as source
             }
         }
 
-        return candidates;
+        List<SCInstallCandidate> finalCandidates = candidateMap.Values.ToList();
+
+        if (finalCandidates.Count == 0)
+        {
+            Logger.Instance.LogMessage(TracingLevel.ERROR,
+                $"[InitializationService] {ErrorMessages.InstallDetectionFailed}");
+            throw new InvalidOperationException(ErrorMessages.InstallDetectionFailed);
+        }
+
+        // Save all detected installations to state
+        foreach (SCInstallCandidate candidate in finalCandidates)
+        {
+            InstallationState installationState = InstallationState.FromCandidate(candidate);
+            await _stateService.UpdateInstallationAsync(candidate.Channel, installationState, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        // Extract unique root paths from RSI log candidates for summary
+        List<string> rsiRootPaths = rsiLogCandidates
+            .Select(c => c.RootPath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(p => p)
+            .ToList();
+
+        // Log detailed summary
+        LogDetectionSummary(finalCandidates, detectionSources, rsiRootPaths);
+
+        return finalCandidates;
+    }
+
+    /// <summary>
+    ///     Logs a detailed summary of detected installations with their sources.
+    /// </summary>
+    private static void LogDetectionSummary(List<SCInstallCandidate> candidates, Dictionary<string, string> sources, List<string> rsiRootPaths)
+    {
+        // Log root paths found in RSI logs
+        if (rsiRootPaths.Count > 0)
+        {
+            string pathsList = string.Join(", ", rsiRootPaths);
+            Logger.Instance.LogMessage(TracingLevel.INFO,
+                $"[InitializationService] Scanned {rsiRootPaths.Count} root path(s) from RSI logs: {pathsList}");
+        }
+
+        if (candidates.Count == 0)
+        {
+            Logger.Instance.LogMessage(TracingLevel.WARN, "[InitializationService] No installations detected");
+            return;
+        }
+
+        Logger.Instance.LogMessage(TracingLevel.INFO,
+            $"[InitializationService] Detected {candidates.Count} installation(s):");
+
+        foreach (SCInstallCandidate candidate in candidates.OrderBy(c => c.Channel))
+        {
+            string source = sources.TryGetValue(candidate.Channel.ToString(), out string? value) ? value : "Unknown";
+            Logger.Instance.LogMessage(TracingLevel.INFO,
+                $"  - {candidate.Channel} at {candidate.RootPath} (Source: {source})");
+        }
     }
 
     /// <summary>

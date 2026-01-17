@@ -470,3 +470,307 @@ body {
     color: var(--color-text-primary);
     font-size: 14px;
 }
+
+/* ===== Settings Key Components ===== */
+
+/* Settings Status Section */
+.pi-settings-status
+{
+    background: var(--color-bg-darker);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+    box-shadow: 0 0 8px var(--color-primary-glow);
+    position: relative;
+}
+
+.pi-settings-status::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+    opacity: 0.5;
+}
+
+.pi-settings-status-item
+{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-sm);
+    padding: var(--space-sm);
+    background: var(--color-bg-card);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+}
+
+.pi-settings-status-item:last-child
+{
+    margin-bottom: 0;
+}
+
+.pi-settings-status-label
+{
+    color: var(--color-text-secondary);
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.pi-settings-status-value
+{
+    color: var(--color-text-primary);
+    font-weight: bold;
+    text-align: right;
+    word-break: break-all;
+    margin-left: var(--space-md);
+}
+
+.pi-settings-status-value.success
+{
+    color: #4CAF50;
+}
+
+.pi-settings-status-value.warning
+{
+    color: #FF9800;
+}
+
+.pi-settings-status-value.error
+{
+    color: #F44336;
+}
+
+.pi-settings-status-value.info
+{
+    color: var(--color-text-primary);
+}
+
+/* Channel Paths Section */
+.pi-channel-paths
+{
+    background: var(--color-bg-darker);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+    box-shadow: 0 0 8px var(--color-primary-glow);
+    position: relative;
+}
+
+.pi-channel-paths::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+    opacity: 0.5;
+}
+
+.pi-channel-paths__header
+{
+    color: var(--color-primary);
+    font-size: 14px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--space-lg);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.pi-channel-path-item
+{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-sm);
+    padding: var(--space-sm);
+    background: var(--color-bg-card);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    gap: var(--space-sm);
+}
+
+.pi-channel-path-item:last-child
+{
+    margin-bottom: 0;
+}
+
+.pi-channel-path-item.disabled
+{
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.pi-channel-path-label
+{
+    background: var(--color-bg-darker);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-sm);
+    padding: var(--space-xs) var(--space-md);
+    color: var(--color-primary);
+    font-weight: bold;
+    font-size: 12px;
+    flex-shrink: 0;
+    min-width: 60px;
+    text-align: center;
+}
+
+.pi-channel-path-value
+{
+    flex: 1;
+    color: var(--color-text-primary);
+    font-size: 13px;
+    word-break: break-all;
+}
+
+.pi-channel-path-value.empty
+{
+    color: var(--color-text-tertiary);
+    font-style: italic;
+}
+
+.pi-channel-path-button
+{
+    background: var(--color-bg-darker);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-xs) var(--space-md);
+    color: var(--color-primary);
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.pi-channel-path-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-sm);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.pi-channel-path-button:hover
+{
+    background: var(--color-primary-glow);
+    border-color: var(--color-primary);
+}
+
+.pi-channel-path-button:disabled
+{
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pi-channel-path-button:disabled:hover
+{
+    background: var(--color-bg-darker);
+    border-color: var(--color-border);
+}
+
+/* Actions Section */
+.pi-actions
+{
+    background: var(--color-bg-darker);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+    box-shadow: 0 0 8px var(--color-primary-glow);
+    position: relative;
+}
+
+.pi-actions::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+    opacity: 0.5;
+}
+
+.pi-actions__header
+{
+    color: var(--color-primary);
+    font-size: 14px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--space-lg);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.pi-action-button
+{
+    width: 100%;
+    background: var(--color-bg-darker);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    color: var(--color-primary);
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: var(--space-sm);
+    position: relative;
+}
+
+.pi-action-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.pi-action-button:hover
+{
+    background: var(--color-primary-glow);
+    border-color: var(--color-primary);
+    transform: translateY(-1px);
+}
+
+.pi-action-button:active
+{
+    transform: translateY(0);
+}
+
+.pi-action-button:last-child
+{
+    margin-bottom: 0;
+}
+
+/* Footer Section */
+.pi-footer
+{
+    text-align: center;
+    padding: var(--space-sm);
+    color: var(--color-text-tertiary);
+    font-size: 12px;
+    margin-top: var(--space-sm);
+}

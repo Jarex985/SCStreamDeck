@@ -11,7 +11,27 @@
 
 ___
 
-## v0.2.0.0 - Major Update
+## v0.2.1.0
+
+**Features / Improvements:**
+
+    - Added custom-paths.ini as backup plan if auto-detection still fails to locate Star Citizen installation path.
+      - Users can manually add installation paths to custom-paths.ini located in the plugin's root folder. 
+      - The plugin will check these paths if auto-detection does not find a valid installation.
+      - Instructions for editing custom-paths.ini can be found within the ini file.
+
+Path to Plugin: `%APPDATA%/Elgato/StreamDeck/Plugins/com.jarex985.scstreamdeck.sdPlugin`
+
+**Bug Fixes:**
+
+    - Fixed an issue that made auto-detection too restrictive, so it would fail detecting some valid installation paths
+
+**Internal / Refactor:**
+
+    - Improved error handling and logging for installation path detection
+
+
+## v0.2.0.0 - Minor Update
 
 > [!WARNING]
 > **Note: Keybindings from earlier Plugin Versions inside Stream Deck App will be reset due to internal changes.**

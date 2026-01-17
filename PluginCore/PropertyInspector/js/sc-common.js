@@ -78,3 +78,10 @@ function addEventListener(id, event, handler)
     const el = getElement(id);
     if (el) el.addEventListener(event, handler);
 }
+
+function formatTimestamp(date)
+{
+    if (!date) return 'Never';
+    const dateObj = date instanceof Date ? date : new Date(date);
+    return dateObj.toLocaleTimeString();
+}

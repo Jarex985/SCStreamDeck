@@ -5,21 +5,19 @@ namespace SCStreamDeck.Models;
 
 /// <summary>
 ///     Minimal state information for a Star Citizen installation.
-///     Only stores essential data - paths are computed dynamically.
+///     Stores actual paths instead of computing them to support any custom installation structure.
 /// </summary>
 public sealed record InstallationState(
     [property: JsonPropertyName("rootPath")]
     string RootPath,
     [property: JsonPropertyName("channel")]
-    SCChannel Channel
+    SCChannel Channel,
+    [property: JsonPropertyName("channelPath")]
+    string ChannelPath,
+    [property: JsonPropertyName("isCustomPath")]
+    bool IsCustomPath = false
 )
 {
-    /// <summary>
-    ///     Gets the computed channel path (e.g., "F:\Roberts Space Industries\StarCitizen\LIVE").
-    /// </summary>
-    [JsonIgnore]
-    private string ChannelPath => Path.Combine(RootPath, SCConstants.Paths.StarCitizenFolderName, Channel.ToString());
-
     /// <summary>
     ///     Gets the computed Data.p4k path.
     /// </summary>
@@ -34,7 +32,8 @@ public sealed record InstallationState(
             RootPath,
             Channel,
             ChannelPath,
-            DataP4KPath
+            DataP4KPath,
+            IsCustomPath ? InstallSource.UserProvided : InstallSource.AutoDetected
         );
 
     /// <summary>
@@ -44,7 +43,7 @@ public sealed record InstallationState(
 
     /// <summary>
     ///     Creates InstallationState from a detected candidate.
-    ///     Only stores the minimal required information.
+    ///     Stores the actual channel path instead of computing it.
     /// </summary>
     public static InstallationState FromCandidate(SCInstallCandidate candidate)
     {
@@ -52,7 +51,9 @@ public sealed record InstallationState(
 
         return new InstallationState(
             candidate.RootPath,
-            candidate.Channel
+            candidate.Channel,
+            candidate.ChannelPath,
+            IsCustomPath: candidate.Source == InstallSource.UserProvided
         );
     }
 }
