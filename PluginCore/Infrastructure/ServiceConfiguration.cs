@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
+using SCStreamDeck.Services.Audio;
 using SCStreamDeck.Services.Core;
 using SCStreamDeck.Services.Data;
 using SCStreamDeck.Services.Installation;
@@ -19,8 +20,10 @@ public static class ServiceConfiguration
     {
         // Register external dependencies
         services.AddSingleton<IInputSimulator, InputSimulator>();
+        services.AddSingleton<IAudioPlayerService, AudioPlayerService>();
 
         // Register common services
+
         services.AddSingleton<IPathProvider, PathProviderService>();
         services.AddSingleton<IVersionProvider, VersionProviderService>();
 

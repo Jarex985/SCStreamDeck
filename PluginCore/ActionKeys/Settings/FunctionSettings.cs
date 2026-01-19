@@ -12,4 +12,7 @@ public sealed class FunctionSettings
     /// </summary>
     [JsonProperty(PropertyName = "function")]
     public string? Function { get; set; }
+
+    [JsonProperty(PropertyName = "clickSoundPath")]
+    public string? ClickSoundPath { get; set; }
 }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Localization>
+  <Entries>
+    <Entry id="ui_action_pitch_up">Pitch Up</Entry>
+    <Entry id="ui_action_pitch_down">Pitch Down</Entry>
+    <Entry id="ui_action_interact">Interact</Entry>
+    <Entry id="ui_action_fire">Fire Weapon</Entry>
+  </Entries>
+</Localization>

@@ -11,6 +11,27 @@
 
 ___
 
+## v0.2.2.1
+
+**Features / Improvements:**
+
+    - (Experimental) Added a Click Sound feature to provide audio feedback.
+        - Sound file can be configured for every Key inside Property Inspector.
+        - Currently supported formats: .wav and .mp3
+        - Only supports on KeyPress event for now, ignores Activation Modes.
+
+**Bug Fixes:**
+
+    - None.
+
+**Internal / Refactor:**
+
+    - Major internal refactor of Testing project structure and organization.
+    - Removed UnitTests and added Tests project with better structure and organization.
+    - Major refactor of PluginCore project structure and organization,
+      - This should not affect functionality but improves maintainability and readability.
+
+
 ## v0.2.1.0
 
 **Features / Improvements:**

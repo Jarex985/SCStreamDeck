@@ -7,6 +7,7 @@ using Newtonsoft.Json.Linq;
 using SCStreamDeck.ActionKeys.Settings;
 using SCStreamDeck.Common;
 using SCStreamDeck.Models;
+using SCStreamDeck.Services.Audio;
 using SCStreamDeck.Services.Core;
 using SCStreamDeck.Services.Keybinding;
 
@@ -17,12 +18,47 @@ namespace SCStreamDeck.ActionKeys;
 /// </summary>
 public abstract class SCActionBase : KeyAndEncoderBase
 {
+    #region Audio Playback
+
+    /// <summary>
+    ///     Plays the configured click sound if ClickSoundPath is set.
+    ///     TODO: Support ActivationMode - currently only plays on KeyPressed.
+    ///     Future enhancement: Check Settings.ActivationMode and play on appropriate event
+    ///     (KeyPressed, KeyReleased, or both depending on activation mode).
+    /// </summary>
+    protected void PlayClickSoundIfConfigured()
+    {
+        if (string.IsNullOrWhiteSpace(Settings.ClickSoundPath))
+        {
+            return;
+        }
+
+        if (!File.Exists(Settings.ClickSoundPath))
+        {
+            Settings.ClickSoundPath = null;
+            return;
+        }
+
+        try
+        {
+            AudioPlayerService.Play(Settings.ClickSoundPath);
+        }
+        catch (Exception ex)
+        {
+            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[{GetType().Name}] Audio playback error: {ex.Message}");
+        }
+    }
+
+    #endregion
+
     #region Fields and Properties
 
     private static IServiceProvider? s_serviceProvider;
     private IInitializationService InitializationService { get; }
+    private IAudioPlayerService AudioPlayerService { get; }
     protected IKeybindingService KeybindingService { get; }
     internal bool IsReady => InitializationService.IsInitialized && KeybindingService.IsLoaded;
+
     protected FunctionSettings Settings { get; private set; }
 
     #endregion
@@ -44,6 +80,8 @@ public abstract class SCActionBase : KeyAndEncoderBase
 
         InitializationService = s_serviceProvider!.GetRequiredService<IInitializationService>();
         KeybindingService = s_serviceProvider!.GetRequiredService<IKeybindingService>();
+        AudioPlayerService = s_serviceProvider!.GetRequiredService<IAudioPlayerService>();
+
         Connection.OnPropertyInspectorDidAppear += OnPropertyInspectorDidAppear;
         Connection.OnSendToPlugin += OnSendToPlugin;
 

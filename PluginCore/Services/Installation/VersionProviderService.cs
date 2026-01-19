@@ -65,12 +65,7 @@ public sealed class VersionProviderService : IVersionProvider
     {
         try
         {
-            return Task.Run(() => GetPluginVersionAsync(CancellationToken.None)).GetAwaiter().GetResult();
-        }
-
-        catch (AggregateException ex) when (ex.InnerException != null)
-        {
-            throw new InvalidOperationException("Failed to load plugin version.", ex.InnerException);
+            return GetPluginVersionAsync(CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
         }
         catch (FileNotFoundException)
         {

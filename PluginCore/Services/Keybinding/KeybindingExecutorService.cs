@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using BarRaider.SdTools;
 using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
@@ -64,7 +64,8 @@ public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDis
         if (!context.IsValid(out string? errorMessage))
         {
             Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[{nameof(KeybindingExecutorService)}]: Invalid execution context - {errorMessage}");
+                $"[{nameof(KeybindingExecutorService)}] Invalid execution context - {errorMessage}");
+
             return false;
         }
 
@@ -76,13 +77,8 @@ public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDis
         catch (InvalidOperationException ex)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingExecutorService)}]: {ErrorMessages.OperationFailedFor} '{context.ActionName}': {ex.Message}");
-            return false;
-        }
-        catch (ArgumentException ex)
-        {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingExecutorService)}]: {ErrorMessages.OperationFailedFor} '{context.ActionName}': {ex.Message}");
+                $"[{nameof(KeybindingExecutorService)}] {ErrorMessages.OperationFailedFor} '{context.ActionName}': {ex.Message}");
+
             return false;
         }
     }
@@ -99,7 +95,8 @@ public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDis
         if (parsedInput == null)
         {
             Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[{nameof(KeybindingExecutorService)}]: Failed to parse binding '{context.Binding}'");
+                $"[{nameof(KeybindingExecutorService)}] Failed to parse binding '{context.Binding}'");
+
             return false;
         }
 

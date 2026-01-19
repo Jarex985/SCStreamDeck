@@ -1,4 +1,4 @@
-﻿using BarRaider.SdTools;
+using BarRaider.SdTools;
 using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Services.Keybinding.ActivationHandlers;
@@ -46,7 +46,8 @@ internal sealed class ActivationModeHandlerRegistry
         }
 
         Logger.Instance.LogMessage(TracingLevel.WARN,
-            $"[ActivationRegistry] Unknown activation mode '{modeName}', using default press handler");
+            $"[{nameof(ActivationModeHandlerRegistry)}] Unknown activation mode '{modeName}', using default press handler");
+
 
         return _defaultHandler;
     }

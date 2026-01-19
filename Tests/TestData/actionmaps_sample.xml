@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ActionMaps>
+  <ActionMap name="spaceship">
+    <Actions>
+      <Action name="pitch_up" onPress="1" onHold="1" keyboard="W" mouse=""/>
+      <Action name="pitch_down" onPress="1" onHold="1" keyboard="S" mouse=""/>
+      <Action name="strafe_left" onPress="1" onHold="1" keyboard="A" mouse=""/>
+      <Action name="strafe_right" onPress="1" onHold="1" keyboard="D" mouse=""/>
+      <Action name="afterburner" onPress="1" onHold="1" keyboard="LeftShift" mouse=""/>
+    </Actions>
+  </ActionMap>
+  <ActionMap name="onfoot">
+    <Actions>
+      <Action name="move_forward" onPress="1" onHold="1" keyboard="W" mouse=""/>
+      <Action name="move_backward" onPress="1" onHold="1" keyboard="S" mouse=""/>
+      <Action name="interact" onPress="1" onHold="0" keyboard="F" mouse=""/>
+      <Action name="fire" onPress="1" onHold="1" keyboard="" mouse="MOUSE1"/>
+    </Actions>
+  </ActionMap>
+</ActionMaps>

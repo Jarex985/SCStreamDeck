@@ -1,4 +1,4 @@
-﻿using SCStreamDeck.Common;
+using SCStreamDeck.Common;
 using SCStreamDeck.Models;
 using WindowsInput.Native;
 
@@ -16,40 +16,59 @@ public sealed class KeybindingParserService : IKeybindingParserService
             return null;
         }
 
-        string normalized = binding.ToUpperInvariant().Trim();
+        string normalized = binding.Trim().ToUpperInvariant();
 
-        // Check mouse buttons first (no modifiers)
+        if (TryParseMouseWheel(normalized, out ParsedInputResult? mouseWheelResult))
+        {
+            return mouseWheelResult;
+        }
+
         if (TryParseMouseButton(normalized, out VirtualKeyCode mouseButton))
         {
             return new ParsedInputResult(InputType.MouseButton, mouseButton);
         }
 
-        // Check for mouse wheel with modifiers (e.g., "lalt+mwheel_up")
-        if (TryParseMouseWheelWithModifiers(normalized, out DirectInputKeyCode[] modifiers, out int wheelDirection))
-        {
-            return new ParsedInputResult(InputType.MouseWheel, (modifiers, wheelDirection));
-        }
-
-        // Check keyboard bindings
         if (TryParseKeyboard(normalized, out DirectInputKeyCode[] kbModifiers, out DirectInputKeyCode[] keys))
         {
             return new ParsedInputResult(InputType.Keyboard, (kbModifiers, keys));
         }
 
-        // Check standalone mouse wheel (no modifiers)
+        return null;
+    }
+
+    private static bool TryParseMouseWheel(string normalized, out ParsedInputResult? result)
+    {
+        result = null;
+
+        if (!normalized.Contains(SCConstants.Input.Mouse.WheelPrefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (normalized.Contains('+', StringComparison.Ordinal))
+        {
+            if (!TryParseMouseWheelWithModifiers(normalized, out DirectInputKeyCode[] modifiers, out int direction))
+            {
+                return false;
+            }
+
+            result = new ParsedInputResult(InputType.MouseWheel, (modifiers, direction));
+            return true;
+        }
+
         if (normalized.Contains(SCConstants.Input.Mouse.WheelUp, StringComparison.Ordinal))
         {
-            // Star Citizen: mwheel_up = positive value = scroll UP
-            return new ParsedInputResult(InputType.MouseWheel, 1);
+            result = new ParsedInputResult(InputType.MouseWheel, 1);
+            return true;
         }
 
         if (normalized.Contains(SCConstants.Input.Mouse.WheelDown, StringComparison.Ordinal))
         {
-            // Star Citizen: mwheel_down = negative value = scroll DOWN
-            return new ParsedInputResult(InputType.MouseWheel, -1);
+            result = new ParsedInputResult(InputType.MouseWheel, -1);
+            return true;
         }
 
-        return null;
+        return false;
     }
 
     /// <summary>
@@ -74,28 +93,25 @@ public sealed class KeybindingParserService : IKeybindingParserService
             return false;
         }
 
-        string[] tokens = binding.Split('+');
         List<DirectInputKeyCode> modifierList = new();
 
-        foreach (string token in tokens)
+        foreach (string token in SplitTokens(binding))
         {
-            string trimmed = token.Trim();
-            if (string.IsNullOrEmpty(trimmed))
+            if (TryParseModifier(token, out DirectInputKeyCode modifier))
             {
+                modifierList.Add(modifier);
                 continue;
             }
 
-            if (TryParseModifier(trimmed, out DirectInputKeyCode modifier))
+            if (token == SCConstants.Input.Mouse.WheelUp)
             {
-                modifierList.Add(modifier);
+                wheelDirection = 1;
+                continue;
             }
-            else if (trimmed == SCConstants.Input.Mouse.WheelUp)
+
+            if (token == SCConstants.Input.Mouse.WheelDown)
             {
-                wheelDirection = 1; // Star Citizen: mwheel_up = positive = scroll UP
-            }
-            else if (trimmed == SCConstants.Input.Mouse.WheelDown)
-            {
-                wheelDirection = -1; // Star Citizen: mwheel_down = negative = scroll DOWN
+                wheelDirection = -1;
             }
         }
 
@@ -150,23 +166,18 @@ public sealed class KeybindingParserService : IKeybindingParserService
         modifiers = Array.Empty<DirectInputKeyCode>();
         keys = Array.Empty<DirectInputKeyCode>();
 
-        string[] tokens = scBinding.Split('+');
         List<DirectInputKeyCode> modifierList = new();
         List<DirectInputKeyCode> keyList = new();
 
-        foreach (string token in tokens)
+        foreach (string token in SplitTokens(scBinding))
         {
-            string trimmed = token.Trim();
-            if (string.IsNullOrEmpty(trimmed))
+            if (TryParseModifier(token, out DirectInputKeyCode modifier))
             {
+                modifierList.Add(modifier);
                 continue;
             }
 
-            if (TryParseModifier(trimmed, out DirectInputKeyCode modifier))
-            {
-                modifierList.Add(modifier);
-            }
-            else if (TryParseKey(trimmed, out DirectInputKeyCode key))
+            if (TryParseKey(token, out DirectInputKeyCode key))
             {
                 keyList.Add(key);
             }
@@ -208,7 +219,6 @@ public sealed class KeybindingParserService : IKeybindingParserService
     {
         key = default;
 
-        // Special keys mapping
         bool specialKeyResult = token switch
         {
             SCConstants.Input.Keyboard.F1 => SetKey(DirectInputKeyCode.DikF1, out key),
@@ -249,7 +259,6 @@ public sealed class KeybindingParserService : IKeybindingParserService
             return true;
         }
 
-        // Use SCKeyToDirectInputMapper for all other keys (letters, numbers, punctuation)
         return SCKeyToDirectInputMapper.TryGetDirectInputKeyCode(token, out key);
 
         static bool SetKey(DirectInputKeyCode value, out DirectInputKeyCode output)
@@ -258,4 +267,7 @@ public sealed class KeybindingParserService : IKeybindingParserService
             return true;
         }
     }
+
+    private static string[] SplitTokens(string binding) =>
+        binding.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }

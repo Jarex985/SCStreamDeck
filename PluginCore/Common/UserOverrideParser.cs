@@ -1,4 +1,4 @@
-﻿using System.Xml;
+using System.Xml;
 using BarRaider.SdTools;
 using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
@@ -17,14 +17,7 @@ internal sealed class UserOverrideParser
     /// <returns>Parsed overrides, or null if file doesn't exist or parsing fails.</returns>
     public static UserOverrides? Parse(string actionMapsPath)
     {
-        if (!SecurePathValidator.TryNormalizePath(actionMapsPath, out string validPath))
-        {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[UserOverrideParser] {ErrorMessages.InvalidPath}: {actionMapsPath}");
-            return null;
-        }
-
-        if (!File.Exists(validPath))
+        if (!TryValidatePath(actionMapsPath, out string validPath))
         {
             return null;
         }
@@ -37,10 +30,12 @@ internal sealed class UserOverrideParser
 
         catch (Exception ex) when (ex is XmlException or ArgumentException or IOException or UnauthorizedAccessException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[{nameof(UserOverrideParser)}]: {ex.Message}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR,
+                $"[{nameof(UserOverrideParser)}] {ex.Message}");
             return null;
         }
     }
+
 
     /// <summary>
     ///     Applies the parsed overrides to a list of keybinding actions.
@@ -52,12 +47,7 @@ internal sealed class UserOverrideParser
         ArgumentNullException.ThrowIfNull(actions);
         ArgumentNullException.ThrowIfNull(overrides);
 
-        // Build lookup - handle duplicates by keeping last occurrence
-        Dictionary<string, KeybindingActionData> actionLookup = new(StringComparer.OrdinalIgnoreCase);
-        foreach (KeybindingActionData action in actions)
-        {
-            actionLookup[action.Name] = action;
-        }
+        Dictionary<string, KeybindingActionData> actionLookup = BuildActionLookup(actions);
 
         ApplyBindingOverrides(actionLookup, overrides.Keyboard,
             (action, binding) => action.Bindings.Keyboard = binding);
@@ -72,6 +62,17 @@ internal sealed class UserOverrideParser
             (action, binding) => action.Bindings.Gamepad = binding);
     }
 
+    private static Dictionary<string, KeybindingActionData> BuildActionLookup(List<KeybindingActionData> actions)
+    {
+        Dictionary<string, KeybindingActionData> actionLookup = new(StringComparer.OrdinalIgnoreCase);
+        foreach (KeybindingActionData action in actions)
+        {
+            actionLookup[action.Name] = action;
+        }
+
+        return actionLookup;
+    }
+
     private static void ApplyBindingOverrides(Dictionary<string, KeybindingActionData> actionLookup,
         IReadOnlyDictionary<string, string?> overrides,
         Action<KeybindingActionData, string?> applyBinding)
@@ -84,6 +85,7 @@ internal sealed class UserOverrideParser
             }
         }
     }
+
 
     private static UserOverrides ParseXml(string xmlText)
     {
@@ -101,29 +103,20 @@ internal sealed class UserOverrideParser
 
         while (xmlReader.Read())
         {
-            if (xmlReader.NodeType != XmlNodeType.Element)
-            {
-                continue;
-            }
-
-            if (!xmlReader.Name.Equals("action", StringComparison.OrdinalIgnoreCase))
+            if (!IsActionElement(xmlReader))
             {
                 continue;
             }
 
             string actionName = xmlReader.GetAttribute("name") ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(actionName))
-            {
-                continue;
-            }
-
-            if (xmlReader.IsEmptyElement)
+            if (string.IsNullOrWhiteSpace(actionName) || xmlReader.IsEmptyElement)
             {
                 continue;
             }
 
             ParseActionRebinds(xmlReader, actionName, keyboard, mouse, joystick, gamepad);
         }
+
 
         return new UserOverrides(keyboard, mouse, joystick, gamepad);
     }
@@ -140,20 +133,12 @@ internal sealed class UserOverrideParser
 
         while (xmlReader.Read())
         {
-            // Stop when we reach the closing </action> tag
-            if (xmlReader.NodeType == XmlNodeType.EndElement &&
-                xmlReader.Depth == depth &&
-                xmlReader.Name.Equals("action", StringComparison.OrdinalIgnoreCase))
+            if (IsEndOfAction(xmlReader, depth))
             {
                 break;
             }
 
-            if (xmlReader.NodeType != XmlNodeType.Element)
-            {
-                continue;
-            }
-
-            if (!xmlReader.Name.Equals("rebind", StringComparison.OrdinalIgnoreCase))
+            if (!IsRebindElement(xmlReader))
             {
                 continue;
             }
@@ -164,7 +149,6 @@ internal sealed class UserOverrideParser
                 continue;
             }
 
-            // Parse input format: "kb1_apostrophe" -> prefix="kb", suffix="apostrophe"
             string prefix = input.Length >= 2 ? input[..2].ToLowerInvariant() : string.Empty;
             string normalized = NormalizeInputSuffix(input);
 
@@ -173,22 +157,7 @@ internal sealed class UserOverrideParser
                 continue;
             }
 
-            // Map to appropriate dictionary based on prefix
-            switch (prefix)
-            {
-                case "kb":
-                    keyboard[actionName] = normalized;
-                    break;
-                case "mo":
-                    mouse[actionName] = normalized;
-                    break;
-                case "js":
-                    joystick[actionName] = normalized;
-                    break;
-                case "gp":
-                    gamepad[actionName] = normalized;
-                    break;
-            }
+            ApplyOverride(prefix, actionName, normalized, keyboard, mouse, joystick, gamepad);
         }
     }
 
@@ -201,6 +170,62 @@ internal sealed class UserOverrideParser
         }
 
         return input[(idx + 1)..].Trim();
+    }
+
+    private static bool IsActionElement(XmlReader reader) =>
+        reader.NodeType == XmlNodeType.Element &&
+        reader.Name.Equals("action", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsRebindElement(XmlReader reader) =>
+        reader.NodeType == XmlNodeType.Element &&
+        reader.Name.Equals("rebind", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsEndOfAction(XmlReader reader, int actionDepth) =>
+        reader.NodeType == XmlNodeType.EndElement &&
+        reader.Depth == actionDepth &&
+        reader.Name.Equals("action", StringComparison.OrdinalIgnoreCase);
+
+    private static void ApplyOverride(
+        string prefix,
+        string actionName,
+        string normalized,
+        Dictionary<string, string?> keyboard,
+        Dictionary<string, string?> mouse,
+        Dictionary<string, string?> joystick,
+        Dictionary<string, string?> gamepad)
+    {
+        switch (prefix)
+        {
+            case "kb":
+                keyboard[actionName] = normalized;
+                break;
+            case "mo":
+                mouse[actionName] = normalized;
+                break;
+            case "js":
+                joystick[actionName] = normalized;
+                break;
+            case "gp":
+                gamepad[actionName] = normalized;
+                break;
+        }
+    }
+
+    private static bool TryValidatePath(string actionMapsPath, out string validPath)
+    {
+        if (!SecurePathValidator.TryNormalizePath(actionMapsPath, out validPath))
+        {
+            Logger.Instance.LogMessage(TracingLevel.ERROR,
+                $"[{nameof(UserOverrideParser)}] {ErrorMessages.InvalidPath} {actionMapsPath}");
+            return false;
+        }
+
+        if (!File.Exists(validPath))
+        {
+            return false;
+        }
+
+        return true;
     }
 }
 

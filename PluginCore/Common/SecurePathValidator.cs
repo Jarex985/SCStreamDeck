@@ -1,5 +1,6 @@
 using System.Security;
 using BarRaider.SdTools;
+using SCStreamDeck.Logging;
 
 namespace SCStreamDeck.Common;
 
@@ -20,26 +21,32 @@ public static class SecurePathValidator
     {
         normalizedPath = string.Empty;
 
-        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(baseDirectory))
+        if (HasMissingInput(path, baseDirectory))
         {
             return false;
         }
 
-        // Prevent using system directories as base
-        if (baseDirectory.Contains("Windows", StringComparison.OrdinalIgnoreCase) ||
-            baseDirectory.Contains("System32", StringComparison.OrdinalIgnoreCase) ||
-            baseDirectory.StartsWith(@"\\", StringComparison.Ordinal) ||
-            !Directory.Exists(baseDirectory))
+        if (IsBlockedBaseDirectory(baseDirectory) || ContainsTraversalSequence(path))
         {
             return false;
         }
 
-        // Prevent path traversal attacks
-        if (path.Contains("...."))
-        {
-            return false;
-        }
+        return TryNormalizeWithinBase(path, baseDirectory, out normalizedPath);
+    }
 
+    private static bool HasMissingInput(string path, string baseDirectory) =>
+        string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(baseDirectory);
+
+    private static bool IsBlockedBaseDirectory(string baseDirectory) =>
+        baseDirectory.Contains("Windows", StringComparison.OrdinalIgnoreCase) ||
+        baseDirectory.Contains("System32", StringComparison.OrdinalIgnoreCase) ||
+        baseDirectory.StartsWith(@"\\", StringComparison.Ordinal) ||
+        !Directory.Exists(baseDirectory);
+
+    private static bool ContainsTraversalSequence(string path) => path.Contains("....", StringComparison.Ordinal);
+
+    private static bool TryNormalizeWithinBase(string path, string baseDirectory, out string normalizedPath)
+    {
         try
         {
             string fullPath = Path.GetFullPath(Path.Combine(baseDirectory, path));
@@ -57,11 +64,15 @@ public static class SecurePathValidator
 
         catch (Exception ex) when (ex is ArgumentException or SecurityException or NotSupportedException or PathTooLongException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[{nameof(SecurePathValidator)}] '{path}': {ex.Message}");
+            LogError(path, ex);
             normalizedPath = string.Empty;
             return false;
         }
     }
+
+    private static void LogError(string path, Exception ex) =>
+        Logger.Instance.LogMessage(TracingLevel.ERROR,
+            $"[{nameof(SecurePathValidator)}] {ErrorMessages.InvalidPath} '{path}' - {ex.Message}");
 
     /// <summary>
     ///     Gets a secure, validated path or throws a SecurityException if validation fails.
@@ -105,7 +116,7 @@ public static class SecurePathValidator
 
         catch (Exception ex) when (ex is ArgumentException or SecurityException or NotSupportedException or PathTooLongException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[{nameof(SecurePathValidator)}] '{path}': {ex.Message}");
+            LogError(path, ex);
             return false;
         }
     }

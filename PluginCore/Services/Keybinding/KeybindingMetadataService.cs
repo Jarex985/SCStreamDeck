@@ -20,33 +20,18 @@ public sealed class KeybindingMetadataService : IKeybindingMetadataService
     {
         try
         {
-            // user.cfg is directly in the channel folder (e.g., LIVE/user.cfg)
-            // If we don't find any g_language entry, use english as default
             string userCfgPath = Path.Combine(channelPath, SCConstants.Files.UserConfigFileName);
             if (!File.Exists(userCfgPath))
             {
                 return SCConstants.Localization.DefaultLanguage;
             }
 
-            string[] lines = File.ReadAllLines(userCfgPath);
-            foreach (string line in lines)
-            {
-                string trimmed = line.Trim();
-                if (trimmed.StartsWith(SCConstants.Localization.LanguageConfigKey, StringComparison.OrdinalIgnoreCase) &&
-                    trimmed.Contains('='))
-                {
-                    string[] parts = trimmed.Split('=', 2);
-                    if (parts.Length == 2)
-                    {
-                        string lang = parts[1].Trim().Trim('"').ToUpperInvariant();
-                        Logger.Instance.LogMessage(TracingLevel.INFO,
-                            $"[KeybindingMetadataService] Detected language from {SCConstants.Files.UserConfigFileName}: {lang}");
-                        return lang;
-                    }
-                }
-            }
+            string? detected = File.ReadLines(userCfgPath)
+                .Select(line => line.Trim())
+                .Select(TryExtractLanguage)
+                .FirstOrDefault(lang => !string.IsNullOrWhiteSpace(lang));
 
-            return SCConstants.Localization.DefaultLanguage;
+            return detected ?? SCConstants.Localization.DefaultLanguage;
         }
         catch (Exception ex)
         {
@@ -55,6 +40,7 @@ public sealed class KeybindingMetadataService : IKeybindingMetadataService
             return SCConstants.Localization.DefaultLanguage;
         }
     }
+
 
     /// <summary>
     ///     Checks if keybinding data needs to be regenerated based on metadata.
@@ -79,40 +65,71 @@ public sealed class KeybindingMetadataService : IKeybindingMetadataService
                 return true;
             }
 
-            // Check Data.p4k timestamp
             FileInfo p4KInfo = new(installation.DataP4KPath);
-            if (data.Metadata.DataP4KSize != p4KInfo.Length || data.Metadata.DataP4KLastWrite != p4KInfo.LastWriteTime)
+            if (HasFileChanged(data.Metadata.DataP4KSize, data.Metadata.DataP4KLastWrite, p4KInfo))
             {
                 return true;
             }
 
-            // Check actionmaps.xml if it exists
-            if (!string.IsNullOrWhiteSpace(data.Metadata.ActionMapsPath) && File.Exists(data.Metadata.ActionMapsPath))
+            if (HasActionMapsChanged(data.Metadata))
             {
-                FileInfo actionMapsInfo = new(data.Metadata.ActionMapsPath);
-                if (data.Metadata.ActionMapsSize != actionMapsInfo.Length ||
-                    data.Metadata.ActionMapsLastWrite != actionMapsInfo.LastWriteTime)
-                {
-                    return true;
-                }
-            }
-
-            // Check language change
-            string currentLanguage = DetectLanguage(installation.ChannelPath);
-            if (!string.Equals(data.Metadata.Language, currentLanguage, StringComparison.OrdinalIgnoreCase))
-            {
-                Logger.Instance.LogMessage(TracingLevel.INFO,
-                    $"[{nameof(KeybindingMetadataService)}] Language changed from '{data.Metadata.Language}' to '{currentLanguage}'");
                 return true;
             }
 
-            return false;
+            return HasLanguageChanged(data.Metadata.Language, installation.ChannelPath);
         }
         catch (Exception ex)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingMetadataService)}] {ErrorMessages.JsonMetadataCheckFailed} {ex.Message}");
+                $"[{nameof(KeybindingMetadataService)}] Failed to check JSON metadata: {ex.Message}");
             return true;
         }
     }
+
+    private static string? TryExtractLanguage(string line)
+    {
+        if (!line.StartsWith(SCConstants.Localization.LanguageConfigKey, StringComparison.OrdinalIgnoreCase) ||
+            !line.Contains('=', StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        string[] parts = line.Split('=', 2);
+        if (parts.Length != 2)
+        {
+            return null;
+        }
+
+        string lang = parts[1].Trim().Trim('"').ToUpperInvariant();
+        Logger.Instance.LogMessage(TracingLevel.INFO,
+            $"[{nameof(KeybindingMetadataService)}] Detected language from {SCConstants.Files.UserConfigFileName}: {lang}");
+        return lang;
+    }
+
+    private bool HasLanguageChanged(string previousLanguage, string channelPath)
+    {
+        string currentLanguage = DetectLanguage(channelPath);
+        if (!string.Equals(previousLanguage, currentLanguage, StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Instance.LogMessage(TracingLevel.INFO,
+                $"[{nameof(KeybindingMetadataService)}] Language changed from '{previousLanguage}' to '{currentLanguage}'");
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool HasActionMapsChanged(KeybindingMetadata metadata)
+    {
+        if (string.IsNullOrWhiteSpace(metadata.ActionMapsPath) || !File.Exists(metadata.ActionMapsPath))
+        {
+            return false;
+        }
+
+        FileInfo actionMapsInfo = new(metadata.ActionMapsPath);
+        return HasFileChanged(metadata.ActionMapsSize, metadata.ActionMapsLastWrite, actionMapsInfo);
+    }
+
+    private static bool HasFileChanged(long? expectedSize, DateTime? expectedWrite, FileInfo fileInfo) =>
+        expectedSize != fileInfo.Length || expectedWrite != fileInfo.LastWriteTime;
 }

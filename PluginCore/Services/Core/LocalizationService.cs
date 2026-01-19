@@ -35,43 +35,35 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
         language = NormalizeLanguage(language);
         (string channelPath, string language) cacheKey = (channelPath, language);
 
-        // Check cache
-        lock (_cacheLock)
+        Dictionary<string, string>? cached = GetFromCache(cacheKey);
+        if (cached != null)
         {
-            if (_cache.TryGetValue(cacheKey, out Dictionary<string, string>? cached))
-            {
-                return cached;
-            }
+            return cached;
         }
 
-
-        // Load from sources
         string? content = await TryLoadContentAsync(channelPath, language, dataP4KPath, cancellationToken)
             .ConfigureAwait(false);
 
         if (content != null)
         {
             Dictionary<string, string> parsed = ParseGlobalIni(content);
-            lock (_cacheLock)
-            {
-                _cache[cacheKey] = parsed;
-            }
-
+            SetCache(cacheKey, parsed);
             return parsed;
         }
 
-        // Fallback to English
         if (!language.Equals(SCConstants.Localization.DefaultLanguage, StringComparison.OrdinalIgnoreCase))
         {
             Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[Localization] Language '{language}' not found, falling back to {SCConstants.Localization.DefaultLanguage}");
+                $"[{nameof(LocalizationService)}] Language '{language}' not found, falling back to {SCConstants.Localization.DefaultLanguage}");
             return await LoadGlobalIniAsync(channelPath, SCConstants.Localization.DefaultLanguage, dataP4KPath,
                 cancellationToken).ConfigureAwait(false);
         }
 
-        Logger.Instance.LogMessage(TracingLevel.ERROR, "[Localization] Failed to load any global.ini, returning empty");
+        Logger.Instance.LogMessage(TracingLevel.ERROR,
+            $"[{nameof(LocalizationService)}] Failed to load any global.ini, returning empty");
         return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
+
 
     public async Task<string> ReadLanguageSettingAsync(
         string channelPath,
@@ -83,7 +75,7 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
         if (!SecurePathValidator.TryNormalizePath(userConfigPath, out string validPath))
         {
             Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[Localization] Invalid {SCConstants.Files.UserConfigFileName} path: {userConfigPath}");
+                $"[{nameof(LocalizationService)}] Invalid {SCConstants.Files.UserConfigFileName} path: {userConfigPath}");
             return SCConstants.Localization.DefaultLanguage;
         }
 
@@ -97,20 +89,20 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
             string[] lines = await File.ReadAllLinesAsync(validPath, cancellationToken).ConfigureAwait(false);
             return ParseLanguageFromLines(lines);
         }
-
         catch (IOException ex)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[Localization] Failed to read {SCConstants.Files.UserConfigFileName} (I/O error): {ex.Message}");
+                $"[{nameof(LocalizationService)}] Failed to read {SCConstants.Files.UserConfigFileName} (I/O error): {ex.Message}");
             return SCConstants.Localization.DefaultLanguage;
         }
         catch (UnauthorizedAccessException ex)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[Localization] Failed to read {SCConstants.Files.UserConfigFileName} (access denied): {ex.Message}");
+                $"[{nameof(LocalizationService)}] Failed to read {SCConstants.Files.UserConfigFileName} (access denied): {ex.Message}");
             return SCConstants.Localization.DefaultLanguage;
         }
     }
+
 
     public void ClearCache(string channelPath, string language)
     {
@@ -121,7 +113,8 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
         {
             if (_cache.Remove(cacheKey))
             {
-                Logger.Instance.LogMessage(TracingLevel.INFO, $"[Localization] Cleared cache for {language}");
+                Logger.Instance.LogMessage(TracingLevel.INFO,
+                    $"[{nameof(LocalizationService)}] Cleared cache for {language}");
             }
         }
     }
@@ -135,8 +128,24 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
         }
 
         Logger.Instance.LogMessage(TracingLevel.WARN,
-            $"[Localization] Unsupported language '{language}', using {SCConstants.Localization.DefaultLanguage}");
+            $"[{nameof(LocalizationService)}] Unsupported language '{language}', using {SCConstants.Localization.DefaultLanguage}");
         return SCConstants.Localization.DefaultLanguage;
+    }
+
+    private Dictionary<string, string>? GetFromCache((string channelPath, string language) cacheKey)
+    {
+        lock (_cacheLock)
+        {
+            return _cache.TryGetValue(cacheKey, out Dictionary<string, string>? cached) ? cached : null;
+        }
+    }
+
+    private void SetCache((string channelPath, string language) cacheKey, Dictionary<string, string> values)
+    {
+        lock (_cacheLock)
+        {
+            _cache[cacheKey] = values;
+        }
     }
 
     private async Task<string?> TryLoadContentAsync(
@@ -145,14 +154,12 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
         string dataP4KPath,
         CancellationToken cancellationToken)
     {
-        // Priority 1: Override folder
         string? content = await LoadFromOverrideFolderAsync(channelPath, language, cancellationToken).ConfigureAwait(false);
         if (content != null)
         {
             return content;
         }
 
-        // Priority 2: P4K
         return await LoadFromP4KAsync(dataP4KPath, language, cancellationToken).ConfigureAwait(false);
     }
 
@@ -166,7 +173,8 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
 
         if (!SecurePathValidator.TryNormalizePath(overridePath, out string validPath))
         {
-            Logger.Instance.LogMessage(TracingLevel.WARN, $"[Localization] Invalid override path: {overridePath}");
+            Logger.Instance.LogMessage(TracingLevel.WARN,
+                $"[{nameof(LocalizationService)}] Invalid override path: {overridePath}");
             return null;
         }
 
@@ -179,17 +187,16 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
         {
             return await File.ReadAllTextAsync(validPath, cancellationToken).ConfigureAwait(false);
         }
-
         catch (IOException ex)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[Localization] Failed to read override (I/O error): {ex.Message}");
+                $"[{nameof(LocalizationService)}] Failed to read override (I/O error): {ex.Message}");
             return null;
         }
         catch (UnauthorizedAccessException ex)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[Localization] Failed to read override (access denied): {ex.Message}");
+                $"[{nameof(LocalizationService)}] Failed to read override (access denied): {ex.Message}");
             return null;
         }
     }
@@ -201,7 +208,8 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
     {
         if (!File.Exists(dataP4KPath))
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[Localization] Data.p4k not found: {dataP4KPath}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR,
+                $"[{nameof(LocalizationService)}] Data.p4k not found: {dataP4KPath}");
             return null;
         }
 
@@ -210,7 +218,8 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
             bool opened = await _p4KService.OpenArchiveAsync(dataP4KPath, cancellationToken).ConfigureAwait(false);
             if (!opened)
             {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, "[Localization] Failed to open Data.p4k");
+                Logger.Instance.LogMessage(TracingLevel.ERROR,
+                    $"[{nameof(LocalizationService)}] Failed to open Data.p4k");
                 return null;
             }
 
@@ -224,7 +233,7 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
                 if (entries.Count == 0)
                 {
                     Logger.Instance.LogMessage(TracingLevel.WARN,
-                        $"[Localization] {SCConstants.Files.GlobalIniFileName} not found in P4K for {language}");
+                        $"[{nameof(LocalizationService)}] {SCConstants.Files.GlobalIniFileName} not found in P4K for {language}");
                     return null;
                 }
 
@@ -238,13 +247,14 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
                 _p4KService.CloseArchive();
             }
         }
-
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[Localization] Failed to extract from P4K: {ex.Message}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR,
+                $"[{nameof(LocalizationService)}] Failed to extract from P4K: {ex.Message}");
             return null;
         }
     }
+
 
     private static Dictionary<string, string> ParseGlobalIni(string content)
     {
@@ -330,12 +340,15 @@ public sealed class LocalizationService(IP4KArchiveService p4KService) : ILocali
             string normalized = value.ToUpperInvariant();
             if (s_supportedLanguages.Contains(normalized))
             {
-                Logger.Instance.LogMessage(TracingLevel.INFO, $"[Localization] Detected language: {normalized}");
+                Logger.Instance.LogMessage(TracingLevel.INFO,
+                    $"[{nameof(LocalizationService)}] Detected language: {normalized}");
+
                 return normalized;
             }
 
             Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[Localization] Invalid language '{value}', using {SCConstants.Localization.DefaultLanguage}");
+                $"[{nameof(LocalizationService)}] Invalid language '{value}', using {SCConstants.Localization.DefaultLanguage}");
+
             return SCConstants.Localization.DefaultLanguage;
         }
 

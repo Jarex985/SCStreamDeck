@@ -1,4 +1,4 @@
-﻿using BarRaider.SdTools;
+using BarRaider.SdTools;
 using SCStreamDeck.Common;
 using SCStreamDeck.Models;
 
@@ -17,6 +17,8 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
 
     public override async void KeyPressed(KeyPayload payload)
     {
+        PlayClickSoundIfConfigured();
+
         try
         {
             await ProcessKeyEventAsync(true).ConfigureAwait(false);
@@ -26,6 +28,7 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
             Logger.Instance.LogMessage(TracingLevel.ERROR, $"{GetType().Name}: {ex.Message}");
         }
     }
+
 
     public override async void KeyReleased(KeyPayload payload)
     {

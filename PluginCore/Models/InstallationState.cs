@@ -53,7 +53,7 @@ public sealed record InstallationState(
             candidate.RootPath,
             candidate.Channel,
             candidate.ChannelPath,
-            IsCustomPath: candidate.Source == InstallSource.UserProvided
+            candidate.Source == InstallSource.UserProvided
         );
     }
 }

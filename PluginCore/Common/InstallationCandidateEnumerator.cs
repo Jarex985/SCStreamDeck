@@ -33,7 +33,7 @@ internal static class InstallationCandidateEnumerator
         catch (Exception ex)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(InstallationCandidateEnumerator)}] Error processing root '{root}': {ex.Message}");
+                $"[{nameof(InstallationCandidateEnumerator)}] Failed to process root '{root}': {ex.Message}");
         }
     }
 
@@ -61,7 +61,8 @@ internal static class InstallationCandidateEnumerator
                 foundAny = true;
 #if DEBUG
                 Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                    $"[CandidateEnumerator] Found {channel} at: {channelPath}");
+                    $"[{nameof(InstallationCandidateEnumerator)}] Found {channel} at: {channelPath}");
+
 #endif
 
                 yield return new SCInstallCandidate(
@@ -76,7 +77,8 @@ internal static class InstallationCandidateEnumerator
         {
 #if DEBUG
             Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[CandidateEnumerator] No valid channels found under root: {root}");
+                $"[{nameof(InstallationCandidateEnumerator)}] No valid channels found under root: {root}");
+
 #endif
         }
     }

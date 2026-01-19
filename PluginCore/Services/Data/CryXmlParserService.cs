@@ -16,15 +16,15 @@ public sealed class CryXmlParserService : ICryXmlParserService
     private const int AttributeEntrySize = SCConstants.CryXml.AttributeEntrySize;
     private const int ChildIndexSize = SCConstants.CryXml.ChildIndexSize;
 
-    public Task<string?> ConvertCryXmlToTextAsync(byte[] binaryXmlData, CancellationToken cancellationToken = default)
+    public async Task<string?> ConvertCryXmlToTextAsync(byte[] binaryXmlData, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(binaryXmlData);
 
-        return Task.Run(() =>
+        return await Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             return !TryConvertCryXmlToText(binaryXmlData, out string xmlText, out _) ? null : xmlText;
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     public bool IsCryXml(ReadOnlySpan<byte> data)
@@ -71,7 +71,6 @@ public sealed class CryXmlParserService : ICryXmlParserService
         return true;
     }
 
-    // TODO: Another Candidate for ErrorMessages.cs pattern
     private static CryXmlDocument? TryParseCryXml(ReadOnlySpan<byte> data, out string error)
     {
         error = string.Empty;

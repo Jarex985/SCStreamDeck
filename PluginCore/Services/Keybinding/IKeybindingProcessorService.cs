@@ -1,4 +1,4 @@
-﻿using SCStreamDeck.Models;
+using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Services.Keybinding;
 
@@ -15,6 +15,13 @@ public interface IKeybindingProcessorService
     /// <param name="outputJsonPath">Path where JSON should be saved</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Detected language and success status</returns>
+    /// <exception cref="ArgumentNullException">Thrown when installation is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when outputJsonPath is null or whitespace.</exception>
+    /// <exception cref="IOException">Thrown when file I/O fails.</exception>
+    /// <exception cref="UnauthorizedAccessException">Thrown when file access is denied.</exception>
+    /// <exception cref="ZipException">Thrown when P4K archive operations fail.</exception>
+    /// <exception cref="JsonException">Thrown when JSON serialization fails.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is canceled.</exception>
     Task<KeybindingProcessResult> ProcessKeybindingsAsync(
         SCInstallCandidate installation,
         string? actionMapsPath,
@@ -24,6 +31,10 @@ public interface IKeybindingProcessorService
     /// <summary>
     ///     Checks if keybindings JSON needs regeneration.
     /// </summary>
+    /// <param name="jsonPath">Path to the existing JSON file.</param>
+    /// <param name="installation">Star Citizen installation candidate.</param>
+    /// <returns>True if regeneration is needed, false otherwise.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when installation is null.</exception>
     bool NeedsRegeneration(string jsonPath, SCInstallCandidate installation);
 }
 

@@ -1,4 +1,4 @@
-﻿using SCStreamDeck.Models;
+using SCStreamDeck.Models;
 
 // ReSharper disable UnusedMember.Global
 
@@ -13,6 +13,9 @@ public interface IInstallLocatorService
     ///     Finds all Star Citizen installation candidates asynchronously.
     ///     Results are cached until InvalidateCache() is called.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of installation candidates.</returns>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is canceled.</exception>
     Task<IReadOnlyList<SCInstallCandidate>> FindInstallationsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -33,5 +36,7 @@ public interface IInstallLocatorService
     /// <summary>
     ///     Sets the currently selected Star Citizen installation.
     /// </summary>
+    /// <param name="installation">The installation to select.</param>
+    /// <exception cref="ArgumentNullException">Thrown when installation is null.</exception>
     void SetSelectedInstallation(SCInstallCandidate installation);
 }

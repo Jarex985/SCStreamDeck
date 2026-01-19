@@ -67,8 +67,8 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
                     ? rt
                     : -1,
                 ReleaseTriggerDelay = !string.IsNullOrWhiteSpace(releaseTriggerDelayAttr) &&
-                                         float.TryParse(releaseTriggerDelayAttr, NumberStyles.Float, CultureInfo.InvariantCulture,
-                                             out float rtd)
+                                      float.TryParse(releaseTriggerDelayAttr, NumberStyles.Float, CultureInfo.InvariantCulture,
+                                          out float rtd)
                     ? rtd
                     : 0,
                 Retriggerable = xmlReader.GetAttribute("retriggerable") == "1",
@@ -77,7 +77,7 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
                     ? mt
                     : 1,
                 MultiTapBlock = !string.IsNullOrWhiteSpace(multiTapBlockAttr) &&
-                               int.TryParse(multiTapBlockAttr, out int mtb)
+                                int.TryParse(multiTapBlockAttr, out int mtb)
                     ? mtb
                     : 1
             };
@@ -229,8 +229,11 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
             return mode;
         }
 
+#if DEBUG
         Logger.Instance.LogMessage(TracingLevel.WARN,
-            $"[KeybindingXmlParser] Unknown activation mode '{activationModeStr}', defaulting to 'press'");
+            $"[{nameof(KeybindingXmlParserService)}] Unknown activation mode '{activationModeStr}', defaulting to 'press'");
+#endif
+
         return ActivationMode.press;
     }
 
@@ -265,7 +268,7 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
 
 #if DEBUG
         Logger.Instance.LogMessage(TracingLevel.WARN,
-            $"[KeybindingXmlParser] Action '{actionName}' used heuristic activation mode: {inferred} " +
+            $"[{nameof(KeybindingXmlParserService)}] Action '{actionName}' used heuristic activation mode: {inferred} " +
             $"(onPress={onPress}, onHold={onHold}, onRelease={onRelease}, retriggerable={retriggerable})");
 #endif
         return inferred;

@@ -18,6 +18,12 @@ public interface IKeybindingOutputService
     /// <param name="activationModes">Dictionary of activation mode metadata</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Task representing the asynchronous operation</returns>
+    /// <exception cref="ArgumentNullException">Thrown when any required parameter is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when any path parameter is invalid.</exception>
+    /// <exception cref="IOException">Thrown when the file cannot be written.</exception>
+    /// <exception cref="UnauthorizedAccessException">Thrown when access to the file is denied.</exception>
+    /// <exception cref="JsonSerializationException">Thrown when JSON serialization fails.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is canceled.</exception>
     Task WriteKeybindingsJsonAsync(
         SCInstallCandidate installation,
         string? actionMapsPath,

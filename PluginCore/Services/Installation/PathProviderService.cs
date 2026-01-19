@@ -18,10 +18,7 @@ public sealed class PathProviderService : IPathProvider
 
     public string GetKeybindingJsonPath(string channel)
     {
-        if (string.IsNullOrWhiteSpace(channel))
-        {
-            throw new ArgumentException("Channel cannot be null or whitespace.", nameof(channel));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(channel);
 
         string fileName = $"{channel.ToUpperInvariant()}-keybindings.json";
         return Path.Combine(CacheDirectory, fileName);
@@ -29,18 +26,17 @@ public sealed class PathProviderService : IPathProvider
 
     public void EnsureDirectoriesExist()
     {
-        if (!Directory.Exists(CacheDirectory))
+        if (Directory.Exists(CacheDirectory))
         {
-            Directory.CreateDirectory(CacheDirectory);
+            return;
         }
+
+        Directory.CreateDirectory(CacheDirectory);
     }
 
     public string GetSecureCachePath(string relativePath)
     {
-        if (string.IsNullOrWhiteSpace(relativePath))
-        {
-            throw new ArgumentException("Relative path cannot be null or whitespace.", nameof(relativePath));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
 
         string fullPath = Path.Combine(CacheDirectory, relativePath);
         return SecurePathValidator.GetSecurePath(fullPath, CacheDirectory);

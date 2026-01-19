@@ -1,4 +1,4 @@
-﻿using SCStreamDeck.Models;
+using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Services.Core;
 
@@ -16,6 +16,7 @@ public interface IInitializationService
     ///     Ensures the plugin is initialized (lazy initialization).
     ///     Safe to call multiple times - only initializes once.
     /// </summary>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is canceled.</exception>
     Task<InitializationResult> EnsureInitializedAsync(CancellationToken cancellationToken = default);
 
     /// <summary>

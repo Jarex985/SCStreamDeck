@@ -17,15 +17,13 @@ internal sealed class ImmediatePressHandler : IActivationModeHandler
     private readonly ConcurrentDictionary<string, bool> _activationBlocks = new(StringComparer.OrdinalIgnoreCase);
 
     public IEnumerable<string> SupportedModes =>
-        [
-            "press", "press_quicker", "tap", "tap_quicker", "double_tap", "double_tap_nonblocking", "hold_toggle",
-            "all"
-        ];
+    [
+        "press", "press_quicker", "tap", "tap_quicker", "double_tap", "double_tap_nonblocking", "hold_toggle",
+        "all"
+    ];
 
-    public bool Execute(ActivationExecutionContext context, IInputExecutor executor)
-    {
-        return context.IsKeyDown ? HandleKeyDown(context, executor) : HandleKeyUp(context, executor);
-    }
+    public bool Execute(ActivationExecutionContext context, IInputExecutor executor) =>
+        context.IsKeyDown ? HandleKeyDown(context, executor) : HandleKeyUp(context, executor);
 
     private bool HandleKeyDown(ActivationExecutionContext context, IInputExecutor executor)
     {
@@ -141,9 +139,9 @@ internal sealed class DelayedPressHandler : IActivationModeHandler
 internal sealed class HoldHandler : IActivationModeHandler
 {
     public IEnumerable<string> SupportedModes =>
-        [
-            "hold", "hold_no_retrigger", "delayed_hold", "delayed_hold_long", "delayed_hold_no_retrigger"
-        ];
+    [
+        "hold", "hold_no_retrigger", "delayed_hold", "delayed_hold_long", "delayed_hold_no_retrigger"
+    ];
 
     public bool Execute(ActivationExecutionContext context, IInputExecutor executor)
     {

@@ -38,36 +38,42 @@ internal static class WindowsKeyLayoutCharMapper
     {
         try
         {
-            byte[] keyState = new byte[KeyboardStateArraySize];
-            if (shift)
-            {
-                keyState[(int)VirtualKeyCode.SHIFT] = KeyPressedState;
-            }
-
-            // AltGr is represented as RightAlt (Alt+Ctrl) on Windows.
-            if (altGr)
-            {
-                keyState[(int)VirtualKeyCode.CONTROL] = KeyPressedState;
-                keyState[(int)VirtualKeyCode.MENU] = KeyPressedState; // Alt
-            }
-
+            byte[] keyState = BuildKeyState(shift, altGr);
             char[] buffer = new char[CharacterBufferSize];
+
             int characterCount = NativeMethods.ToUnicodeEx(
                 (uint)virtualKey, scanCode, keyState, buffer, buffer.Length, 0, hkl);
-
 
             if (characterCount <= 0)
             {
                 return null;
             }
 
-            string result = new(buffer, 0, characterCount);
-            return result;
+            return new string(buffer, 0, characterCount);
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[{nameof(WindowsKeyLayoutCharMapper)}]: {ex.Message}");
+            Logger.Instance.LogMessage(TracingLevel.ERROR,
+                $"[{nameof(WindowsKeyLayoutCharMapper)}] {ex.Message}");
             return null;
         }
+    }
+
+    private static byte[] BuildKeyState(bool shift, bool altGr)
+    {
+        byte[] keyState = new byte[KeyboardStateArraySize];
+
+        if (shift)
+        {
+            keyState[(int)VirtualKeyCode.SHIFT] = KeyPressedState;
+        }
+
+        if (altGr)
+        {
+            keyState[(int)VirtualKeyCode.CONTROL] = KeyPressedState;
+            keyState[(int)VirtualKeyCode.MENU] = KeyPressedState;
+        }
+
+        return keyState;
     }
 }

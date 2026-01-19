@@ -1,4 +1,4 @@
-﻿using SCStreamDeck.Models;
+using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Services.Keybinding;
 
@@ -15,6 +15,14 @@ public interface IKeybindingLoaderService
     /// <summary>
     ///     Loads keybindings from a JSON file asynchronously.
     /// </summary>
+    /// <param name="jsonPath">Path to the JSON file.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if loading succeeded, false otherwise.</returns>
+    /// <exception cref="ArgumentException">Thrown when jsonPath is invalid.</exception>
+    /// <exception cref="IOException">Thrown when the file cannot be read.</exception>
+    /// <exception cref="UnauthorizedAccessException">Thrown when access to the file is denied.</exception>
+    /// <exception cref="JsonException">Thrown when the JSON is malformed.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is canceled.</exception>
     Task<bool> LoadKeybindingsAsync(string jsonPath, CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -1,7 +1,9 @@
 using System.Text;
 using Newtonsoft.Json;
+using SCStreamDeck.Common;
 using SCStreamDeck.Models;
 using Formatting = Newtonsoft.Json.Formatting;
+
 
 namespace SCStreamDeck.Services.Keybinding;
 
@@ -21,7 +23,7 @@ public sealed class KeybindingOutputService : IKeybindingOutputService
     /// <param name="activationModes">Dictionary of activation mode metadata</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Task representing the asynchronous operation</returns>
-    public Task WriteKeybindingsJsonAsync(
+    public async Task WriteKeybindingsJsonAsync(
         SCInstallCandidate installation,
         string? actionMapsPath,
         string language,
@@ -38,10 +40,15 @@ public sealed class KeybindingOutputService : IKeybindingOutputService
 
         KeybindingDataFile dataFile = new() { Metadata = metadata, Actions = actions };
 
-        Directory.CreateDirectory(Path.GetDirectoryName(outputJsonPath)!);
+        string? directory = Path.GetDirectoryName(outputJsonPath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
 
         string json = JsonConvert.SerializeObject(dataFile, Formatting.Indented);
-        return File.WriteAllTextAsync(outputJsonPath, json, Encoding.UTF8, cancellationToken);
+        await File.WriteAllTextAsync(outputJsonPath, json, Encoding.UTF8, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <summary>
@@ -80,5 +87,13 @@ public sealed class KeybindingOutputService : IKeybindingOutputService
     /// </summary>
     /// <param name="path">The path to normalize</param>
     /// <returns>Normalized path with forward slashes</returns>
-    private static string NormalizePath(string path) => Path.GetFullPath(path).Replace('\\', '/');
+    private static string NormalizePath(string path)
+    {
+        if (SecurePathValidator.TryNormalizePath(path, out string normalized))
+        {
+            return normalized.Replace('\\', '/');
+        }
+
+        return Path.GetFullPath(path).Replace('\\', '/');
+    }
 }

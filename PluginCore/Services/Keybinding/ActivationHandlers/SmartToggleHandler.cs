@@ -13,10 +13,8 @@ internal sealed class SmartToggleHandler : IActivationModeHandler
 
     public IEnumerable<string> SupportedModes => ["smart_toggle"];
 
-    public bool Execute(ActivationExecutionContext context, IInputExecutor executor)
-    {
-        return context.IsKeyDown ? HandleKeyDown(context, executor) : HandleKeyUp(context, executor);
-    }
+    public bool Execute(ActivationExecutionContext context, IInputExecutor executor) =>
+        context.IsKeyDown ? HandleKeyDown(context, executor) : HandleKeyUp(context, executor);
 
     private bool HandleKeyDown(ActivationExecutionContext context, IInputExecutor executor)
     {
@@ -24,11 +22,7 @@ internal sealed class SmartToggleHandler : IActivationModeHandler
         float delay = context.Metadata.ReleaseTriggerDelay > 0 ? context.Metadata.ReleaseTriggerDelay : 0.25f;
 
         // Initialize state for this key press
-        KeyPressState state = new()
-        {
-            KeyDownTime = DateTime.UtcNow,
-            AutoToggleExecuted = false
-        };
+        KeyPressState state = new() { KeyDownTime = DateTime.UtcNow, AutoToggleExecuted = false };
 
         // Create timer that will execute auto-toggle after delay
         state.AutoToggleTimer = new Timer(_ =>

@@ -33,11 +33,11 @@ internal static class DirectInputDisplayMapper
 
     private static string TokenToDisplay(string token, nint hkl)
     {
-        token = token.Trim().ToLowerInvariant();
+        string normalized = token.Trim().ToLowerInvariant();
 
-        return SCKeyToDirectInputMapper.TryGetDirectInputKeyCode(token, out DirectInputKeyCode dik)
+        return SCKeyToDirectInputMapper.TryGetDirectInputKeyCode(normalized, out DirectInputKeyCode dik)
             ? ToDisplay(dik, hkl)
-            : token;
+            : normalized;
     }
 
     #endregion
@@ -46,28 +46,14 @@ internal static class DirectInputDisplayMapper
 
     private static bool TryGetFixedDisplay(DirectInputKeyCode dik, out string display)
     {
-        // First, check explicit mappings for consistency (e.g., Numpad, Modifiers)
         display = dik switch
         {
-            // Legacy specials - now via GetKeyNameText
-            /*DirectInputKeyCode.DikEscape => "Esc",
-            DirectInputKeyCode.DikSpace => "Space",
-            DirectInputKeyCode.DikReturn => "Enter",
-            DirectInputKeyCode.DikTab => "Tab",
-            DirectInputKeyCode.DikBackspace => "Backspace",
-            DirectInputKeyCode.DikCapital => "CapsLock",
-            DirectInputKeyCode.DikNumlock => "NumLock",
-            DirectInputKeyCode.DikScroll => "ScrollLock",*/
-
-            // Modifiers - explicit for L/R distinction
             DirectInputKeyCode.DikLshift => "L-Shift",
             DirectInputKeyCode.DikRshift => "R-Shift",
             DirectInputKeyCode.DikLcontrol => "L-Ctrl",
             DirectInputKeyCode.DikRcontrol => "R-Ctrl",
             DirectInputKeyCode.DikLalt => "L-Alt",
             DirectInputKeyCode.DikRalt => "R-Alt",
-
-            // Navigation - now handled by GetKeyNameText with RemoveDikPrefix
             DirectInputKeyCode.DikUp => "Up",
             DirectInputKeyCode.DikDown => "Down",
             DirectInputKeyCode.DikLeft => "Left",
@@ -78,8 +64,6 @@ internal static class DirectInputDisplayMapper
             DirectInputKeyCode.DikPageDown => "PgDn",
             DirectInputKeyCode.DikInsert => "Ins",
             DirectInputKeyCode.DikDelete => "Del",
-
-            // Numpad - explicit for consistency
             DirectInputKeyCode.DikNumpad0 => "Num0",
             DirectInputKeyCode.DikNumpad1 => "Num1",
             DirectInputKeyCode.DikNumpad2 => "Num2",
@@ -96,7 +80,6 @@ internal static class DirectInputDisplayMapper
             DirectInputKeyCode.DikDivide => "Num/",
             DirectInputKeyCode.DikDecimal => "Num.",
             DirectInputKeyCode.DikNumpadenter => "NumEnter",
-
             _ => string.Empty
         };
 
@@ -105,7 +88,6 @@ internal static class DirectInputDisplayMapper
             return true;
         }
 
-        // Fallback to GetKeyNameText for other keys
         string? keyName = TryGetKeyNameTextFromDik(dik);
 
         if (!string.IsNullOrWhiteSpace(keyName) && !IsModifierKey(dik))
@@ -168,7 +150,6 @@ internal static class DirectInputDisplayMapper
             return fixedDisplay;
         }
 
-        // Typeable keys: Use Windows API for layout-aware detection
         uint scanCode = (uint)dik;
         uint vk = NativeMethods.MapVirtualKeyEx(scanCode, 3, hkl);
 
@@ -178,16 +159,16 @@ internal static class DirectInputDisplayMapper
         }
 
         VirtualKeyCode virtualKey = (VirtualKeyCode)vk;
-        string? ch = WindowsKeyLayoutCharMapper.TryGetChar(hkl, virtualKey, scanCode, false, false);
+        string? character = WindowsKeyLayoutCharMapper.TryGetChar(hkl, virtualKey, scanCode, false, false);
 
-        if (string.IsNullOrWhiteSpace(ch))
+        if (string.IsNullOrWhiteSpace(character))
         {
             return dik.ToString();
         }
 
-        string result = ToTitleCase(ch.Length == 1 ? ch.ToUpperInvariant() : ch);
-        return result;
+        return ToTitleCase(character.Length == 1 ? character.ToUpperInvariant() : character);
     }
+
 
     /// <summary>
     ///     Checks if DIK is a modifier key requiring L/R distinction.

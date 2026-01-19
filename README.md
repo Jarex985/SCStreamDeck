@@ -12,7 +12,8 @@
 3. [Current Features](#current-features)
 4. [Installation](#installation)
 5. [Usage](#usage)
-6. [Acknowledgements](#acknowledgements)
+6. [Credits](#credits)
+7. [Acknowledgements](#acknowledgements)
 
 ---
 
@@ -20,7 +21,7 @@
 
 [![Windows 10+](https://img.shields.io/badge/Windows-10%2B-blue?logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![Stream Deck v6.4+](https://img.shields.io/badge/Stream%20Deck%20App-6.4%2B-purple?logo=elgato&logoColor=white)](https://www.elgato.com/s/stream-deck-app)
-[![.NET 8 Runtime](https://img.shields.io/badge/.NET%20Runtime-8.0-blue?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/download/dotnet/8.0)
+[![.NET 8 Desktop Runtime](https://img.shields.io/badge/.NET%20Desktop%20Runtime-8.0-blue?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/download/dotnet/8.0)
 
 ---
 
@@ -55,7 +56,7 @@
 ## _Current Features_
 
 - **Adaptive Key**: Dynamically bindable key actions for Star Citizen that execute only their assigned function based on the ActivationMode.
-    - *Example:* Tap vs Hold on `Num-` executes only the Tap function.  
+    - *Example:* Tap vs Hold on `Num-` executes only the Tap function when this is the assigned function.
 
 
 - **Mouse Wheel Support**: Supports mouse wheel actions for bindings that utilize mouse wheel input (Mouse Wheel Up/Down).  
@@ -64,15 +65,22 @@
 - **Custom Language Support**: Supports custom language files for localization when using custom global.ini from the Community, e.g. [StarCitizen-Deutsch-INI by rjcncpt](https://github.com/rjcncpt/StarCitizen-Deutsch-INI).
 
 
-- **Basic Support for all Channels**: Basic implementation for supporting `HOTFIX, PTU, and EPTU` in the future. Currently only `LIVE` is fully supported, but the framework is in place for switching to other channels.
+- **Basic Support for all Channels**: Basic implementation for supporting `HOTFIX, PTU, and EPTU` in the future. Currently only `LIVE` is fully supported, but the framework is in place for switching to other channels.  
+
+
+- **Auto-Detection of Star Citizen Installation Path**: Automatically detects the installation path of Star Citizen.
+
+
+- **(Experimental) Click Sound**: Provides audio feedback on key presses with configurable sound files (.wav and .mp3).
 
 
 ## _Installation_
 
 ### <ins>Prebuilt Installation</ins>
 
-1. Download the latest release from [Releases](https://github.com/Jarex985/SCStreamDeck/releases).
-2. Double-click the `.streamDeckPlugin` file to install.
+1. Make sure that you have all the [Requirements](#requirements) installed.
+2. Download the latest release from [Releases](https://github.com/Jarex985/SCStreamDeck/releases).
+3. Double-click the `.streamDeckPlugin` file to install.
 
 > [!IMPORTANT]
 > **When updating to a newer Release Build, you need to uninstall the Plugin first.**
@@ -100,6 +108,16 @@ ___
 2. Configure the key binding in the property inspector to match your Star Citizen controls.
 
 ___
+
+## *Credits*
+
+Star Citizen Stream Deck Plugin uses the following open-source projects and libraries:
+
+- [streamdeck-tools by BarRaider](https://github.com/BarRaider/streamdeck-tools) - for the excellent C# library.
+- [sdpi-components by GeekyEggo](https://github.com/GeekyEggo/sdpi-components) - for the excellent Stream Deck Property Inspector components.
+- [InputSimulatorPlus by TChatzigiannakis](https://github.com/TChatzigiannakis/InputSimulatorPlus) - (although i think this might be a modified fork of BarRaider, will verify later)
+- [NAudio by Mark Heath](https://github.com/naudio/NAudio) - for audio playback support.
+
 
 ## *Acknowledgements*
 

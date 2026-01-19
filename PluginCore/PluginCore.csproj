@@ -40,7 +40,8 @@
 
   <!-- External Libraries -->
   <ItemGroup>
-    <InternalsVisibleTo Include="UnitTests"/>
+    <InternalsVisibleTo Include="Tests"/>
+    <PackageReference Include="NAudio" Version="2.2.1"/>
     <ProjectReference Include="..\InputSimulatorPlus\WindowsInput\WindowsInput.csproj"/>
     <PackageReference Include="CommandLineParser" Version="2.9.1"/>
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.101">

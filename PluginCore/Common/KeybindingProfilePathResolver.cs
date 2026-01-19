@@ -1,3 +1,5 @@
+using BarRaider.SdTools;
+
 namespace SCStreamDeck.Common;
 
 /// <summary>
@@ -22,22 +24,28 @@ public static class KeybindingProfilePathResolver
                 return null;
             }
 
-            // Iterate through instance directories (typically "0", but could be others in the future)
-            foreach (string instanceDir in Directory.GetDirectories(clientDir))
-            {
-                string candidate = Path.Combine(instanceDir, "Profiles", "default", SCConstants.Files.ActionMapsFileName);
-
-                if (!File.Exists(candidate))
-                {
-                    continue;
-                }
-
-                return SecurePathValidator.TryNormalizePath(candidate, out string normalized) ? normalized : null;
-            }
+            return FindFirstExistingProfile(clientDir);
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore errors; return null if path resolution fails
+            Logger.Instance.LogMessage(TracingLevel.ERROR, $"KeybindingProfilePathResolver: {ex.Message}");
+        }
+
+        return null;
+    }
+
+    private static string? FindFirstExistingProfile(string clientDir)
+    {
+        foreach (string instanceDir in Directory.GetDirectories(clientDir))
+        {
+            string candidate = Path.Combine(instanceDir, "Profiles", "default", SCConstants.Files.ActionMapsFileName);
+
+            if (!File.Exists(candidate))
+            {
+                continue;
+            }
+
+            return SecurePathValidator.TryNormalizePath(candidate, out string normalized) ? normalized : null;
         }
 
         return null;

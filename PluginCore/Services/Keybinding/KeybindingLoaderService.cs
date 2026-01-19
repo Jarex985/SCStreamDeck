@@ -1,8 +1,9 @@
-﻿using BarRaider.SdTools;
+using BarRaider.SdTools;
 using Newtonsoft.Json;
 using SCStreamDeck.Common;
 using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
+
 // ReSharper disable NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
 // ReSharper disable ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
 
@@ -29,7 +30,8 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
             {
                 _isLoaded = false;
                 Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"[{nameof(KeybindingLoaderService)}]: {ErrorMessages.InvalidPath}");
+                    $"[{nameof(KeybindingLoaderService)}] {ErrorMessages.InvalidPath}");
+
                 return false;
             }
 
@@ -37,66 +39,28 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
             {
                 _isLoaded = false;
                 Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"[{nameof(KeybindingLoaderService)}]: {ErrorMessages.FileReadFailed}");
+                    $"[{nameof(KeybindingLoaderService)}] File not found: '{validatedPath}'");
+
                 return false;
             }
 
-            string json = await File.ReadAllTextAsync(validatedPath, cancellationToken).ConfigureAwait(false);
-            KeybindingDataFile? dataFile = JsonConvert.DeserializeObject<KeybindingDataFile>(json);
-
-            if (dataFile == null || dataFile.Actions.Count == 0)
+            KeybindingDataFile? dataFile = await ReadAndDeserializeAsync(validatedPath, cancellationToken).ConfigureAwait(false);
+            if (!IsValidDataFile(dataFile))
             {
                 _isLoaded = false;
                 Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"[{nameof(KeybindingLoaderService)}]: {ErrorMessages.JsonParseFailed}");
+                    $"[{nameof(KeybindingLoaderService)}] Invalid keybinding data file format");
                 return false;
             }
 
-            lock (_lock)
-            {
-                _actions.Clear();
-
-                // Map DTO actions to domain model
-                foreach (KeybindingAction keybindingAction in dataFile.Actions.Select(action => new KeybindingAction
-                         {
-                             ActionName = action.Name ?? string.Empty,
-                             MapName = action.MapName ?? string.Empty,
-                             UiLabel = action.Label ?? string.Empty,
-                             UiDescription = action.Description ?? string.Empty,
-                             UiCategory = action.Category ?? string.Empty,
-                             KeyboardBinding = action.Bindings?.Keyboard ?? string.Empty,
-                             MouseBinding = action.Bindings?.Mouse ?? string.Empty,
-                             JoystickBinding = action.Bindings?.Joystick ?? string.Empty,
-                             GamepadBinding = action.Bindings?.Gamepad ?? string.Empty,
-                             ActivationMode = action.ActivationMode
-                         }))
-                {
-                    _actions[$"{keybindingAction.ActionName}_{keybindingAction.UiCategory}"] = keybindingAction;
-                }
-
-                if (dataFile.Metadata.ActivationModes is { Count: > 0 })
-                {
-                    _activationModes = dataFile.Metadata.ActivationModes;
-                }
-
-                _isLoaded = true;
-            }
-
+            CacheDataFile(dataFile!);
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             _isLoaded = false;
-            string errorMessage = ex switch
-            {
-                IOException => ErrorMessages.FileReadFailed,
-                UnauthorizedAccessException => ErrorMessages.FileAccessDenied,
-                JsonException => ErrorMessages.JsonParseFailed,
-                _ => string.Empty
-            };
-
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingLoaderService)}]: {errorMessage} '{Path.GetFileName(jsonPath)}': {ex.Message}");
+                $"[{nameof(KeybindingLoaderService)}] '{Path.GetFileName(jsonPath)}': {ex.Message}");
             return false;
         }
     }
@@ -108,6 +72,7 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
             return _actions.TryGetValue(actionName!, out action);
         }
     }
+
 
     public IReadOnlyList<KeybindingAction> GetAllActions()
     {
@@ -145,4 +110,48 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
             return _activationModes.GetValueOrDefault(modeKey);
         }
     }
+
+    private static async Task<KeybindingDataFile?> ReadAndDeserializeAsync(string validatedPath,
+        CancellationToken cancellationToken)
+    {
+        string json = await File.ReadAllTextAsync(validatedPath, cancellationToken).ConfigureAwait(false);
+        return JsonConvert.DeserializeObject<KeybindingDataFile>(json);
+    }
+
+    private static bool IsValidDataFile(KeybindingDataFile? dataFile) =>
+        dataFile?.Actions is { Count: > 0 } && dataFile.Metadata is not null;
+
+    private void CacheDataFile(KeybindingDataFile dataFile)
+    {
+        lock (_lock)
+        {
+            _actions.Clear();
+
+            foreach (KeybindingAction keybindingAction in dataFile.Actions.Select(MapAction))
+            {
+                _actions[$"{keybindingAction.ActionName}_{keybindingAction.UiCategory}"] = keybindingAction;
+            }
+
+            if (dataFile.Metadata.ActivationModes is { Count: > 0 })
+            {
+                _activationModes = dataFile.Metadata.ActivationModes;
+            }
+
+            _isLoaded = true;
+        }
+    }
+
+    private static KeybindingAction MapAction(KeybindingActionData action) => new()
+    {
+        ActionName = action.Name ?? string.Empty,
+        MapName = action.MapName ?? string.Empty,
+        UiLabel = action.Label ?? string.Empty,
+        UiDescription = action.Description ?? string.Empty,
+        UiCategory = action.Category ?? string.Empty,
+        KeyboardBinding = action.Bindings?.Keyboard ?? string.Empty,
+        MouseBinding = action.Bindings?.Mouse ?? string.Empty,
+        JoystickBinding = action.Bindings?.Joystick ?? string.Empty,
+        GamepadBinding = action.Bindings?.Gamepad ?? string.Empty,
+        ActivationMode = action.ActivationMode
+    };
 }

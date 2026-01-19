@@ -1,4 +1,5 @@
-﻿using SCStreamDeck.Models;
+using SCStreamDeck.Models;
+
 // ReSharper disable UnusedMember.Global
 
 namespace SCStreamDeck.Services.Keybinding.ActivationHandlers;
@@ -20,6 +21,7 @@ internal interface IActivationModeHandler
     /// <param name="context">The execution context containing action info, key state, and metadata.</param>
     /// <param name="executor">The executor for performing input actions.</param>
     /// <returns>True if execution was successful.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when context or executor is null.</exception>
     bool Execute(ActivationExecutionContext context, IInputExecutor executor);
 }
 
@@ -57,41 +59,73 @@ internal interface IInputExecutor
     ///     Executes a press action (key/button down then up).
     ///     Important: For toggle actions, this should NOT repeat while held.
     /// </summary>
+    /// <param name="input">The parsed input to execute.</param>
+    /// <returns>True if execution succeeded, false otherwise.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when input is null.</exception>
     bool ExecutePress(ParsedInput input);
 
     /// <summary>
     ///     Executes a press action without repetition (for toggle modes).
     ///     Does NOT start repeat timers even with modifier keys.
     /// </summary>
+    /// <param name="input">The parsed input to execute.</param>
+    /// <returns>True if execution succeeded, false otherwise.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when input is null.</exception>
     bool ExecutePressNoRepeat(ParsedInput input);
 
     /// <summary>
     ///     Holds a key/button down.
     /// </summary>
+    /// <param name="input">The parsed input to execute.</param>
+    /// <param name="actionKey">The action key for tracking.</param>
+    /// <returns>True if execution succeeded, false otherwise.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when input is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when actionKey is null or whitespace.</exception>
     bool ExecuteDown(ParsedInput input, string actionKey);
 
     /// <summary>
     ///     Releases a held key/button.
     /// </summary>
+    /// <param name="input">The parsed input to execute.</param>
+    /// <param name="actionKey">The action key for tracking.</param>
+    /// <returns>True if execution succeeded, false otherwise.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when input is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when actionKey is null or whitespace.</exception>
     bool ExecuteUp(ParsedInput input, string actionKey);
 
     /// <summary>
     ///     Schedules a delayed press execution.
     /// </summary>
+    /// <param name="input">The parsed input to execute.</param>
+    /// <param name="actionKey">The action key for tracking.</param>
+    /// <param name="delaySeconds">Delay in seconds before execution.</param>
+    /// <returns>True if scheduling succeeded, false otherwise.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when input is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when actionKey is null or whitespace.</exception>
     bool ScheduleDelayedPress(ParsedInput input, string actionKey, float delaySeconds);
 
     /// <summary>
     ///     Cancels a scheduled delayed press.
     /// </summary>
+    /// <param name="actionKey">The action key for tracking.</param>
+    /// <exception cref="ArgumentException">Thrown when actionKey is null or whitespace.</exception>
     void CancelDelayedPress(string actionKey);
 
     /// <summary>
     ///     Schedules a delayed hold execution (starts holding after delay).
     /// </summary>
+    /// <param name="input">The parsed input to execute.</param>
+    /// <param name="actionKey">The action key for tracking.</param>
+    /// <param name="delaySeconds">Delay in seconds before execution.</param>
+    /// <returns>True if scheduling succeeded, false otherwise.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when input is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when actionKey is null or whitespace.</exception>
     bool ScheduleDelayedHold(ParsedInput input, string actionKey, float delaySeconds);
 
     /// <summary>
     ///     Cancels a scheduled delayed hold.
     /// </summary>
+    /// <param name="actionKey">The action key for tracking.</param>
+    /// <exception cref="ArgumentException">Thrown when actionKey is null or whitespace.</exception>
     void CancelDelayedHold(string actionKey);
 }

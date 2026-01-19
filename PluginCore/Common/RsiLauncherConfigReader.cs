@@ -22,7 +22,9 @@ internal sealed partial class RsiLauncherConfigReader
     private static partial Regex LaunchPathRegex();
 
     // MEDIUM CONFIDENCE: Regex for "[Installer] - Installing Star Citizen... at PATH" entries
-    [GeneratedRegex(@"\[Installer\]\s*-\s*(?:Installing|Starting|Delta update applied).*?(?:at|in)\s+([A-Z]:[^""<>\r\n]+?)(?=""|$)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(
+        @"\[Installer\]\s*-\s*(?:Installing|Starting|Delta update applied).*?(?:at|in)\s+([A-Z]:[^""<>\r\n]+?)(?=""|$)",
+        RegexOptions.IgnoreCase)]
     private static partial Regex InstallerPathRegex();
 
     /// <summary>
@@ -176,7 +178,7 @@ internal sealed partial class RsiLauncherConfigReader
                 if (IsValidGameRootCandidate(trimmedPath))
                 {
                     int beforeCount = paths.Count;
-                    TryExtractGameRootFromPath(trimmedPath, paths, requireChannelFolder: true);
+                    TryExtractGameRootFromPath(trimmedPath, paths, true);
                     if (paths.Count > beforeCount)
                     {
                         strategy1Count++;
@@ -193,7 +195,7 @@ internal sealed partial class RsiLauncherConfigReader
             if (IsValidGameRootCandidate(path))
             {
                 int beforeCount = paths.Count;
-                TryExtractGameRootFromPath(path, paths, requireChannelFolder: true);
+                TryExtractGameRootFromPath(path, paths, true);
                 if (paths.Count > beforeCount)
                 {
                     strategy2Count++;
@@ -209,7 +211,7 @@ internal sealed partial class RsiLauncherConfigReader
             if (IsValidGameRootCandidate(path))
             {
                 int beforeCount = paths.Count;
-                TryExtractGameRootFromPath(path, paths, requireChannelFolder: false);
+                TryExtractGameRootFromPath(path, paths, false);
                 if (paths.Count > beforeCount)
                 {
                     strategy3Count++;
@@ -294,18 +296,18 @@ internal sealed partial class RsiLauncherConfigReader
         string lowerPath = path.ToLowerInvariant();
         string[] blacklist =
         [
-            "\\rsilauncher",                                           // Launcher directory
-            "\\rsilauncher-updater",                                   // Updater directory
-            "\\appdata\\local",                                        // User temp directories
-            "\\appdata\\roaming",                                      // User config directories
-            "\\windows\\",                                             // Windows system directory
+            "\\rsilauncher", // Launcher directory
+            "\\rsilauncher-updater", // Updater directory
+            "\\appdata\\local", // User temp directories
+            "\\appdata\\roaming", // User config directories
+            "\\windows\\", // Windows system directory
             "\\program files\\roberts space industries\\rsi launcher", // Launcher installation
-            ".exe",                                                    // Executable files
-            ".dll",                                                    // Libraries
-            ".log",                                                    // Log files
-            "\\resources\\",                                           // Launcher resources
-            "\\pending\\",                                             // Update pending directory
-            "installer.exe"                                            // Installer executables
+            ".exe", // Executable files
+            ".dll", // Libraries
+            ".log", // Log files
+            "\\resources\\", // Launcher resources
+            "\\pending\\", // Update pending directory
+            "installer.exe" // Installer executables
         ];
 
         foreach (string blocked in blacklist)

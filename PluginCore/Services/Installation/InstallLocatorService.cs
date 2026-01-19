@@ -41,21 +41,8 @@ public sealed class InstallLocatorService : IInstallLocatorService
         // Find installations async - stop early if we find valid installations
         List<SCInstallCandidate> candidates = await FindInstallationsFromSourcesAsync(cancellationToken).ConfigureAwait(false);
 
-        // TODO: Never happened in any tests, eventually remove
-        // De-duplicate based on Data.p4k path
-        int beforeDedup = candidates.Count;
-        candidates = candidates
-            .DistinctBy(c => NormalizePath(c.DataP4KPath))
-            .OrderBy(c => c.Channel)
-            .ToList();
+        candidates = DeduplicateCandidates(candidates);
 
-        if (beforeDedup > candidates.Count)
-        {
-            Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                $"[InstallLocator] Removed {beforeDedup - candidates.Count} duplicate(s)");
-        }
-
-        // Update cache
         lock (_lock)
         {
             _cachedInstallations = candidates;
@@ -73,7 +60,8 @@ public sealed class InstallLocatorService : IInstallLocatorService
             _cacheTimestamp = null;
         }
 
-        Logger.Instance.LogMessage(TracingLevel.INFO, "[InstallLocator] Cache invalidated");
+        Logger.Instance.LogMessage(TracingLevel.INFO,
+            $"[{nameof(InstallLocatorService)}] Cache invalidated");
     }
 
     public IReadOnlyList<SCInstallCandidate>? GetCachedInstallations()
@@ -104,7 +92,7 @@ public sealed class InstallLocatorService : IInstallLocatorService
             if (previousChannel != installation.Channel && previousChannel != null)
             {
                 Logger.Instance.LogMessage(TracingLevel.INFO,
-                    $"[InstallLocator] Channel changed from {previousChannel} to {installation.Channel}");
+                    $"[{nameof(InstallLocatorService)}] Channel changed from {previousChannel} to {installation.Channel}");
             }
         }
     }
@@ -121,106 +109,138 @@ public sealed class InstallLocatorService : IInstallLocatorService
     {
         List<SCInstallCandidate> candidates = new();
 
-        // Step 1: Load custom paths from INI file (takes priority)
-        string pluginDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        CustomPathsConfig? customPaths = CustomPathsConfig.LoadFromIni(pluginDirectory);
+        AddCustomPathCandidates(candidates);
 
-        if (customPaths is not null)
+        HashSet<string> rootPaths = await CollectRootPathsAsync(cancellationToken).ConfigureAwait(false);
+        if (rootPaths.Count == 0)
         {
-            Logger.Instance.LogMessage(TracingLevel.INFO, "[InstallLocator] Custom paths configuration found");
-
-            foreach (SCChannel channel in customPaths.GetConfiguredChannels())
-            {
-                string? customPath = customPaths.GetPath(channel);
-                if (customPath is null)
-                {
-                    continue;
-                }
-
-                // Validate the custom path points to a valid Data.p4k
-                if (!File.Exists(customPath))
-                {
-                    Logger.Instance.LogMessage(TracingLevel.WARN,
-                        $"[InstallLocator] Custom path for {channel} is invalid (file not found): {customPath}");
-                    continue;
-                }
-
-                if (!customPath.EndsWith(SCConstants.Files.DataP4KFileName, StringComparison.OrdinalIgnoreCase))
-                {
-                    Logger.Instance.LogMessage(TracingLevel.WARN,
-                        $"[InstallLocator] Custom path for {channel} does not point to Data.p4k: {customPath}");
-                    continue;
-                }
-
-                // Extract paths from the Data.p4k location
-                string dataP4KPath = NormalizePath(customPath);
-                string channelPath = NormalizePath(Path.GetDirectoryName(dataP4KPath) ?? string.Empty);
-                string rootPath = NormalizePath(Path.GetDirectoryName(channelPath) ?? string.Empty);
-
-                if (string.IsNullOrEmpty(channelPath) || string.IsNullOrEmpty(rootPath))
-                {
-                    Logger.Instance.LogMessage(TracingLevel.WARN,
-                        $"[InstallLocator] Custom path for {channel} has invalid directory structure: {customPath}");
-                    continue;
-                }
-
-                Logger.Instance.LogMessage(TracingLevel.INFO,
-                    $"[InstallLocator] Custom path configured for {channel}: {dataP4KPath}");
-
-                // Create candidate with UserProvided source
-                candidates.Add(new SCInstallCandidate(
-                    rootPath,
-                    channel,
-                    channelPath,
-                    dataP4KPath,
-                    InstallSource.UserProvided
-                ));
-            }
+            return candidates;
         }
 
-        // Step 2: Continue with auto-detection from RSI Launcher logs
+        foreach (string rootPath in rootPaths)
+        {
+            InstallationCandidateEnumerator.AddCandidatesFromRoot(candidates, rootPath);
+        }
+
+        return candidates;
+    }
+
+    private static void AddCustomPathCandidates(List<SCInstallCandidate> candidates)
+    {
+        CustomPathsConfig? customPaths = CustomPathsConfig.LoadFromIni(AppDomain.CurrentDomain.BaseDirectory);
+        if (customPaths is null)
+        {
+            return;
+        }
+
+        Logger.Instance.LogMessage(TracingLevel.INFO,
+            $"[{nameof(InstallLocatorService)}] Custom paths configuration found");
+
+
+        foreach (SCChannel channel in customPaths.GetConfiguredChannels())
+        {
+            string? customPath = customPaths.GetPath(channel);
+            if (!TryCreateCustomCandidate(channel, customPath, out SCInstallCandidate? candidate))
+            {
+                continue;
+            }
+
+            if (candidate is not null)
+            {
+                candidates.Add(candidate);
+            }
+        }
+    }
+
+    private static bool TryCreateCustomCandidate(SCChannel channel, string? customPath, out SCInstallCandidate? candidate)
+    {
+        candidate = null;
+        if (string.IsNullOrWhiteSpace(customPath))
+        {
+            return false;
+        }
+
+        if (!File.Exists(customPath))
+        {
+            Logger.Instance.LogMessage(TracingLevel.WARN,
+                $"[{nameof(InstallLocatorService)}] Custom path for {channel} is invalid (file not found): {customPath}");
+
+            return false;
+        }
+
+        if (!customPath.EndsWith(SCConstants.Files.DataP4KFileName, StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Instance.LogMessage(TracingLevel.WARN,
+                $"[{nameof(InstallLocatorService)}] Custom path for {channel} does not point to Data.p4k: {customPath}");
+
+            return false;
+        }
+
+        string dataP4KPath = NormalizeOrTrim(customPath);
+        string channelPath = NormalizeOrTrim(Path.GetDirectoryName(dataP4KPath));
+        string rootPath = NormalizeOrTrim(Path.GetDirectoryName(channelPath));
+
+        if (string.IsNullOrEmpty(channelPath) || string.IsNullOrEmpty(rootPath))
+        {
+            Logger.Instance.LogMessage(TracingLevel.WARN,
+                $"[{nameof(InstallLocatorService)}] Custom path for {channel} has invalid directory structure: {customPath}");
+
+            return false;
+        }
+
+        Logger.Instance.LogMessage(TracingLevel.INFO,
+            $"[{nameof(InstallLocatorService)}] Custom path configured for {channel}: {dataP4KPath}");
+
+
+        candidate = new SCInstallCandidate(
+            rootPath,
+            channel,
+            channelPath,
+            dataP4KPath,
+            InstallSource.UserProvided);
+        return true;
+    }
+
+    private async Task<HashSet<string>> CollectRootPathsAsync(CancellationToken cancellationToken)
+    {
         HashSet<string> allRootPaths = new(StringComparer.OrdinalIgnoreCase);
 
-        // RSI Launcher logs - collect ALL unique root paths from all log files
-        // This handles cases where user has installations on different drives (C:\, D:\, etc.)
         foreach (string logFile in _configReader.FindLogFiles())
         {
             HashSet<string> paths = await RsiLauncherConfigReader.ExtractPathsFromLogAsync(logFile, cancellationToken)
                 .ConfigureAwait(false);
+
             foreach (string path in paths)
             {
-                // Additional cleanup: Trim and remove trailing separators
                 string cleanPath = path.Trim().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                allRootPaths.Add(cleanPath);
+                if (!string.IsNullOrWhiteSpace(cleanPath))
+                {
+                    allRootPaths.Add(cleanPath);
+                }
             }
         }
 
         if (allRootPaths.Count == 0)
         {
-            Logger.Instance.LogMessage(TracingLevel.WARN, "[InstallLocator] No root paths found in launcher logs");
-            
-            // If we have custom paths, that's okay - return them
-            if (candidates.Count > 0)
-            {
-                return candidates;
-            }
-            
-            return new List<SCInstallCandidate>();
+            Logger.Instance.LogMessage(TracingLevel.WARN,
+                $"[{nameof(InstallLocatorService)}] No root paths found in launcher logs");
+
+            return allRootPaths;
         }
 
-        // Log with better formatting
         List<string> sortedPaths = allRootPaths.OrderBy(p => p).ToList();
 
 #if DEBUG
         if (sortedPaths.Count == 1)
         {
             Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                $"[InstallLocator] Found 1 unique root path: {sortedPaths[0]}");
+                $"[{nameof(InstallLocatorService)}] Found 1 unique root path: {sortedPaths[0]}");
         }
         else
         {
             Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                $"[InstallLocator] Found {sortedPaths.Count} unique root paths:");
+                $"[{nameof(InstallLocatorService)}] Found {sortedPaths.Count} unique root paths:");
+
 
             foreach (string path in sortedPaths)
             {
@@ -229,16 +249,28 @@ public sealed class InstallLocatorService : IInstallLocatorService
         }
 #endif
 
-        // Now enumerate candidates from all unique root paths
-        foreach (string rootPath in allRootPaths)
-        {
-            InstallationCandidateEnumerator.AddCandidatesFromRoot(candidates, rootPath);
-        }
-
-        return candidates;
+        return allRootPaths;
     }
 
-    private static string NormalizePath(string? path)
+    private static List<SCInstallCandidate> DeduplicateCandidates(List<SCInstallCandidate> candidates)
+    {
+        int beforeDedup = candidates.Count;
+
+        List<SCInstallCandidate> distinct = candidates
+            .DistinctBy(c => NormalizeOrTrim(c.DataP4KPath))
+            .OrderBy(c => c.Channel)
+            .ToList();
+
+        if (beforeDedup > distinct.Count)
+        {
+            Logger.Instance.LogMessage(TracingLevel.DEBUG,
+                $"[{nameof(InstallLocatorService)}] Removed {beforeDedup - distinct.Count} duplicate(s)");
+        }
+
+        return distinct;
+    }
+
+    private static string NormalizeOrTrim(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {

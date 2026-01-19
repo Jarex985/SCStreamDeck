@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using BarRaider.SdTools;
 using SCStreamDeck.Common;
 using SCStreamDeck.Logging;
@@ -69,10 +69,7 @@ public sealed class KeybindingProcessorService(
             await ApplyLocalizationAsync(actions, installation, detectedLanguage, cancellationToken)
                 .ConfigureAwait(false);
 
-            if (!string.IsNullOrWhiteSpace(actionMapsPath) && File.Exists(actionMapsPath))
-            {
-                ApplyUserOverrides(actions, actionMapsPath);
-            }
+            ApplyOverridesIfPresent(actions, actionMapsPath);
 
             List<KeybindingActionData> filteredActions = FilterActionsWithBindings(actions);
 
@@ -95,6 +92,7 @@ public sealed class KeybindingProcessorService(
             return KeybindingProcessResult.Failure(ex.Message);
         }
     }
+
 
     public bool NeedsRegeneration(string jsonPath, SCInstallCandidate installation)
     {
@@ -125,25 +123,22 @@ public sealed class KeybindingProcessorService(
             if (entries.Count == 0)
             {
                 Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"[{nameof(KeybindingProcessorService)}] {ErrorMessages.P4KEntryNotFound}");
+                    $"[{nameof(KeybindingProcessorService)}] Default profile XML not found in P4K archive");
                 return null;
             }
 
             P4KFileEntry profileEntry = entries[0];
             byte[]? bytes = await _p4KService.ReadFileAsync(profileEntry, cancellationToken).ConfigureAwait(false);
 
-            if (bytes == null || bytes.Length == 0)
-            {
-                return null;
-            }
-
-            return bytes;
+            return bytes == null || bytes.Length == 0
+                ? null
+                : bytes;
         }
 
         catch (Exception ex)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingProcessorService)}] {ErrorMessages.XmlExtractFailed} {ex.Message}");
+                $"[{nameof(KeybindingProcessorService)}] Failed to extract default profile: {ex.Message}");
             return null;
         }
     }
@@ -152,24 +147,23 @@ public sealed class KeybindingProcessorService(
     {
         try
         {
-            // Check if it's already plain XML
-            if (xmlBytes[0] == (byte)'<' || xmlBytes.Take(Math.Min(64, xmlBytes.Length)).Any(b => b == (byte)'<'))
+            if (IsPlainXml(xmlBytes))
             {
                 return Encoding.UTF8.GetString(xmlBytes);
             }
 
-            string? xmlText = await _cryXmlParser.ConvertCryXmlToTextAsync(xmlBytes, cancellationToken);
-            return xmlText ?? null;
+            string? xmlText = await _cryXmlParser.ConvertCryXmlToTextAsync(xmlBytes, cancellationToken)
+                .ConfigureAwait(false);
+            return xmlText;
         }
 
         catch (Exception ex)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingProcessorService)}] {ErrorMessages.XmlParseFailed} {ex.Message}");
+                $"[{nameof(KeybindingProcessorService)}] Failed to parse XML: {ex.Message}");
             return null;
         }
     }
-
 
     private async Task ApplyLocalizationAsync(
         List<KeybindingActionData> actions,
@@ -188,39 +182,13 @@ public sealed class KeybindingProcessorService(
             if (localization == null || localization.Count == 0)
             {
                 Logger.Instance.LogMessage(TracingLevel.WARN,
-                    "[KeybindingProcessor] No localization data loaded, using default labels");
+                    $"[{nameof(KeybindingProcessorService)}] No localization data loaded, using default labels");
                 return;
             }
 
             foreach (KeybindingActionData action in actions)
             {
-                // Resolve action label
-                if (localization.TryGetValue(action.Label, out string? localizedLabel))
-                {
-                    action.Label = localizedLabel;
-                }
-
-
-                // Resolve action description
-                if (!string.IsNullOrEmpty(action.Description) &&
-                    localization.TryGetValue(action.Description, out string? localizedDesc))
-                {
-                    action.Description = localizedDesc;
-                }
-
-                // Resolve map label
-                if (!string.IsNullOrEmpty(action.MapLabel) &&
-                    localization.TryGetValue(action.MapLabel, out string? localizedMapLabel))
-                {
-                    action.MapLabel = localizedMapLabel;
-                }
-
-                // Resolve category
-                if (!string.IsNullOrEmpty(action.Category) &&
-                    localization.TryGetValue(action.Category, out string? localizedCategory))
-                {
-                    action.Category = localizedCategory;
-                }
+                ApplyLocalization(localization, action);
             }
         }
         catch (Exception ex)
@@ -230,23 +198,55 @@ public sealed class KeybindingProcessorService(
         }
     }
 
-    private static void ApplyUserOverrides(List<KeybindingActionData> actions, string actionMapsPath)
+    private static void ApplyLocalization(
+        IReadOnlyDictionary<string, string> localization,
+        KeybindingActionData action)
     {
+        if (localization.TryGetValue(action.Label, out string? localizedLabel))
+        {
+            action.Label = localizedLabel;
+        }
+
+        if (!string.IsNullOrEmpty(action.Description) &&
+            localization.TryGetValue(action.Description, out string? localizedDesc))
+        {
+            action.Description = localizedDesc;
+        }
+
+        if (!string.IsNullOrEmpty(action.MapLabel) &&
+            localization.TryGetValue(action.MapLabel, out string? localizedMapLabel))
+        {
+            action.MapLabel = localizedMapLabel;
+        }
+
+        if (!string.IsNullOrEmpty(action.Category) &&
+            localization.TryGetValue(action.Category, out string? localizedCategory))
+        {
+            action.Category = localizedCategory;
+        }
+    }
+
+    private void ApplyOverridesIfPresent(List<KeybindingActionData> actions, string? actionMapsPath)
+    {
+        if (string.IsNullOrWhiteSpace(actionMapsPath) || !File.Exists(actionMapsPath))
+        {
+            return;
+        }
+
         try
         {
-            UserOverrideParser parser = new();
             UserOverrides? overrides = UserOverrideParser.Parse(actionMapsPath);
 
             if (overrides is not { HasOverrides: true })
             {
                 Logger.Instance.LogMessage(TracingLevel.WARN,
-                    "[KeybindingProcessor] No user overrides found or file not accessible");
+                    $"[{nameof(KeybindingProcessorService)}] No user overrides found or file not accessible");
+
                 return;
             }
 
             UserOverrideParser.ApplyOverrides(actions, overrides);
         }
-
         catch (Exception ex)
         {
             Logger.Instance.LogMessage(TracingLevel.ERROR,
@@ -254,27 +254,25 @@ public sealed class KeybindingProcessorService(
         }
     }
 
+    private static bool IsPlainXml(byte[] xmlBytes) =>
+        xmlBytes[0] == (byte)'<' || xmlBytes.Take(Math.Min(64, xmlBytes.Length)).Any(b => b == (byte)'<');
+
+
     private static List<KeybindingActionData> FilterActionsWithBindings(List<KeybindingActionData> actions) =>
-        actions.Where(a =>
-        {
-            // Must have at least one binding OR a valid label/category
-            bool hasBinding = !string.IsNullOrWhiteSpace(a.Bindings.Keyboard) ||
-                              !string.IsNullOrWhiteSpace(a.Bindings.Mouse) ||
-                              !string.IsNullOrWhiteSpace(a.Bindings.Joystick) ||
-                              !string.IsNullOrWhiteSpace(a.Bindings.Gamepad);
+        actions.Where(a => HasBindingsOrValidLabel(a) && !a.Bindings.Keyboard.IsModifierOnly()).ToList();
 
-            bool isValidAction = !string.IsNullOrWhiteSpace(a.Label) &&
-                                 !string.IsNullOrWhiteSpace(a.Category);
+    private static bool HasBindingsOrValidLabel(KeybindingActionData action)
+    {
+        bool hasBinding = !string.IsNullOrWhiteSpace(action.Bindings.Keyboard) ||
+                          !string.IsNullOrWhiteSpace(action.Bindings.Mouse) ||
+                          !string.IsNullOrWhiteSpace(action.Bindings.Joystick) ||
+                          !string.IsNullOrWhiteSpace(action.Bindings.Gamepad);
 
-            // Keep if it has bindings OR if it's a valid bindable action
-            if (!hasBinding && !isValidAction)
-            {
-                return false;
-            }
+        bool isValidAction = !string.IsNullOrWhiteSpace(action.Label) &&
+                             !string.IsNullOrWhiteSpace(action.Category);
 
-            // Exclude modifier-only bindings
-            return !a.Bindings.Keyboard.IsModifierOnly();
-        }).ToList();
+        return hasBinding || isValidAction;
+    }
 
     #endregion
 }

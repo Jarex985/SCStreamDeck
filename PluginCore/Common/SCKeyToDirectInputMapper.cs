@@ -137,12 +137,14 @@ internal static class SCKeyToDirectInputMapper
     /// <returns>True if mapping found, false otherwise</returns>
     public static bool TryGetDirectInputKeyCode(string scKey, out DirectInputKeyCode dik)
     {
-        if (string.IsNullOrEmpty(scKey))
+        if (string.IsNullOrWhiteSpace(scKey))
         {
             dik = default;
             return false;
         }
 
-        return s_scToDik.TryGetValue(scKey.ToLowerInvariant(), out dik);
+        return s_scToDik.TryGetValue(Normalize(scKey), out dik);
     }
+
+    private static string Normalize(string scKey) => scKey.Trim().ToLowerInvariant();
 }

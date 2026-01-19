@@ -1,4 +1,4 @@
-﻿using SCStreamDeck.Models;
+using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Services.Keybinding;
 
@@ -18,6 +18,11 @@ public interface IKeybindingService
     /// <param name="jsonPath">Path to processed keybindings JSON file</param>
     /// <param name="cancellationToken">Cancellation token for async operation</param>
     /// <returns>True if loading succeeded, false otherwise</returns>
+    /// <exception cref="ArgumentException">Thrown when jsonPath is invalid.</exception>
+    /// <exception cref="IOException">Thrown when the file cannot be read.</exception>
+    /// <exception cref="UnauthorizedAccessException">Thrown when access to the file is denied.</exception>
+    /// <exception cref="JsonException">Thrown when the JSON is malformed.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is canceled.</exception>
     Task<bool> LoadKeybindingsAsync(string jsonPath, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -27,6 +32,9 @@ public interface IKeybindingService
     /// <param name="context">Execution context with action, binding, and mode</param>
     /// <param name="cancellationToken">Cancellation token for async operation</param>
     /// <returns>True if execution started successfully, false otherwise</returns>
+    /// <exception cref="ArgumentNullException">Thrown when context is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when execution fails.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is canceled.</exception>
     Task<bool> ExecuteAsync(KeybindingExecutionContext context, CancellationToken cancellationToken = default);
 
     /// <summary>
