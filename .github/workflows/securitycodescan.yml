@@ -10,7 +10,7 @@ name: SecurityCodeScan
 
 on:
   push:
-    branches: [ "main" ]
+    branches:  [ "main", "Jarex985-patch-1" ] 
     paths-ignore:
       - 'InputSimulatorPlus/**'
   pull_request: 
