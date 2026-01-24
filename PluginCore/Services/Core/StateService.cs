@@ -1,3 +1,4 @@
+using System.Security;
 using Newtonsoft.Json;
 using SCStreamDeck.Common;
 using SCStreamDeck.Logging;
@@ -35,9 +36,11 @@ public sealed class StateService(PathProviderService pathProvider, IFileSystem f
         ArgumentNullException.ThrowIfNull(state);
         try
         {
+            _pathProvider.EnsureDirectoriesExist();
+            _ = _pathProvider.GetSecureCachePath(".plugin-state.json");
             await state.SaveAsync(_fileSystem, _pathProvider.CacheDirectory, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or SecurityException)
         {
             Log.Err($"[{nameof(StateService)}] Failed to save plugin state", ex);
             throw;
