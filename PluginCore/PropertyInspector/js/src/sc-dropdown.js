@@ -6,12 +6,23 @@
 (function () {
   const root = globalThis;
 
-  function escapeHtmlAttr(value) {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/"/g, '&quot;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+  function createSvgArrow() {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'pi-dropdown__arrow');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('height', '20');
+    svg.setAttribute('width', '20');
+    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'm5 7.5 5 5 5-5');
+    path.setAttribute('stroke', 'var(--color-primary)');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    path.setAttribute('stroke-width', '2');
+    svg.appendChild(path);
+
+    return svg;
   }
 
   function ensureDropdownMarkup(rootEl, opts = {}) {
@@ -26,19 +37,29 @@
       ? opts.placeholder
       : (rootEl.getAttribute('data-placeholder') || '');
 
-    rootEl.innerHTML = `
-      <div class="pi-dropdown__input-row">
-        <div class="pi-dropdown__input-wrapper">
-          <input class="pi-dropdown__search" placeholder="${escapeHtmlAttr(placeholder)}" type="text">
-        </div>
-        <div class="pi-dropdown__toggle">
-          <svg class="pi-dropdown__arrow" fill="none" height="20" width="20" xmlns="http://www.w3.org/2000/svg">
-            <path d="m5 7.5 5 5 5-5" stroke="var(--color-primary)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-          </svg>
-        </div>
-      </div>
-      <div class="pi-dropdown__menu"></div>
-    `;
+    const inputRow = document.createElement('div');
+    inputRow.className = 'pi-dropdown__input-row';
+
+    const inputWrapper = document.createElement('div');
+    inputWrapper.className = 'pi-dropdown__input-wrapper';
+
+    const input = document.createElement('input');
+    input.className = 'pi-dropdown__search';
+    input.type = 'text';
+    input.placeholder = placeholder;
+    inputWrapper.appendChild(input);
+
+    const toggle = document.createElement('div');
+    toggle.className = 'pi-dropdown__toggle';
+    toggle.appendChild(createSvgArrow());
+
+    inputRow.appendChild(inputWrapper);
+    inputRow.appendChild(toggle);
+
+    const menu = document.createElement('div');
+    menu.className = 'pi-dropdown__menu';
+
+    rootEl.replaceChildren(inputRow, menu);
   }
 
   function initDropdown(options = {}) {
@@ -142,10 +163,13 @@
     }
 
     function render(list) {
-      menuEl.innerHTML = '';
+      menuEl.textContent = '';
 
       if (!Array.isArray(list) || list.length === 0) {
-        menuEl.innerHTML = `<div class="pi-dropdown__empty-state">${emptyText}</div>`;
+        const emptyEl = document.createElement('div');
+        emptyEl.className = 'pi-dropdown__empty-state';
+        emptyEl.textContent = emptyText;
+        menuEl.appendChild(emptyEl);
         return;
       }
 

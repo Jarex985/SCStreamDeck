@@ -48,23 +48,47 @@
       ? opts.clearTitle
       : (rootEl.getAttribute('data-clear-title') || 'Clear');
 
-    rootEl.innerHTML = `
-      <div class="file-picker-container">
-        <input type="file" style="display: none;">
-        <div class="file-picker-display">
-          <span class="filename-text">${placeholderText}</span>
-        </div>
-        <button class="file-picker-button" title="${selectTitle}" type="button">
-          <span class="button-icon">${buttonText}</span>
-        </button>
-        <button class="file-picker-clear" disabled title="${clearTitle}" type="button">X</button>
-      </div>
-    `;
+    const container = document.createElement('div');
+    container.className = 'file-picker-container';
 
-    const input = rootEl.querySelector('input[type="file"]');
-    if (input && accept) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.style.display = 'none';
+    if (accept) {
       input.setAttribute('accept', accept);
     }
+
+    const display = document.createElement('div');
+    display.className = 'file-picker-display';
+
+    const filename = document.createElement('span');
+    filename.className = 'filename-text';
+    filename.textContent = placeholderText;
+    display.appendChild(filename);
+
+    const selectButton = document.createElement('button');
+    selectButton.className = 'file-picker-button';
+    selectButton.type = 'button';
+    selectButton.title = selectTitle;
+
+    const buttonIcon = document.createElement('span');
+    buttonIcon.className = 'button-icon';
+    buttonIcon.textContent = buttonText;
+    selectButton.appendChild(buttonIcon);
+
+    const clearButton = document.createElement('button');
+    clearButton.className = 'file-picker-clear';
+    clearButton.type = 'button';
+    clearButton.title = clearTitle;
+    clearButton.disabled = true;
+    clearButton.textContent = 'X';
+
+    container.appendChild(input);
+    container.appendChild(display);
+    container.appendChild(selectButton);
+    container.appendChild(clearButton);
+
+    rootEl.replaceChildren(container);
   }
 
   function createFilePicker(options = {}) {
