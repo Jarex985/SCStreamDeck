@@ -1,0 +1,57 @@
+<!--suppress CssUnusedSymbol, CssNonIntegerLengthInPixels, JSUnusedGlobalSymbols -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Star Citizen Stream Deck Plugin PI - Function Key</title>
+  <link href="../css/base.css" rel="stylesheet">
+  <link id="pi-theme-styles" rel="stylesheet">
+  <script src="../js/sc-preload.js"></script>
+  <script defer src="../js/sdpi-components.js"></script>
+  <script defer src="../js/sc-components.js"></script>
+  <script defer src="../js/pi-function-key.js"></script>
+</head>
+<body>
+<div class="pi-container">
+  <div class="pi-panel">
+    <div class="pi-dropdown" data-placeholder="Search functions..." id="functionDropdown"></div>
+
+    <div class="pi-section pi-details">
+      <div class="pi-details__title pi-content-box"></div>
+      <div class="pi-details__binding">
+        <span class="pi-details__binding-label">KEYBOARD</span>
+        <span class="pi-details__binding-value" id="pi-details__binding-keyboard"></span>
+      </div>
+      <div class="pi-details__binding">
+        <span class="pi-details__binding-label">MOUSE</span>
+        <span class="pi-details__binding-value" id="pi-details__binding-mouse"></span>
+      </div>
+      <div class="pi-details__binding">
+        <span class="pi-details__binding-label">GAMEPAD</span>
+        <span class="pi-details__binding-value" id="pi-details__binding-gamepad"></span>
+      </div>
+      <div class="pi-details__binding">
+        <span class="pi-details__binding-label">JOYSTICK</span>
+        <span class="pi-details__binding-value" id="pi-details__binding-joystick"></span>
+      </div>
+    </div>
+
+    <div class="pi-section">
+      <div class="pi-section__header">Description</div>
+      <div class="pi-description__content pi-content-box"></div>
+    </div>
+
+    <div class="pi-section audio-file-section">
+      <div class="pi-section__header">Click Sound</div>
+      <div class="pi-file-picker"
+           data-accept=".wav,.mp3"
+           data-clear-title="Clear audio file"
+           data-placeholder="No file selected"
+           data-select-title="Select audio file"
+           id="audioFilePicker"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,4 +1,4 @@
-using BarRaider.SdTools;
+using SCStreamDeck.Logging;
 using WindowsInput.Native;
 
 namespace SCStreamDeck.Common;
@@ -53,8 +53,7 @@ internal static class WindowsKeyLayoutCharMapper
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(WindowsKeyLayoutCharMapper)}] {ex.Message}");
+            Log.Err($"[{nameof(WindowsKeyLayoutCharMapper)}] {ex.Message}", ex);
             return null;
         }
     }

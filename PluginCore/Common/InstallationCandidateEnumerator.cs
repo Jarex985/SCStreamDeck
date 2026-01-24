@@ -1,4 +1,4 @@
-using BarRaider.SdTools;
+using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Common;
@@ -32,8 +32,7 @@ internal static class InstallationCandidateEnumerator
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(InstallationCandidateEnumerator)}] Failed to process root '{root}': {ex.Message}");
+            Log.Err($"[{nameof(InstallationCandidateEnumerator)}] Failed to process root '{root}': {ex.Message}", ex);
         }
     }
 
@@ -59,11 +58,7 @@ internal static class InstallationCandidateEnumerator
             if (Directory.Exists(channelPath) && File.Exists(dataP4K))
             {
                 foundAny = true;
-#if DEBUG
-                Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                    $"[{nameof(InstallationCandidateEnumerator)}] Found {channel} at: {channelPath}");
-
-#endif
+                Log.Debug($"[{nameof(InstallationCandidateEnumerator)}] Found {channel} at: {channelPath}");
 
                 yield return new SCInstallCandidate(
                     NormalizePath(root),
@@ -75,11 +70,7 @@ internal static class InstallationCandidateEnumerator
 
         if (!foundAny)
         {
-#if DEBUG
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[{nameof(InstallationCandidateEnumerator)}] No valid channels found under root: {root}");
-
-#endif
+            Log.Debug($"[{nameof(InstallationCandidateEnumerator)}] No valid channels found under root: {root}");
         }
     }
 

@@ -1,39 +1,55 @@
 {
-    "Actions": [
+  "Actions": [
+    {
+      "Icon": "Images/icon",
+      "Name": "Adaptive Key",
+      "States": [
         {
-            "Icon": "Images/icon",
-            "Name": "Adaptive Key",
-            "States": [
-                {
-                    "Image": "PropertyInspector/svg/key",
-                    "TitleAlignment": "bottom",
-                    "FontSize": 8
-                }
-            ],
-            "SupportedInMultiActions": true,
-            "Tooltip": "Star Citizen Adaptive Key",
-            "UUID": "com.jarex985.scstreamdeck.adaptivekey",
-            "PropertyInspectorPath": "PropertyInspector/Keys/AdaptiveKey.html"
+          "Image": "PropertyInspector/svg/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12
         }
-    ],
-    "Author": "Jarex985",
-    "Name": "Star Citizen Stream Deck",
-    "UUID": "com.jarex985.scstreamdeck",
-    "Description": "Plugin that provides bindable actions for Star Citizen via Stream Deck.",
-    "Icon": "Images/pluginIcon",
-    "URL": "https://github.com/Jarex985/SCStreamDeck",
-    "Version": "0.2.2.1",
-    "CodePath": "com.jarex985.scstreamdeck.exe",
-    "Category": "Star Citizen Stream Deck",
-    "CategoryIcon": "Images/categoryIcon",
-    "OS": [
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Star Citizen Adaptive Key",
+      "UUID": "com.jarex985.scstreamdeck.adaptivekey",
+      "PropertyInspectorPath": "PropertyInspector/Keys/FunctionKey.html"
+    },
+    {
+      "Icon": "Images/icon",
+      "Name": "Control Panel",
+      "States": [
         {
-            "Platform": "windows",
-            "MinimumVersion": "10"
+          "Image": "PropertyInspector/svg/key",
+          "Title": "Control\nPanel",
+          "TitleAlignment": "middle",
+          "FontSize": 12
         }
-    ],
-    "SDKVersion": 2,
-    "Software": {
-        "MinimumVersion": "6.4"
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "Star Citizen Control Panel",
+      "UUID": "com.jarex985.scstreamdeck.controlpanel",
+      "PropertyInspectorPath": "PropertyInspector/Keys/ControlPanel.html"
     }
+  ],
+  "Author": "Jarex985",
+  "Name": "Star Citizen Stream Deck",
+  "UUID": "com.jarex985.scstreamdeck",
+  "Description": "Plugin that provides bindable actions for Star Citizen via Stream Deck.",
+  "Icon": "Images/pluginIcon",
+  "URL": "https://github.com/Jarex985/SCStreamDeck",
+  "Version": "0.3.0.0",
+  "CodePath": "com.jarex985.scstreamdeck.exe",
+  "Category": "Star Citizen Stream Deck",
+  "CategoryIcon": "Images/categoryIcon",
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "SDKVersion": 2,
+  "Software": {
+    "MinimumVersion": "6.4"
+  }
 }

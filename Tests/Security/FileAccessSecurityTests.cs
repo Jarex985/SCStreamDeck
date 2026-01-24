@@ -2,9 +2,10 @@ using System.Security;
 using FluentAssertions;
 using SCStreamDeck.Common;
 using SCStreamDeck.Models;
+using SCStreamDeck.Services.Core;
 using SCStreamDeck.Services.Data;
 using SCStreamDeck.Services.Installation;
-using SCStreamDeck.Services.Core;
+using Tests.Testing;
 
 namespace Tests.Security;
 
@@ -35,7 +36,7 @@ public sealed class FileAccessSecurityTests
     [Fact]
     public async Task P4KArchiveService_OpenArchive_InvalidPath_ReturnsFalse()
     {
-        P4KArchiveService service = new();
+        P4KArchiveService service = new(new TestFileSystem());
 
         bool opened = await service.OpenArchiveAsync("C::/invalid.p4k");
 
@@ -47,35 +48,22 @@ public sealed class FileAccessSecurityTests
     public async Task StateService_SaveState_InvalidCachePath_ThrowsOrBlocks()
     {
         FakePathProvider pathProvider = new("C:/Windows/System32");
-        FakeVersionProvider versionProvider = new();
-        StateService stateService = new(pathProvider, versionProvider);
+        StateService stateService = new(pathProvider, new SystemFileSystem());
 
-        PluginState state = new("1.0.0", DateTime.UtcNow, SCChannel.Live, null, null, null, null);
+        PluginState state = new(DateTime.UtcNow, SCChannel.Live, null, null, null, null, null);
 
         Func<Task> act = async () => await stateService.SaveStateAsync(state);
 
         await act.Should().ThrowAsync<Exception>();
     }
 
-    private sealed class FakePathProvider : IPathProvider
+    private sealed class FakePathProvider(string cacheDirectory) : PathProviderService(cacheDirectory, cacheDirectory)
     {
-        public FakePathProvider(string cacheDirectory)
+        public override void EnsureDirectoriesExist()
         {
-            CacheDirectory = cacheDirectory;
-            BaseDirectory = cacheDirectory;
         }
 
-        public string BaseDirectory { get; }
-        public string CacheDirectory { get; }
-
-        public string GetKeybindingJsonPath(string channel) => Path.Combine(CacheDirectory, $"{channel}-keybindings.json");
-        public void EnsureDirectoriesExist() { }
-        public string GetSecureCachePath(string relativePath) => SecurePathValidator.GetSecurePath(relativePath, CacheDirectory);
-    }
-
-    private sealed class FakeVersionProvider : IVersionProvider
-    {
-        public string GetPluginVersion() => "1.0.0";
-        public Task<string> GetPluginVersionAsync(CancellationToken cancellationToken = default) => Task.FromResult("1.0.0");
+        public override string GetSecureCachePath(string relativePath) =>
+            SecurePathValidator.GetSecurePath(relativePath, CacheDirectory);
     }
 }

@@ -1,11 +1,13 @@
+using System.Diagnostics.CodeAnalysis;
 using BarRaider.SdTools;
 using BarRaider.SdTools.Events;
 using BarRaider.SdTools.Payloads;
 using BarRaider.SdTools.Wrappers;
-using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using SCStreamDeck.ActionKeys.Settings;
 using SCStreamDeck.Common;
+using SCStreamDeck.Infrastructure;
+using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
 using SCStreamDeck.Services.Audio;
 using SCStreamDeck.Services.Core;
@@ -18,6 +20,45 @@ namespace SCStreamDeck.ActionKeys;
 /// </summary>
 public abstract class SCActionBase : KeyAndEncoderBase
 {
+    #region Constructor and Initialization
+
+    /// <summary>
+    ///     Initializes the action with connection and payload.
+    ///     Marked as [ExcludeFromCodeCoverage] because:
+    ///     - Depends on Stream Deck SDK runtime (SDConnection, InitialPayload, ServiceLocator)
+    ///     - SDK cannot be properly mocked without external dependencies
+    /// </summary>
+    [ExcludeFromCodeCoverage]
+    protected SCActionBase(SDConnection connection, InitialPayload payload) : base(connection, payload)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+
+        if (payload.Settings == null || payload.Settings.Count == 0)
+        {
+            Settings = new FunctionSettings();
+        }
+        else
+        {
+            Settings = payload.Settings.ToObject<FunctionSettings>() ?? new FunctionSettings();
+        }
+
+        SCActionBaseDependencies deps = ActionDependencies.ForSCActionBase();
+        InitializationService = deps.InitializationService;
+        KeybindingService = deps.KeybindingService;
+        AudioPlayerService = deps.AudioPlayerService;
+
+        InitializationService.KeybindingsStateChanged += OnKeybindingsStateChanged;
+        Connection.OnPropertyInspectorDidAppear += OnPropertyInspectorDidAppear;
+        Connection.OnSendToPlugin += OnSendToPlugin;
+
+        if (CanExecuteBindings)
+        {
+            SendPropertyInspectorUpdate();
+        }
+    }
+
+    #endregion
+
     #region Audio Playback
 
     /// <summary>
@@ -45,7 +86,7 @@ public abstract class SCActionBase : KeyAndEncoderBase
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[{GetType().Name}] Audio playback error: {ex.Message}");
+            Log.Err($"[{GetType().Name}] Audio playback error: {ex.Message}", ex);
         }
     }
 
@@ -53,49 +94,16 @@ public abstract class SCActionBase : KeyAndEncoderBase
 
     #region Fields and Properties
 
-    private static IServiceProvider? s_serviceProvider;
-    private IInitializationService InitializationService { get; }
-    private IAudioPlayerService AudioPlayerService { get; }
-    protected IKeybindingService KeybindingService { get; }
-    internal bool IsReady => InitializationService.IsInitialized && KeybindingService.IsLoaded;
+    private InitializationService InitializationService { get; }
+    private AudioPlayerService AudioPlayerService { get; }
+    protected KeybindingService KeybindingService { get; }
+
+    protected bool CanExecuteBindings =>
+        InitializationService.IsInitialized &&
+        KeybindingService.IsLoaded &&
+        InitializationService.KeybindingsJsonExists();
 
     protected FunctionSettings Settings { get; private set; }
-
-    #endregion
-
-    #region Constructor and Initialization
-
-    protected SCActionBase(SDConnection connection, InitialPayload payload) : base(connection, payload)
-    {
-        ArgumentNullException.ThrowIfNull(payload);
-
-        if (payload.Settings == null || payload.Settings.Count == 0)
-        {
-            Settings = new FunctionSettings();
-        }
-        else
-        {
-            Settings = payload.Settings.ToObject<FunctionSettings>() ?? new FunctionSettings();
-        }
-
-        InitializationService = s_serviceProvider!.GetRequiredService<IInitializationService>();
-        KeybindingService = s_serviceProvider!.GetRequiredService<IKeybindingService>();
-        AudioPlayerService = s_serviceProvider!.GetRequiredService<IAudioPlayerService>();
-
-        Connection.OnPropertyInspectorDidAppear += OnPropertyInspectorDidAppear;
-        Connection.OnSendToPlugin += OnSendToPlugin;
-
-        if (IsReady)
-        {
-            SendPropertyInspectorUpdate();
-        }
-    }
-
-    /// <summary>
-    ///     Initializes the service provider for dependency injection.
-    /// </summary>
-    public static void InitializeServices(IServiceProvider serviceProvider) =>
-        s_serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
 
     #endregion
 
@@ -108,7 +116,9 @@ public abstract class SCActionBase : KeyAndEncoderBase
     {
         try
         {
-            if (!KeybindingService.IsLoaded)
+            // If the keybindings JSON is missing (e.g., cache invalidated) we must report "not loaded",
+            // even if the in-memory loader still contains data from a previous run.
+            if (!InitializationService.KeybindingsJsonExists() || !KeybindingService.IsLoaded)
             {
                 Connection.SendToPropertyInspectorAsync(new JObject
                 {
@@ -125,7 +135,7 @@ public abstract class SCActionBase : KeyAndEncoderBase
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[{GetType().Name}]: {ex.Message}");
+            Log.Err($"[{GetType().Name}]: {ex.Message}", ex);
             Connection.SendToPropertyInspectorAsync(new JObject { ["functionsLoaded"] = false, ["functions"] = new JArray() });
         }
     }
@@ -137,28 +147,38 @@ public abstract class SCActionBase : KeyAndEncoderBase
         SDEventReceivedEventArgs<PropertyInspectorDidAppear> e) =>
         SendPropertyInspectorUpdate();
 
-    /// <summary>
-    ///     Called when the Property Inspector sends a message to the plugin.
-    /// </summary>
+    private void OnKeybindingsStateChanged() => SendPropertyInspectorUpdate();
+
+    [ExcludeFromCodeCoverage]
     private void OnSendToPlugin(object? sender, SDEventReceivedEventArgs<SendToPlugin> e)
     {
-        ArgumentNullException.ThrowIfNull(e);
-
         try
         {
-            if (e.Event?.Payload == null || !e.Event.Payload.TryGetValue("property_inspector", out JToken? value))
+            if (e.Event?.Payload == null)
             {
                 return;
             }
 
-            if (value.ToString() == "propertyInspectorConnected")
+            // sc-common.js sends: { event: "...", ... }
+            // Older PIs may send: { property_inspector: "..." }
+            string? piEvent = null;
+            if (e.Event.Payload.TryGetValue("event", out JToken? eventToken))
+            {
+                piEvent = eventToken.ToString();
+            }
+            else if (e.Event.Payload.TryGetValue("property_inspector", out JToken? legacyToken))
+            {
+                piEvent = legacyToken.ToString();
+            }
+
+            if (piEvent == "propertyInspectorConnected")
             {
                 SendPropertyInspectorUpdate();
             }
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[{GetType().Name}]: {ex.Message}");
+            Log.Err($"[{GetType().Name}] PI message handling error: {ex.Message}", ex);
         }
     }
 
@@ -173,12 +193,18 @@ public abstract class SCActionBase : KeyAndEncoderBase
     {
         Connection.OnPropertyInspectorDidAppear -= OnPropertyInspectorDidAppear;
         Connection.OnSendToPlugin -= OnSendToPlugin;
+        InitializationService.KeybindingsStateChanged -= OnKeybindingsStateChanged;
         GC.SuppressFinalize(this);
     }
 
     /// <summary>
     ///     Called when settings are received.
+    ///     Marked as [ExcludeFromCodeCoverage] because:
+    ///     - Depends on Stream Deck SDK payload handling
+    ///     - Settings deserialization tested through FunctionSettings unit tests
+    ///     - Integration testing requires Stream Deck host application
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public override void ReceivedSettings(ReceivedSettingsPayload payload)
     {
         ArgumentNullException.ThrowIfNull(payload);
@@ -194,12 +220,10 @@ public abstract class SCActionBase : KeyAndEncoderBase
     /// </summary>
     public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload)
     {
-        // Override in derived classes if needed
     }
 
     public override void OnTick()
     {
-        // Override in derived classes if needed
     }
 
     #endregion
@@ -211,7 +235,6 @@ public abstract class SCActionBase : KeyAndEncoderBase
     /// </summary>
     public override void DialRotate(DialRotatePayload payload)
     {
-        // Not implemented for keys
     }
 
     /// <summary>
@@ -219,7 +242,6 @@ public abstract class SCActionBase : KeyAndEncoderBase
     /// </summary>
     public override void DialDown(DialPayload payload)
     {
-        // Not implemented for keys
     }
 
     /// <summary>
@@ -227,7 +249,6 @@ public abstract class SCActionBase : KeyAndEncoderBase
     /// </summary>
     public override void DialUp(DialPayload payload)
     {
-        // Not implemented for keys
     }
 
     /// <summary>
@@ -235,7 +256,6 @@ public abstract class SCActionBase : KeyAndEncoderBase
     /// </summary>
     public override void TouchPress(TouchpadPressPayload payload)
     {
-        // Not implemented for keys
     }
 
     #endregion

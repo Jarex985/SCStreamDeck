@@ -12,7 +12,6 @@ public interface IKeybindingXmlParserService
     /// </summary>
     /// <param name="xmlText">The XML text to parse</param>
     /// <returns>Dictionary of activation mode names and their metadata</returns>
-    /// <exception cref="ArgumentNullException">Thrown when xmlText is null.</exception>
     Dictionary<string, ActivationModeMetadata> ParseActivationModes(string xmlText);
 
     /// <summary>
@@ -20,6 +19,5 @@ public interface IKeybindingXmlParserService
     /// </summary>
     /// <param name="xmlText">The XML text to parse</param>
     /// <returns>List of parsed keybinding actions</returns>
-    /// <exception cref="ArgumentNullException">Thrown when xmlText is null.</exception>
     List<KeybindingActionData> ParseXmlToActions(string xmlText);
 }

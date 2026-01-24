@@ -1,12 +1,12 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Services.Keybinding.ActivationHandlers;
 
 /// <summary>
 ///     Handler for immediate press activation modes.
-///     Triggers based on activation mode metadata (OnPress, OnHold, OnRelease, Retriggerable).
-///     All modes handled generically using metadata flags.
+///     Triggers based on activation mode metadata (OnPress, OnRelease, Retriggerable, MultiTapBlock).
+///     Implements KeyDown/KeyUp behavior using metadata flags.
 /// </summary>
 internal sealed class ImmediatePressHandler : IActivationModeHandler
 {
@@ -16,10 +16,16 @@ internal sealed class ImmediatePressHandler : IActivationModeHandler
     /// </summary>
     private readonly ConcurrentDictionary<string, bool> _activationBlocks = new(StringComparer.OrdinalIgnoreCase);
 
-    public IEnumerable<string> SupportedModes =>
+    public IReadOnlyCollection<ActivationMode> SupportedModes =>
     [
-        "press", "press_quicker", "tap", "tap_quicker", "double_tap", "double_tap_nonblocking", "hold_toggle",
-        "all"
+        ActivationMode.press,
+        ActivationMode.press_quicker,
+        ActivationMode.tap,
+        ActivationMode.tap_quicker,
+        ActivationMode.double_tap,
+        ActivationMode.double_tap_nonblocking,
+        ActivationMode.hold_toggle,
+        ActivationMode.all
     ];
 
     public bool Execute(ActivationExecutionContext context, IInputExecutor executor) =>
@@ -96,12 +102,17 @@ internal sealed class ImmediatePressHandler : IActivationModeHandler
 /// <summary>
 ///     Handler for delayed press activation modes.
 ///     Starts holding the key after a delay threshold, continues until key is released.
-///     Respects PressTriggerThreshold and Retriggerable metadata.
+///     Uses PressTriggerThreshold metadata (or mode default delay).
 /// </summary>
 internal sealed class DelayedPressHandler : IActivationModeHandler
 {
-    public IEnumerable<string> SupportedModes =>
-        ["delayed_press", "delayed_press_quicker", "delayed_press_medium", "delayed_press_long"];
+    public IReadOnlyCollection<ActivationMode> SupportedModes =>
+    [
+        ActivationMode.delayed_press,
+        ActivationMode.delayed_press_quicker,
+        ActivationMode.delayed_press_medium,
+        ActivationMode.delayed_press_long
+    ];
 
     public bool Execute(ActivationExecutionContext context, IInputExecutor executor)
     {
@@ -134,13 +145,17 @@ internal sealed class DelayedPressHandler : IActivationModeHandler
 /// <summary>
 ///     Handler for hold activation modes.
 ///     Key/button stays pressed while StreamDeck button is held.
-///     Respects Retriggerable, OnHold, and PressTriggerThreshold metadata.
+///     For delayed holds, uses PressTriggerThreshold metadata (or a mode default delay).
 /// </summary>
 internal sealed class HoldHandler : IActivationModeHandler
 {
-    public IEnumerable<string> SupportedModes =>
+    public IReadOnlyCollection<ActivationMode> SupportedModes =>
     [
-        "hold", "hold_no_retrigger", "delayed_hold", "delayed_hold_long", "delayed_hold_no_retrigger"
+        ActivationMode.hold,
+        ActivationMode.hold_no_retrigger,
+        ActivationMode.delayed_hold,
+        ActivationMode.delayed_hold_long,
+        ActivationMode.delayed_hold_no_retrigger
     ];
 
     public bool Execute(ActivationExecutionContext context, IInputExecutor executor)
@@ -151,8 +166,7 @@ internal sealed class HoldHandler : IActivationModeHandler
             case ActivationMode.hold_no_retrigger:
                 if (context.IsKeyDown)
                 {
-                    // For hold_no_retrigger, use ExecuteDown to allow repetition (Retriggerable=true by default for hold)
-                    // For hold, ExecuteDown starts repeat timer which is correct
+                    // Use ExecuteDown/ExecuteUp; the executor determines any repeat behavior.
                     return executor.ExecuteDown(context.Input, context.ActionName);
                 }
 

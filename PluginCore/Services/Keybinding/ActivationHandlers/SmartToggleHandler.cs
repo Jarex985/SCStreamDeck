@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
-using BarRaider.SdTools;
+using SCStreamDeck.Logging;
+using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Services.Keybinding.ActivationHandlers;
 
@@ -11,7 +12,7 @@ internal sealed class SmartToggleHandler : IActivationModeHandler
 {
     private readonly ConcurrentDictionary<string, KeyPressState> _keyStates = new(StringComparer.OrdinalIgnoreCase);
 
-    public IEnumerable<string> SupportedModes => ["smart_toggle"];
+    public IReadOnlyCollection<ActivationMode> SupportedModes => [ActivationMode.smart_toggle];
 
     public bool Execute(ActivationExecutionContext context, IInputExecutor executor) =>
         context.IsKeyDown ? HandleKeyDown(context, executor) : HandleKeyUp(context, executor);
@@ -35,8 +36,7 @@ internal sealed class SmartToggleHandler : IActivationModeHandler
             }
             catch (Exception ex)
             {
-                Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"[SmartToggleHandler] Auto-toggle failed for '{key}': {ex.Message}");
+                Log.Err($"[SmartToggleHandler] Auto-toggle failed for '{key}': {ex.Message}", ex);
             }
         }, null, (int)(delay * 1000), Timeout.Infinite);
 
@@ -57,10 +57,8 @@ internal sealed class SmartToggleHandler : IActivationModeHandler
         state.AutoToggleTimer?.Dispose();
         TimeSpan heldDuration = DateTime.UtcNow - state.KeyDownTime;
 
-#if DEBUG
-        Logger.Instance.LogMessage(TracingLevel.DEBUG,
+        Log.Debug(
             $"[SmartToggleHandler] KeyUp for '{key}' after {heldDuration.TotalSeconds:F3}s, AutoToggleExecuted={state.AutoToggleExecuted}");
-#endif
         // Decision based on whether auto-toggle was executed
         if (state.AutoToggleExecuted)
         {

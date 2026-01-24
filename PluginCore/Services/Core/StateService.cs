@@ -1,5 +1,6 @@
-using System.Text.Json;
-using BarRaider.SdTools;
+using Newtonsoft.Json;
+using SCStreamDeck.Common;
+using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
 using SCStreamDeck.Services.Installation;
 
@@ -8,25 +9,23 @@ namespace SCStreamDeck.Services.Core;
 /// <summary>
 ///     Handles persistent storage and validation of plugin state.
 /// </summary>
-public sealed class StateService(IPathProvider pathProvider, IVersionProvider versionProvider) : IStateService
+public sealed class StateService(PathProviderService pathProvider, IFileSystem fileSystem)
 {
-    private readonly IPathProvider
-        _pathProvider = pathProvider ?? throw new ArgumentNullException(nameof(pathProvider));
+    private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
 
-    private readonly IVersionProvider _versionProvider =
-        versionProvider ?? throw new ArgumentNullException(nameof(versionProvider));
+    private readonly PathProviderService
+        _pathProvider = pathProvider ?? throw new ArgumentNullException(nameof(pathProvider));
 
     public async Task<PluginState?> LoadStateAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            return await PluginState.LoadAsync(_pathProvider.CacheDirectory, cancellationToken)
+            return await PluginState.LoadAsync(_fileSystem, _pathProvider.CacheDirectory, cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(StateService)}] Failed to load plugin state: {ex.Message}");
+            Log.Err($"[{nameof(StateService)}] Failed to load plugin state", ex);
             return null;
         }
     }
@@ -36,12 +35,11 @@ public sealed class StateService(IPathProvider pathProvider, IVersionProvider ve
         ArgumentNullException.ThrowIfNull(state);
         try
         {
-            await state.SaveAsync(_pathProvider.CacheDirectory, cancellationToken).ConfigureAwait(false);
+            await state.SaveAsync(_fileSystem, _pathProvider.CacheDirectory, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(StateService)}] Failed to save plugin state: {ex.Message}");
+            Log.Err($"[{nameof(StateService)}] Failed to save plugin state", ex);
             throw;
         }
     }
@@ -50,12 +48,7 @@ public sealed class StateService(IPathProvider pathProvider, IVersionProvider ve
         CancellationToken cancellationToken = default)
     {
         PluginState? state = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
-        if (state == null || !state.IsValid())
-        {
-            return null;
-        }
-
-        return state.GetCachedCandidates();
+        return state?.GetCachedCandidates();
     }
 
     public async Task UpdateInstallationAsync(SCChannel channel, InstallationState installation,
@@ -63,7 +56,7 @@ public sealed class StateService(IPathProvider pathProvider, IVersionProvider ve
     {
         ArgumentNullException.ThrowIfNull(installation);
 
-        PluginState currentState = await LoadOrCreateStateAsync(channel, cancellationToken).ConfigureAwait(false);
+        PluginState currentState = await LoadOrCreateStateAsync(cancellationToken).ConfigureAwait(false);
         PluginState updatedState = currentState
             .WithInstallation(channel, installation)
             .WithLastInitialized(DateTime.UtcNow);
@@ -85,30 +78,43 @@ public sealed class StateService(IPathProvider pathProvider, IVersionProvider ve
 
     public async Task UpdateSelectedChannelAsync(SCChannel channel, CancellationToken cancellationToken = default)
     {
-        PluginState currentState = await LoadOrCreateStateAsync(channel, cancellationToken).ConfigureAwait(false);
+        PluginState currentState = await LoadOrCreateStateAsync(cancellationToken).ConfigureAwait(false);
         PluginState updatedState = currentState.WithSelectedChannel(channel);
         await SaveStateAsync(updatedState, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<string?> GetSelectedThemeAsync(CancellationToken cancellationToken = default)
+    {
+        PluginState? state = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
+        return state?.SelectedTheme;
+    }
 
-    public void InvalidateState()
+    public async Task UpdateSelectedThemeAsync(string? themeFile, CancellationToken cancellationToken = default)
+    {
+        PluginState currentState = await LoadOrCreateStateAsync(cancellationToken).ConfigureAwait(false);
+        PluginState updatedState = currentState.WithSelectedTheme(themeFile);
+        await SaveStateAsync(updatedState, cancellationToken).ConfigureAwait(false);
+    }
+
+    public void DeleteStateFile()
     {
         try
         {
-            string stateFile = Path.Combine(_pathProvider.CacheDirectory, ".plugin-state.json");
-            if (File.Exists(stateFile))
+            string stateFile = GetStateFilePath();
+            if (_fileSystem.FileExists(stateFile))
             {
-                File.Delete(stateFile);
+                _fileSystem.DeleteFile(stateFile);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(StateService)}] Failed to invalidate plugin state: {ex.Message}");
+            Log.Err($"[{nameof(StateService)}] Failed to delete plugin state", ex);
         }
     }
 
-    private async Task<PluginState> LoadOrCreateStateAsync(SCChannel channel, CancellationToken cancellationToken)
+    private string GetStateFilePath() => Path.Combine(_pathProvider.CacheDirectory, ".plugin-state.json");
+
+    private async Task<PluginState> LoadOrCreateStateAsync(CancellationToken cancellationToken)
     {
         PluginState? currentState = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
         if (currentState != null)
@@ -116,7 +122,6 @@ public sealed class StateService(IPathProvider pathProvider, IVersionProvider ve
             return currentState;
         }
 
-        string pluginVersion = await _versionProvider.GetPluginVersionAsync(cancellationToken).ConfigureAwait(false);
-        return new PluginState(pluginVersion, DateTime.UtcNow, channel, null, null, null, null);
+        return new PluginState(DateTime.UtcNow, SCChannel.Live, null, null, null, null, null);
     }
 }

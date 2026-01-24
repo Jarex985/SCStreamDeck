@@ -1,4 +1,4 @@
-﻿namespace SCStreamDeck.Models;
+namespace SCStreamDeck.Models;
 
 /// <summary>
 ///     Parameter object for keybinding execution to avoid primitive obsession.
@@ -10,9 +10,6 @@ public sealed class KeybindingExecutionContext
     public required ActivationMode ActivationMode { get; init; }
     public required bool IsKeyDown { get; init; }
 
-    /// <summary>
-    ///     Validates the execution context.
-    /// </summary>
     public bool IsValid(out string? errorMessage)
     {
         if (string.IsNullOrWhiteSpace(ActionName))

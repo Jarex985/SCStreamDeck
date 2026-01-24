@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using BarRaider.SdTools;
 using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
 
@@ -42,8 +41,7 @@ internal sealed partial class RsiLauncherConfigReader
 
         if (!Directory.Exists(launcherPath))
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(RsiLauncherConfigReader)}] {ErrorMessages.RsiLauncherDirNotFound}");
+            Log.Warn($"[{nameof(RsiLauncherConfigReader)}] RSI Launcher directory not found");
             return null;
         }
 
@@ -72,8 +70,7 @@ internal sealed partial class RsiLauncherConfigReader
         string logsDir = Path.Combine(launcherDir, "logs");
         if (!Directory.Exists(logsDir))
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(RsiLauncherConfigReader)}] {ErrorMessages.RsiLauncherLogsNotFound}");
+            Log.Warn($"[{nameof(RsiLauncherConfigReader)}] RSI Launcher logs directory not found");
             yield break;
         }
 
@@ -94,20 +91,22 @@ internal sealed partial class RsiLauncherConfigReader
         // Common default paths
         yield return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-            "Roberts Space Industries",
-            "StarCitizen"
+            SCConstants.Paths.RsiFolderName,
+            SCConstants.Paths.SCFolderName
         );
 
         // Check all fixed drives for common installation patterns
-        foreach (DriveInfo drive in DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Fixed && d.IsReady))
+        foreach (string driveName in DriveInfo.GetDrives()
+                     .Where(d => d is { DriveType: DriveType.Fixed, IsReady: true })
+                     .Select(d => d.Name))
         {
-            yield return Path.Combine(drive.Name, "Roberts Space Industries", "StarCitizen");
+            yield return Path.Combine(driveName, SCConstants.Paths.RsiFolderName, SCConstants.Paths.SCFolderName);
 
-            yield return Path.Combine(drive.Name, "StarCitizen");
+            yield return Path.Combine(driveName, SCConstants.Paths.SCFolderName);
 
-            yield return Path.Combine(drive.Name, "Games", "StarCitizen");
+            yield return Path.Combine(driveName, "Games", SCConstants.Paths.SCFolderName);
 
-            yield return Path.Combine(drive.Name, "SC");
+            yield return Path.Combine(driveName, "SC");
         }
     }
 
@@ -133,25 +132,22 @@ internal sealed partial class RsiLauncherConfigReader
             // If no paths found in log, try fallback detection
             if (paths.Count == 0)
             {
-                Logger.Instance.LogMessage(TracingLevel.WARN,
+                Log.Warn(
                     $"[{nameof(RsiLauncherConfigReader)}] No installation paths found in log file '{Path.GetFileName(logFilePath)}', trying fallback detection");
 
-                foreach (string defaultPath in GetDefaultInstallationPaths())
+                foreach (string defaultPath in GetDefaultInstallationPaths()
+                             .Where(Directory.Exists)
+                             .Where(IsValidGameRootCandidate))
                 {
-                    if (Directory.Exists(defaultPath) && IsValidGameRootCandidate(defaultPath))
-                    {
-                        paths.Add(defaultPath);
-                        Logger.Instance.LogMessage(TracingLevel.INFO,
-                            $"[{nameof(RsiLauncherConfigReader)}] Found installation at common path: '{defaultPath}'");
-                    }
+                    paths.Add(defaultPath);
+                    Log.Info($"[{nameof(RsiLauncherConfigReader)}] Found installation at common path: '{defaultPath}'");
                 }
             }
         }
 
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(RsiLauncherConfigReader)}]: '{Path.GetFileName(logFilePath)}': {ex.Message}");
+            Log.Err($"[{nameof(RsiLauncherConfigReader)}]: '{Path.GetFileName(logFilePath)}': {ex.Message}", ex);
         }
 
         return paths;
@@ -163,32 +159,50 @@ internal sealed partial class RsiLauncherConfigReader
     /// </summary>
     private static void ExtractPathsFromContent(string content, HashSet<string> paths)
     {
-        int strategy1Count = 0;
-        int strategy2Count = 0;
-        int strategy3Count = 0;
+        int strategy1Count = ExtractFromValidateDirectories(content, paths);
+        int strategy2Count = ExtractFromLaunchEntries(content, paths);
+        int strategy3Count = ExtractFromInstallerEntries(content, paths);
 
-        // Strategy 1 (HIGHEST PRIORITY): Extract comma-separated paths from validateDirectories entries
-        // This is the gold standard - RSI Launcher's own path validation
+        // Warn if all strategies failed - possible RSI log format change
+        if (strategy1Count == 0 && strategy2Count == 0 && strategy3Count == 0 && paths.Count == 0)
+        {
+            Log.Warn(
+                $"[{nameof(RsiLauncherConfigReader)}] No installation paths found using any detection strategy. RSI Launcher log format may have changed, or no installations have been launched yet.");
+        }
+
+        Log.Debug(
+            $"[{nameof(RsiLauncherConfigReader)}] Extracted {paths.Count} unique root path(s) from log content (Strategy 1: {strategy1Count}, Strategy 2: {strategy2Count}, Strategy 3: {strategy3Count})");
+    }
+
+    private static int ExtractFromValidateDirectories(string content, HashSet<string> paths)
+    {
+        int count = 0;
+
         foreach (Match match in ValidateDirectoriesRegex().Matches(content))
         {
             string pathList = match.Groups[1].Value;
             foreach (string path in pathList.Split(','))
             {
-                string trimmedPath = path.Trim().Replace("\\\\", "\\"); // Handle escaped backslashes from JSON
+                string trimmedPath = path.Trim().Replace("\\\\", "\\");
                 if (IsValidGameRootCandidate(trimmedPath))
                 {
                     int beforeCount = paths.Count;
                     TryExtractGameRootFromPath(trimmedPath, paths, true);
                     if (paths.Count > beforeCount)
                     {
-                        strategy1Count++;
+                        count++;
                     }
                 }
             }
         }
 
-        // Strategy 2 (HIGH PRIORITY): Extract paths from "Launching Star Citizen" entries
-        // These entries always contain complete, accurate paths
+        return count;
+    }
+
+    private static int ExtractFromLaunchEntries(string content, HashSet<string> paths)
+    {
+        int count = 0;
+
         foreach (Match match in LaunchPathRegex().Matches(content))
         {
             string path = match.Groups[1].Value.Trim();
@@ -198,13 +212,18 @@ internal sealed partial class RsiLauncherConfigReader
                 TryExtractGameRootFromPath(path, paths, true);
                 if (paths.Count > beforeCount)
                 {
-                    strategy2Count++;
+                    count++;
                 }
             }
         }
 
-        // Strategy 3 (MEDIUM PRIORITY): Extract paths from Installer operations
-        // Installer paths are root directories where the installer will create channel folders
+        return count;
+    }
+
+    private static int ExtractFromInstallerEntries(string content, HashSet<string> paths)
+    {
+        int count = 0;
+
         foreach (Match match in InstallerPathRegex().Matches(content))
         {
             string path = match.Groups[1].Value.Trim().Replace("\\\\", "\\");
@@ -214,22 +233,12 @@ internal sealed partial class RsiLauncherConfigReader
                 TryExtractGameRootFromPath(path, paths, false);
                 if (paths.Count > beforeCount)
                 {
-                    strategy3Count++;
+                    count++;
                 }
             }
         }
 
-        // Warn if all strategies failed - possible RSI log format change
-        if (strategy1Count == 0 && strategy2Count == 0 && strategy3Count == 0 && paths.Count == 0)
-        {
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[{nameof(RsiLauncherConfigReader)}] No installation paths found using any detection strategy. RSI Launcher log format may have changed, or no installations have been launched yet.");
-        }
-
-#if DEBUG
-        Logger.Instance.LogMessage(TracingLevel.DEBUG,
-            $"[{nameof(RsiLauncherConfigReader)}] Extracted {paths.Count} unique root path(s) from log content (Strategy 1: {strategy1Count}, Strategy 2: {strategy2Count}, Strategy 3: {strategy3Count})");
-#endif
+        return count;
     }
 
     /// <summary>
@@ -279,7 +288,6 @@ internal sealed partial class RsiLauncherConfigReader
     /// </summary>
     private static bool IsValidGameRootCandidate(string path)
     {
-        // Reject null/empty
         if (string.IsNullOrWhiteSpace(path))
         {
             return false;
@@ -293,7 +301,6 @@ internal sealed partial class RsiLauncherConfigReader
         }
 
         // Blacklist: Reject launcher internal paths and system directories
-        string lowerPath = path.ToLowerInvariant();
         string[] blacklist =
         [
             "\\rsilauncher", // Launcher directory
@@ -310,14 +317,9 @@ internal sealed partial class RsiLauncherConfigReader
             "installer.exe" // Installer executables
         ];
 
-        foreach (string blocked in blacklist)
+        if (blacklist.Any(blocked => path.Contains(blocked, StringComparison.OrdinalIgnoreCase)))
         {
-            if (lowerPath.Contains(blocked))
-            {
-                Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                    $"[{nameof(RsiLauncherConfigReader)}] Rejected blacklisted path: '{path}'");
-                return false;
-            }
+            return false;
         }
 
         return true;

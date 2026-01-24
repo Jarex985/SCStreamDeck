@@ -1,0 +1,10 @@
+:root {
+  --theme-accent-rgb: 94, 195, 202;
+  --theme-accent-hi-rgb: 154, 230, 236;
+
+  --theme-surface-0-rgb: 18, 18, 18;
+  --theme-surface-1-rgb: 15, 15, 15;
+  --theme-surface-2-rgb: 33, 33, 33;
+
+  --theme-border-rgb: 42, 42, 42;
+}

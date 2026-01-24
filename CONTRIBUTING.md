@@ -1,6 +1,6 @@
-﻿# Contributing to Star Citizen Stream Deck
+# Contributing to Star Citizen Stream Deck
 
-Thank you for your interest in contributing to the Star Citizen Stream Deck plugin! Every contribution counts – whether it's bug reports, feature requests, or code changes.
+Thank you for your interest in contributing to the Star Citizen Stream Deck plugin! Every contribution counts - whether it's bug reports, feature requests, or code changes.
 
 ---
 
@@ -30,7 +30,7 @@ Thank you for your interest in contributing to the Star Citizen Stream Deck plug
    ```
 7. Open a Pull Request (PR) against the `main` branch of this repository.
 
-**Pull Request Guidelines**: Keep pull requests focused on a single feature or bug fix. Large or unfocused PRs may be asked to be split or revised.
+**Pull Request Guidelines**: Keep pull requests focused on a single feature, improvement or bug fix. Large or unfocused PRs may be asked to be split or revised.
 
 ### Coding Guidelines
 - Follow C# best practices.
@@ -40,7 +40,7 @@ Thank you for your interest in contributing to the Star Citizen Stream Deck plug
 
 ### Testing
 - Run the existing unit tests to ensure no regressions.
-- Add new tests for new features or bug fixes.
+- Add new tests for new features or bug fixes, if applicable.
 - Ensure tests pass before submitting your PR.
 
 ## Questions?

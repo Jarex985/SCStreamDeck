@@ -1,5 +1,4 @@
 using System.Xml;
-using BarRaider.SdTools;
 using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
 
@@ -8,7 +7,7 @@ namespace SCStreamDeck.Common;
 /// <summary>
 ///     Parses user keybinding overrides from Star Citizen's actionmaps.xml file.
 /// </summary>
-internal sealed class UserOverrideParser
+internal static class UserOverrideParser
 {
     /// <summary>
     ///     Parses the actionmaps.xml file and returns user binding overrides.
@@ -30,8 +29,7 @@ internal sealed class UserOverrideParser
 
         catch (Exception ex) when (ex is XmlException or ArgumentException or IOException or UnauthorizedAccessException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(UserOverrideParser)}] {ex.Message}");
+            Log.Err($"[{nameof(UserOverrideParser)}] {ex.Message}", ex);
             return null;
         }
     }
@@ -215,17 +213,11 @@ internal sealed class UserOverrideParser
     {
         if (!SecurePathValidator.TryNormalizePath(actionMapsPath, out validPath))
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(UserOverrideParser)}] {ErrorMessages.InvalidPath} {actionMapsPath}");
+            Log.Err($"[{nameof(UserOverrideParser)}] Invalid path '{actionMapsPath}'");
             return false;
         }
 
-        if (!File.Exists(validPath))
-        {
-            return false;
-        }
-
-        return true;
+        return File.Exists(validPath);
     }
 }
 

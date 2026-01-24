@@ -1,5 +1,4 @@
 using System.Text;
-using BarRaider.SdTools;
 using SCStreamDeck.Common;
 using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
@@ -17,10 +16,12 @@ public sealed class KeybindingProcessorService(
     ILocalizationService localizationService,
     IKeybindingXmlParserService xmlParser,
     IKeybindingMetadataService metadataService,
-    IKeybindingOutputService outputService)
-    : IKeybindingProcessorService
+    IKeybindingOutputService outputService,
+    IFileSystem fileSystem)
 {
     private readonly ICryXmlParserService _cryXmlParser = cryXmlParser ?? throw new ArgumentNullException(nameof(cryXmlParser));
+
+    private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
 
     private readonly ILocalizationService _localizationService =
         localizationService ?? throw new ArgumentNullException(nameof(localizationService));
@@ -52,14 +53,18 @@ public sealed class KeybindingProcessorService(
                 return KeybindingProcessResult.Failure("Failed to extract defaultProfile.xml from P4K");
             }
 
-            string? xmlText = await ParseCryXmlAsync(xmlBytes, cancellationToken).ConfigureAwait(false);
-            if (xmlText == null)
+            CryXmlConversionResult xmlResult = await ParseCryXmlAsync(xmlBytes, cancellationToken).ConfigureAwait(false);
+            if (!xmlResult.IsSuccess || string.IsNullOrWhiteSpace(xmlResult.Xml))
             {
-                return KeybindingProcessResult.Failure("Failed to parse CryXml binary data");
+                string reason = string.IsNullOrWhiteSpace(xmlResult.ErrorMessage)
+                    ? "Failed to parse CryXml binary data"
+                    : $"Failed to parse CryXml binary data: {xmlResult.ErrorMessage}";
+
+                return KeybindingProcessResult.Failure(reason);
             }
 
-            Dictionary<string, ActivationModeMetadata> activationModes = _xmlParser.ParseActivationModes(xmlText);
-            List<KeybindingActionData> actions = _xmlParser.ParseXmlToActions(xmlText);
+            Dictionary<string, ActivationModeMetadata> activationModes = _xmlParser.ParseActivationModes(xmlResult.Xml);
+            List<KeybindingActionData> actions = _xmlParser.ParseXmlToActions(xmlResult.Xml);
             if (actions.Count == 0)
             {
                 return KeybindingProcessResult.Failure("No actions found in defaultProfile.xml");
@@ -85,11 +90,10 @@ public sealed class KeybindingProcessorService(
             return KeybindingProcessResult.Success(detectedLanguage);
         }
 
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingProcessorService)}] {ErrorMessages.KeybindingProcessingFailed} {ex.Message}");
-            return KeybindingProcessResult.Failure(ex.Message);
+            Log.Err($"[{nameof(KeybindingProcessorService)}] Failed to process keybindings", ex);
+            return KeybindingProcessResult.Failure("Failed to process keybindings. See logs for details.");
         }
     }
 
@@ -108,12 +112,15 @@ public sealed class KeybindingProcessorService(
         {
             if (!SecurePathValidator.TryNormalizePath(dataP4KPath, out string normalizedPath))
             {
-                Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"[{nameof(KeybindingProcessorService)}] {ErrorMessages.InvalidPath} {dataP4KPath}");
+                Log.Err($"[{nameof(KeybindingProcessorService)}] Invalid path '{dataP4KPath}'");
                 return null;
             }
 
-            await _p4KService.OpenArchiveAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
+            bool opened = await _p4KService.OpenArchiveAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
+            if (!opened)
+            {
+                return null;
+            }
 
             IReadOnlyList<P4KFileEntry> entries = await _p4KService.ScanDirectoryAsync(
                 SCConstants.Paths.KeybindingConfigDirectory,
@@ -122,8 +129,7 @@ public sealed class KeybindingProcessorService(
 
             if (entries.Count == 0)
             {
-                Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"[{nameof(KeybindingProcessorService)}] Default profile XML not found in P4K archive");
+                Log.Err($"[{nameof(KeybindingProcessorService)}] Default profile XML not found in P4K archive");
                 return null;
             }
 
@@ -135,34 +141,21 @@ public sealed class KeybindingProcessorService(
                 : bytes;
         }
 
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingProcessorService)}] Failed to extract default profile: {ex.Message}");
+            Log.Err($"[{nameof(KeybindingProcessorService)}] Failed to extract default profile", ex);
             return null;
         }
     }
 
-    private async Task<string?> ParseCryXmlAsync(byte[] xmlBytes, CancellationToken cancellationToken)
+    private async Task<CryXmlConversionResult> ParseCryXmlAsync(byte[] xmlBytes, CancellationToken cancellationToken)
     {
-        try
+        if (IsPlainXml(xmlBytes))
         {
-            if (IsPlainXml(xmlBytes))
-            {
-                return Encoding.UTF8.GetString(xmlBytes);
-            }
-
-            string? xmlText = await _cryXmlParser.ConvertCryXmlToTextAsync(xmlBytes, cancellationToken)
-                .ConfigureAwait(false);
-            return xmlText;
+            return CryXmlConversionResult.Success(Encoding.UTF8.GetString(xmlBytes));
         }
 
-        catch (Exception ex)
-        {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingProcessorService)}] Failed to parse XML: {ex.Message}");
-            return null;
-        }
+        return await _cryXmlParser.ConvertCryXmlToTextAsync(xmlBytes, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task ApplyLocalizationAsync(
@@ -181,8 +174,7 @@ public sealed class KeybindingProcessorService(
 
             if (localization == null || localization.Count == 0)
             {
-                Logger.Instance.LogMessage(TracingLevel.WARN,
-                    $"[{nameof(KeybindingProcessorService)}] No localization data loaded, using default labels");
+                Log.Warn($"[{nameof(KeybindingProcessorService)}] No localization data loaded, using default labels");
                 return;
             }
 
@@ -191,10 +183,9 @@ public sealed class KeybindingProcessorService(
                 ApplyLocalization(localization, action);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingProcessorService)}] {ErrorMessages.LocalizationLoadFailed} {ex.Message}");
+            Log.Err($"[{nameof(KeybindingProcessorService)}] Failed to load localization", ex);
         }
     }
 
@@ -228,7 +219,7 @@ public sealed class KeybindingProcessorService(
 
     private void ApplyOverridesIfPresent(List<KeybindingActionData> actions, string? actionMapsPath)
     {
-        if (string.IsNullOrWhiteSpace(actionMapsPath) || !File.Exists(actionMapsPath))
+        if (string.IsNullOrWhiteSpace(actionMapsPath) || !_fileSystem.FileExists(actionMapsPath))
         {
             return;
         }
@@ -239,18 +230,16 @@ public sealed class KeybindingProcessorService(
 
             if (overrides is not { HasOverrides: true })
             {
-                Logger.Instance.LogMessage(TracingLevel.WARN,
-                    $"[{nameof(KeybindingProcessorService)}] No user overrides found or file not accessible");
+                Log.Warn($"[{nameof(KeybindingProcessorService)}] No user overrides found or file not accessible");
 
                 return;
             }
 
             UserOverrideParser.ApplyOverrides(actions, overrides);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingProcessorService)}] {ErrorMessages.UserOverrideApplyFailed} {ex.Message}");
+            Log.Err($"[{nameof(KeybindingProcessorService)}] Failed to apply user overrides", ex);
         }
     }
 
@@ -275,4 +264,20 @@ public sealed class KeybindingProcessorService(
     }
 
     #endregion
+}
+
+/// <summary>
+///     Result of keybinding processing.
+/// </summary>
+public sealed class KeybindingProcessResult
+{
+    public bool IsSuccess { get; init; }
+    public string? DetectedLanguage { get; init; }
+    public string? ErrorMessage { get; private init; }
+
+    public static KeybindingProcessResult Success(string detectedLanguage) =>
+        new() { IsSuccess = true, DetectedLanguage = detectedLanguage };
+
+    public static KeybindingProcessResult Failure(string errorMessage) =>
+        new() { IsSuccess = false, ErrorMessage = errorMessage };
 }

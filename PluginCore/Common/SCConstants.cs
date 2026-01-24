@@ -1,4 +1,4 @@
-﻿using SCStreamDeck.Models;
+using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Common;
 
@@ -12,6 +12,22 @@ public static class SCConstants
         0x5E, 0x7A, 0x20, 0x02, 0x30, 0x2E, 0xEB, 0x1A, 0x3B, 0xB6, 0x17, 0xC3, 0x0F, 0xDE, 0x1E, 0x47, 0x8D, 0x92, 0x3D,
         0x1B, 0xB3, 0xA7, 0x49, 0x8F, 0x4F, 0x1C, 0x82, 0x2C, 0x4E, 0xDA, 0x0A, 0x4C
     ];
+
+    #region Input Pattern Arrays
+
+    internal static readonly string[] s_mouseButtonPatterns =
+    [
+        Input.Mouse.Button1,
+        Input.Mouse.Button2,
+        Input.Mouse.Button3,
+        Input.Mouse.Button4,
+        Input.Mouse.Button5,
+        Input.Mouse.LeftButton,
+        Input.Mouse.RightButton,
+        Input.Mouse.MiddleButton
+    ];
+
+    #endregion
 
     #region Path Constants
 
@@ -32,7 +48,8 @@ public static class SCConstants
         /// </summary>
         public const string LocalizationBaseDirectory = "Data/Localization";
 
-        public const string StarCitizenFolderName = "StarCitizen";
+        public const string RsiFolderName = "Roberts Space Industries";
+        public const string SCFolderName = "StarCitizen";
         public const string UserProfilePathPattern = "user/client/0/Profiles/default";
     }
 
@@ -122,6 +139,10 @@ public static class SCConstants
             public const string LeftButton = "LMB";
             public const string RightButton = "RMB";
             public const string MiddleButton = "MMB";
+
+            // TODO: Compound mouse button support (e.g., MOUSE1_2 for simultaneous left+right)
+            //  Current limitation: Only single mouse buttons are supported
+            //  Example binding: melee_block uses "mouse1_2" - currently parses as LEFT button only
         }
 
         public static class MouseAxis
@@ -148,6 +169,12 @@ public static class SCConstants
         ///     Subdirectory name for localization overrides within channel data folder.
         /// </summary>
         public const string LocalizationSubdirectory = "Localization";
+
+        /// <summary>
+        ///     Comment prefixes supported in INI format (Star Citizen global.ini).
+        ///     Note: Comment support is uncertain but maintained for robustness.
+        /// </summary>
+        public static readonly string[] IniCommentPrefixes = ["--", "//", "#"];
     }
 
     /// <summary>
@@ -224,14 +251,7 @@ public static class InputStringExtensions
         }
 
         string upper = input.ToUpperInvariant();
-        return upper.Contains(SCConstants.Input.Mouse.Button1, StringComparison.Ordinal) ||
-               upper.Contains(SCConstants.Input.Mouse.Button2, StringComparison.Ordinal) ||
-               upper.Contains(SCConstants.Input.Mouse.Button3, StringComparison.Ordinal) ||
-               upper.Contains(SCConstants.Input.Mouse.Button4, StringComparison.Ordinal) ||
-               upper.Contains(SCConstants.Input.Mouse.Button5, StringComparison.Ordinal) ||
-               upper.Equals(SCConstants.Input.Mouse.LeftButton, StringComparison.Ordinal) ||
-               upper.Equals(SCConstants.Input.Mouse.RightButton, StringComparison.Ordinal) ||
-               upper.Equals(SCConstants.Input.Mouse.MiddleButton, StringComparison.Ordinal);
+        return IsMouseButtonPattern(upper);
     }
 
     /// <summary>
@@ -246,15 +266,8 @@ public static class InputStringExtensions
 
         string normalized = input.ToUpperInvariant();
 
-        // Check mouse buttons
-        if (normalized.Contains(SCConstants.Input.Mouse.Button1) ||
-            normalized.Contains(SCConstants.Input.Mouse.Button2) ||
-            normalized.Contains(SCConstants.Input.Mouse.Button3) ||
-            normalized.Contains(SCConstants.Input.Mouse.Button4) ||
-            normalized.Contains(SCConstants.Input.Mouse.Button5) ||
-            normalized == SCConstants.Input.Mouse.LeftButton ||
-            normalized == SCConstants.Input.Mouse.RightButton ||
-            normalized == SCConstants.Input.Mouse.MiddleButton)
+        // Check mouse buttons (exact match for LMB/RMB/MMB, contains for MOUSE1-5)
+        if (IsMouseButtonPattern(normalized))
         {
             return InputType.MouseButton;
         }
@@ -274,4 +287,16 @@ public static class InputStringExtensions
         // Default to keyboard for any other input
         return InputType.Keyboard;
     }
+
+    /// <summary>
+    ///     Determines if the normalized input string matches any mouse button pattern.
+    ///     LMB/RMB/MMB require exact match, MOUSE1-5 use contains (allows modifiers).
+    /// </summary>
+    private static bool IsMouseButtonPattern(string normalized) =>
+        SCConstants.s_mouseButtonPatterns.Any(p =>
+            p is SCConstants.Input.Mouse.LeftButton or
+                SCConstants.Input.Mouse.RightButton or
+                SCConstants.Input.Mouse.MiddleButton
+                ? normalized == p
+                : normalized.Contains(p));
 }

@@ -1,5 +1,5 @@
-using BarRaider.SdTools;
 using SCStreamDeck.Common;
+using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Services.Installation;
@@ -17,8 +17,6 @@ public sealed class InstallLocatorService : IInstallLocatorService
     private List<SCInstallCandidate>? _cachedInstallations;
     private DateTime? _cacheTimestamp;
     private SCInstallCandidate? _selectedInstallation;
-
-    // Region Public API
 
     #region Public API
 
@@ -38,7 +36,7 @@ public sealed class InstallLocatorService : IInstallLocatorService
             }
         }
 
-        // Find installations async - stop early if we find valid installations
+        // Find installations asynchronously from all available sources.
         List<SCInstallCandidate> candidates = await FindInstallationsFromSourcesAsync(cancellationToken).ConfigureAwait(false);
 
         candidates = DeduplicateCandidates(candidates);
@@ -59,9 +57,6 @@ public sealed class InstallLocatorService : IInstallLocatorService
             _cachedInstallations = null;
             _cacheTimestamp = null;
         }
-
-        Logger.Instance.LogMessage(TracingLevel.INFO,
-            $"[{nameof(InstallLocatorService)}] Cache invalidated");
     }
 
     public IReadOnlyList<SCInstallCandidate>? GetCachedInstallations()
@@ -86,30 +81,17 @@ public sealed class InstallLocatorService : IInstallLocatorService
 
         lock (_lock)
         {
-            SCChannel? previousChannel = _selectedInstallation?.Channel;
             _selectedInstallation = installation;
-
-            if (previousChannel != installation.Channel && previousChannel != null)
-            {
-                Logger.Instance.LogMessage(TracingLevel.INFO,
-                    $"[{nameof(InstallLocatorService)}] Channel changed from {previousChannel} to {installation.Channel}");
-            }
         }
     }
 
     #endregion
-
-    // End Region Public API
-
-    // Region Private Methods
 
     #region Private Methods
 
     private async Task<List<SCInstallCandidate>> FindInstallationsFromSourcesAsync(CancellationToken cancellationToken)
     {
         List<SCInstallCandidate> candidates = new();
-
-        AddCustomPathCandidates(candidates);
 
         HashSet<string> rootPaths = await CollectRootPathsAsync(cancellationToken).ConfigureAwait(false);
         if (rootPaths.Count == 0)
@@ -123,82 +105,6 @@ public sealed class InstallLocatorService : IInstallLocatorService
         }
 
         return candidates;
-    }
-
-    private static void AddCustomPathCandidates(List<SCInstallCandidate> candidates)
-    {
-        CustomPathsConfig? customPaths = CustomPathsConfig.LoadFromIni(AppDomain.CurrentDomain.BaseDirectory);
-        if (customPaths is null)
-        {
-            return;
-        }
-
-        Logger.Instance.LogMessage(TracingLevel.INFO,
-            $"[{nameof(InstallLocatorService)}] Custom paths configuration found");
-
-
-        foreach (SCChannel channel in customPaths.GetConfiguredChannels())
-        {
-            string? customPath = customPaths.GetPath(channel);
-            if (!TryCreateCustomCandidate(channel, customPath, out SCInstallCandidate? candidate))
-            {
-                continue;
-            }
-
-            if (candidate is not null)
-            {
-                candidates.Add(candidate);
-            }
-        }
-    }
-
-    private static bool TryCreateCustomCandidate(SCChannel channel, string? customPath, out SCInstallCandidate? candidate)
-    {
-        candidate = null;
-        if (string.IsNullOrWhiteSpace(customPath))
-        {
-            return false;
-        }
-
-        if (!File.Exists(customPath))
-        {
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[{nameof(InstallLocatorService)}] Custom path for {channel} is invalid (file not found): {customPath}");
-
-            return false;
-        }
-
-        if (!customPath.EndsWith(SCConstants.Files.DataP4KFileName, StringComparison.OrdinalIgnoreCase))
-        {
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[{nameof(InstallLocatorService)}] Custom path for {channel} does not point to Data.p4k: {customPath}");
-
-            return false;
-        }
-
-        string dataP4KPath = NormalizeOrTrim(customPath);
-        string channelPath = NormalizeOrTrim(Path.GetDirectoryName(dataP4KPath));
-        string rootPath = NormalizeOrTrim(Path.GetDirectoryName(channelPath));
-
-        if (string.IsNullOrEmpty(channelPath) || string.IsNullOrEmpty(rootPath))
-        {
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[{nameof(InstallLocatorService)}] Custom path for {channel} has invalid directory structure: {customPath}");
-
-            return false;
-        }
-
-        Logger.Instance.LogMessage(TracingLevel.INFO,
-            $"[{nameof(InstallLocatorService)}] Custom path configured for {channel}: {dataP4KPath}");
-
-
-        candidate = new SCInstallCandidate(
-            rootPath,
-            channel,
-            channelPath,
-            dataP4KPath,
-            InstallSource.UserProvided);
-        return true;
     }
 
     private async Task<HashSet<string>> CollectRootPathsAsync(CancellationToken cancellationToken)
@@ -222,32 +128,27 @@ public sealed class InstallLocatorService : IInstallLocatorService
 
         if (allRootPaths.Count == 0)
         {
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[{nameof(InstallLocatorService)}] No root paths found in launcher logs");
+            Log.Warn($"[{nameof(InstallLocatorService)}] No root paths found in launcher logs");
 
             return allRootPaths;
         }
 
         List<string> sortedPaths = allRootPaths.OrderBy(p => p).ToList();
 
-#if DEBUG
         if (sortedPaths.Count == 1)
         {
-            Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                $"[{nameof(InstallLocatorService)}] Found 1 unique root path: {sortedPaths[0]}");
+            Log.Debug($"[{nameof(InstallLocatorService)}] Found 1 unique root path: {sortedPaths[0]}");
         }
         else
         {
-            Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                $"[{nameof(InstallLocatorService)}] Found {sortedPaths.Count} unique root paths:");
+            Log.Debug($"[{nameof(InstallLocatorService)}] Found {sortedPaths.Count} unique root paths:");
 
 
             foreach (string path in sortedPaths)
             {
-                Logger.Instance.LogMessage(TracingLevel.DEBUG, $"  - {path}");
+                Log.Debug($"  - {path}");
             }
         }
-#endif
 
         return allRootPaths;
     }
@@ -263,8 +164,7 @@ public sealed class InstallLocatorService : IInstallLocatorService
 
         if (beforeDedup > distinct.Count)
         {
-            Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                $"[{nameof(InstallLocatorService)}] Removed {beforeDedup - distinct.Count} duplicate(s)");
+            Log.Debug($"[{nameof(InstallLocatorService)}] Removed {beforeDedup - distinct.Count} duplicate(s)");
         }
 
         return distinct;
@@ -281,6 +181,4 @@ public sealed class InstallLocatorService : IInstallLocatorService
     }
 
     #endregion
-
-    // End Region Private Methods
 }

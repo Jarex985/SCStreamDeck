@@ -1,6 +1,6 @@
 using System.Reflection;
+using System.Security;
 using System.Text;
-using BarRaider.SdTools;
 using ICSharpCode.SharpZipLib.Zip;
 using SCStreamDeck.Common;
 using SCStreamDeck.Logging;
@@ -11,14 +11,17 @@ namespace SCStreamDeck.Services.Data;
 /// <summary>
 ///     Modern P4K archive service using SharpZipLib directly.
 /// </summary>
-public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
+public sealed class P4KArchiveService(IFileSystem fileSystem) : IP4KArchiveService, IDisposable
 {
-    private static readonly Lazy<PropertyInfo?> EncryptionKeyProperty = new(() =>
+    private static readonly Lazy<PropertyInfo?> s_encryptionKeyProperty = new(() =>
         typeof(ZipFile).GetProperty("Key", BindingFlags.NonPublic | BindingFlags.Instance));
 
+    private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
+
     private readonly object _lock = new();
+
     private bool _disposed;
-    private FileStream? _fileStream;
+    private Stream? _fileStream;
     private ZipFile? _zipFile;
 
     public void Dispose()
@@ -50,7 +53,7 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
     {
         if (string.IsNullOrWhiteSpace(p4KPath))
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"[SCCore.P4K] {ErrorMessages.InvalidPath}");
+            Log.Err($"[{nameof(P4KArchiveService)}] Invalid path");
             return false;
         }
 
@@ -60,15 +63,15 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
 
             if (!SecurePathValidator.TryNormalizePath(p4KPath, out string validatedPath))
             {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, $"[SCCore.P4K] {ErrorMessages.InvalidPath}");
+                Log.Err($"[{nameof(P4KArchiveService)}] Invalid path");
                 return false;
             }
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (!File.Exists(validatedPath))
+            if (!_fileSystem.FileExists(validatedPath))
             {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, $"[SCCore.P4K] P4K archive not found: '{validatedPath}'");
+                Log.Err($"[{nameof(P4KArchiveService)}] P4K archive not found: '{validatedPath}'");
                 return false;
             }
 
@@ -78,46 +81,22 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
             {
                 return OpenArchiveInternal(validatedPath, cancellationToken);
             }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException or ZipException or UnauthorizedAccessException or SecurityException)
             {
-                Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"[SCCore.P4K] {ex.Message}");
-
-                return false;
-            }
-            catch (ZipException ex)
-            {
-                Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"[SCCore.P4K] {ex.Message}");
+                Log.Err($"[{nameof(P4KArchiveService)}] Failed to open archive", ex);
                 return false;
             }
         }, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<P4KFileEntry>> ScanDirectoryAsync(string directory, string filePattern,
-        CancellationToken cancellationToken = default)
-    {
-        ZipFile? zipFile = GetZipFileSnapshot();
-        if (zipFile == null)
-        {
-            return Array.Empty<P4KFileEntry>();
-        }
-
-        return await Task.Run(() => ScanDirectoryInternal(zipFile, directory, filePattern, cancellationToken), cancellationToken)
+        CancellationToken cancellationToken = default) =>
+        await Task.Run(() => ScanDirectoryInternal(directory, filePattern, cancellationToken), cancellationToken)
             .ConfigureAwait(false);
-    }
 
-    public async Task<byte[]?> ReadFileAsync(P4KFileEntry entry, CancellationToken cancellationToken = default)
-    {
-        ZipFile? zipFile = GetZipFileSnapshot();
-        if (zipFile == null)
-        {
-            return null;
-        }
-
-        return await Task.Run(() => ReadFileInternal(zipFile, entry, cancellationToken), cancellationToken)
+    public async Task<byte[]?> ReadFileAsync(P4KFileEntry entry, CancellationToken cancellationToken = default) =>
+        await Task.Run(() => ReadFileInternal(entry, cancellationToken), cancellationToken)
             .ConfigureAwait(false);
-    }
 
     public async Task<string?> ReadFileAsTextAsync(P4KFileEntry entry, CancellationToken cancellationToken = default)
     {
@@ -131,16 +110,9 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
         {
             return Encoding.UTF8.GetString(bytes);
         }
-        catch (DecoderFallbackException ex)
+        catch (Exception ex) when (ex is DecoderFallbackException or ArgumentException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[SCCore.P4K] {ErrorMessages.P4KDecodeTextFailed}: {ex.Message}");
-            return null;
-        }
-        catch (ArgumentException ex)
-        {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[SCCore.P4K] {ErrorMessages.P4KDecodeTextFailed}: {ex.Message}");
+            Log.Err($"[{nameof(P4KArchiveService)}] Failed to decode P4K file as text", ex);
             return null;
         }
     }
@@ -161,7 +133,7 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
         {
             CloseArchiveInternal();
 
-            _fileStream = File.OpenRead(validatedPath);
+            _fileStream = _fileSystem.OpenRead(validatedPath);
             cancellationToken.ThrowIfCancellationRequested();
 
             _zipFile = new ZipFile(_fileStream);
@@ -169,20 +141,12 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
 
             if (!TrySetEncryptionKey(_zipFile))
             {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, $"[SCCore.P4K] {ErrorMessages.P4KEncryptionKey}");
+                Log.Err($"[{nameof(P4KArchiveService)}] Failed to set encryption key");
                 CloseArchiveInternal();
                 return false;
             }
 
             return true;
-        }
-    }
-
-    private ZipFile? GetZipFileSnapshot()
-    {
-        lock (_lock)
-        {
-            return _zipFile;
         }
     }
 
@@ -201,103 +165,104 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
         }
     }
 
-    private static IReadOnlyList<P4KFileEntry> ScanDirectoryInternal(ZipFile zipFile, string directory, string filePattern,
+    /// <summary>
+    ///     Scans directory for matching entries in P4K archive.
+    /// </summary>
+    private IReadOnlyList<P4KFileEntry> ScanDirectoryInternal(string directory, string filePattern,
         CancellationToken cancellationToken)
     {
         try
         {
-            List<P4KFileEntry> results = new();
-            string normalizedPattern = NormalizePath(filePattern);
-            string normalizedDirectory = NormalizePath(directory);
-
-            foreach (ZipEntry? entry in zipFile)
+            lock (_lock)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (entry == null || string.IsNullOrEmpty(entry.Name))
+                if (_zipFile == null || _disposed)
                 {
-                    continue;
+                    return Array.Empty<P4KFileEntry>();
                 }
 
-                string normalizedEntryName = NormalizePath(entry.Name);
+                ZipFile zipFile = _zipFile;
+                List<P4KFileEntry> results = new();
+                string normalizedPattern = NormalizePath(filePattern);
+                string normalizedDirectory = NormalizePath(directory);
 
-                if (normalizedEntryName.StartsWith(normalizedDirectory, StringComparison.OrdinalIgnoreCase) &&
-                    normalizedEntryName.EndsWith(normalizedPattern, StringComparison.OrdinalIgnoreCase))
+                foreach (ZipEntry? entry in zipFile)
                 {
-                    results.Add(new P4KFileEntry
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    if (entry == null || string.IsNullOrEmpty(entry.Name))
                     {
-                        Path = entry.Name,
-                        Offset = entry.Offset,
-                        CompressedSize = entry.CompressedSize,
-                        UncompressedSize = entry.Size,
-                        IsCompressed = entry.CompressionMethod != CompressionMethod.Stored
-                    });
-                }
-            }
+                        continue;
+                    }
 
-            return results;
+                    string normalizedEntryName = NormalizePath(entry.Name);
+
+                    if (normalizedEntryName.StartsWith(normalizedDirectory, StringComparison.OrdinalIgnoreCase) &&
+                        normalizedEntryName.EndsWith(normalizedPattern, StringComparison.OrdinalIgnoreCase))
+                    {
+                        results.Add(new P4KFileEntry
+                        {
+                            Path = entry.Name,
+                            Offset = entry.Offset,
+                            CompressedSize = entry.CompressedSize,
+                            UncompressedSize = entry.Size,
+                            IsCompressed = entry.CompressionMethod != CompressionMethod.Stored
+                        });
+                    }
+                }
+
+                return results;
+            }
         }
-        catch (ObjectDisposedException ex)
+        catch (Exception ex) when (ex is ObjectDisposedException or InvalidOperationException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[SCCore.P4K] Failed to scan P4K directory: {ex.Message}");
-            return Array.Empty<P4KFileEntry>();
-        }
-        catch (InvalidOperationException ex)
-        {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[SCCore.P4K] Failed to scan P4K directory: {ex.Message}");
+            Log.Err($"[{nameof(P4KArchiveService)}] Failed to scan P4K directory", ex);
             return Array.Empty<P4KFileEntry>();
         }
     }
 
-    private static byte[]? ReadFileInternal(ZipFile zipFile, P4KFileEntry entry, CancellationToken cancellationToken)
+    private byte[]? ReadFileInternal(P4KFileEntry entry, CancellationToken cancellationToken)
     {
         try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            ZipEntry? zipEntry = FindZipEntry(zipFile, entry.Path);
-            if (zipEntry == null)
+            lock (_lock)
             {
-                Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"[SCCore.P4K] P4K entry not found: '{entry.Path}'");
-                return null;
+                if (_zipFile == null || _disposed)
+                {
+                    return null;
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                ZipFile zipFile = _zipFile;
+                ZipEntry? zipEntry = FindZipEntry(zipFile, entry.Path);
+                if (zipEntry == null)
+                {
+                    Log.Err($"[{nameof(P4KArchiveService)}] P4K entry not found: '{entry.Path}'");
+                    return null;
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                using Stream? stream = zipFile.GetInputStream(zipEntry);
+                using MemoryStream memoryStream = new((int)zipEntry.Size);
+
+                cancellationToken.ThrowIfCancellationRequested();
+                stream.CopyTo(memoryStream);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                return memoryStream.ToArray();
             }
-
-            cancellationToken.ThrowIfCancellationRequested();
-
-            using Stream? stream = zipFile.GetInputStream(zipEntry);
-            using MemoryStream memoryStream = new((int)zipEntry.Size);
-
-            cancellationToken.ThrowIfCancellationRequested();
-            stream.CopyTo(memoryStream);
-            cancellationToken.ThrowIfCancellationRequested();
-
-            byte[] data = memoryStream.ToArray();
-
-            return data;
         }
-        catch (ObjectDisposedException ex)
+        catch (Exception ex) when (ex is IOException or ZipException or ObjectDisposedException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[SCCore.P4K] Failed to read P4K file '{entry.Path}': {ex.Message}");
-            return null;
-        }
-        catch (ZipException ex)
-        {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[SCCore.P4K] Failed to read P4K file '{entry.Path}': {ex.Message}");
-            return null;
-        }
-        catch (IOException ex)
-        {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[SCCore.P4K] Failed to read P4K file '{entry.Path}': {ex.Message}");
+            Log.Err($"[{nameof(P4KArchiveService)}] Failed to read P4K file '{entry.Path}'", ex);
             return null;
         }
     }
 
+    /// <summary>
+    ///     Finds a ZipEntry by path with fallback strategies.
+    /// </summary>
     private static ZipEntry? FindZipEntry(ZipFile zipFile, string entryPath)
     {
         ZipEntry? entry = zipFile.GetEntry(entryPath);
@@ -339,33 +304,35 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
 
     private static string NormalizePath(string path) => path.Replace('\\', '/').TrimStart('/').ToUpperInvariant();
 
-    private static bool TrySetEncryptionKey(ZipFile? zipFile)
+    /// <summary>
+    ///     Sets encryption key on ZipFile instance using reflection.
+    /// </summary>
+    private bool TrySetEncryptionKey(ZipFile? zipFile)
     {
         if (zipFile == null)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, "[SCCore.P4K] Cannot set encryption key - ZipFile is null");
+            Log.Err($"[{nameof(P4KArchiveService)}] Cannot set encryption key - ZipFile is null");
             return false;
         }
 
-        PropertyInfo? keyProperty = EncryptionKeyProperty.Value;
+        PropertyInfo? keyProperty = s_encryptionKeyProperty.Value;
         if (keyProperty == null)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                "[SCCore.P4K] SharpZipLib 'Key' property not found - library version may be incompatible");
+            Log.Err(
+                $"[{nameof(P4KArchiveService)}] SharpZipLib 'Key' property not found - library version may be incompatible");
             return false;
         }
 
         if (keyProperty.PropertyType != typeof(byte[]))
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[SCCore.P4K] 'Key' property type mismatch - expected byte[], got {keyProperty.PropertyType.Name}");
+            Log.Err(
+                $"[{nameof(P4KArchiveService)}] 'Key' property type mismatch - expected byte[], got {keyProperty.PropertyType.Name}");
             return false;
         }
 
         if (!keyProperty.CanWrite)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                "[SCCore.P4K] 'Key' property is read-only - cannot set encryption key");
+            Log.Err($"[{nameof(P4KArchiveService)}] 'Key' property is read-only - cannot set encryption key");
             return false;
         }
 
@@ -374,22 +341,10 @@ public sealed class P4KArchiveService : IP4KArchiveService, IDisposable
             keyProperty.SetValue(zipFile, SCConstants.EncryptionKey);
             return true;
         }
-        catch (TargetException ex)
-        {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[SCCore.P4K] Failed to set encryption key - target object error: {ex.Message}");
-            return false;
-        }
-        catch (MethodAccessException ex)
-        {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[SCCore.P4K] Failed to set encryption key - access denied: {ex.Message}");
-            return false;
-        }
+
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[SCCore.P4K] Failed to set encryption key - unexpected error: {ex.Message}");
+            Log.Err($"[{nameof(P4KArchiveService)}] Failed to set encryption key", ex);
             return false;
         }
     }

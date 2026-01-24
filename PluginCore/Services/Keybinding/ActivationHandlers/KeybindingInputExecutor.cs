@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using SCStreamDeck.Models;
 using WindowsInput;
 using WindowsInput.Native;
@@ -21,7 +21,6 @@ internal sealed class KeybindingInputExecutor(
         holdStates ?? throw new ArgumentNullException(nameof(holdStates));
 
     private readonly IInputSimulator _inputSimulator = inputSimulator ?? throw new ArgumentNullException(nameof(inputSimulator));
-
 
     public bool ExecutePress(ParsedInput input)
     {

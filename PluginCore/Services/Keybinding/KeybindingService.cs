@@ -1,4 +1,4 @@
-﻿using SCStreamDeck.Models;
+using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Services.Keybinding;
 
@@ -7,17 +7,19 @@ namespace SCStreamDeck.Services.Keybinding;
 ///     Uses composition of specialized services for SRP.
 /// </summary>
 public sealed class KeybindingService(
-    IKeybindingLoaderService loaderService,
-    IKeybindingExecutorService executorService)
-    : IKeybindingService, IDisposable
+    KeybindingLoaderService loaderService,
+    KeybindingExecutorService executorService)
+    : IDisposable
 {
-    private readonly IKeybindingExecutorService _executorService =
+    private readonly KeybindingExecutorService _executorService =
         executorService ?? throw new ArgumentNullException(nameof(executorService));
 
-    private readonly IKeybindingLoaderService _loaderService =
+    private readonly KeybindingLoaderService _loaderService =
         loaderService ?? throw new ArgumentNullException(nameof(loaderService));
 
     private bool _disposed;
+
+    public bool IsLoaded => _loaderService.IsLoaded;
 
     public void Dispose()
     {
@@ -26,15 +28,10 @@ public sealed class KeybindingService(
             return;
         }
 
-        if (_executorService is IDisposable disposableExecutor)
-        {
-            disposableExecutor.Dispose();
-        }
+        _executorService.Dispose();
 
         _disposed = true;
     }
-
-    public bool IsLoaded => _loaderService.IsLoaded;
 
     public async Task<bool> LoadKeybindingsAsync(string jsonPath, CancellationToken cancellationToken = default) =>
         await _loaderService.LoadKeybindingsAsync(jsonPath, cancellationToken).ConfigureAwait(false);

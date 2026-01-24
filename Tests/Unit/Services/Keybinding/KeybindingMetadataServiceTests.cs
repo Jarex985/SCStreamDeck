@@ -10,7 +10,7 @@ public sealed class KeybindingMetadataServiceTests
     [Fact]
     public void DetectLanguage_ReturnsDefault_WhenFileMissing()
     {
-        KeybindingMetadataService service = new();
+        KeybindingMetadataService service = new(new SystemFileSystem());
 
         string language = service.DetectLanguage(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()));
 
@@ -22,11 +22,11 @@ public sealed class KeybindingMetadataServiceTests
     {
         string tempDir = Directory.CreateTempSubdirectory().FullName;
         string userCfg = Path.Combine(tempDir, SCConstants.Files.UserConfigFileName);
-        File.WriteAllLines(userCfg, new[] { "g_language = DE" });
+        File.WriteAllLines(userCfg, ["g_language = DE"]);
 
         try
         {
-            KeybindingMetadataService service = new();
+            KeybindingMetadataService service = new(new SystemFileSystem());
 
             string language = service.DetectLanguage(tempDir);
 
@@ -47,7 +47,7 @@ public sealed class KeybindingMetadataServiceTests
             Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()),
             Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".p4k"));
 
-        KeybindingMetadataService service = new();
+        KeybindingMetadataService service = new(new SystemFileSystem());
 
         bool result = service.NeedsRegeneration(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json"), install);
 
@@ -66,7 +66,7 @@ public sealed class KeybindingMetadataServiceTests
             Path.GetTempPath(),
             tempFile);
 
-        KeybindingMetadataService service = new();
+        KeybindingMetadataService service = new(new SystemFileSystem());
 
         bool result = service.NeedsRegeneration(tempFile, install);
 

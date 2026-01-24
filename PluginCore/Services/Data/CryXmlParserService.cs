@@ -3,6 +3,8 @@ using System.Text;
 using System.Xml;
 using SCStreamDeck.Common;
 
+// ReSharper disable NotAccessedPositionalProperty.Local
+
 namespace SCStreamDeck.Services.Data;
 
 /// <summary>
@@ -16,14 +18,18 @@ public sealed class CryXmlParserService : ICryXmlParserService
     private const int AttributeEntrySize = SCConstants.CryXml.AttributeEntrySize;
     private const int ChildIndexSize = SCConstants.CryXml.ChildIndexSize;
 
-    public async Task<string?> ConvertCryXmlToTextAsync(byte[] binaryXmlData, CancellationToken cancellationToken = default)
+    public async Task<CryXmlConversionResult> ConvertCryXmlToTextAsync(
+        byte[] binaryXmlData,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(binaryXmlData);
 
         return await Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return !TryConvertCryXmlToText(binaryXmlData, out string xmlText, out _) ? null : xmlText;
+            return TryConvertCryXmlToText(binaryXmlData, out string xmlText, out string error)
+                ? CryXmlConversionResult.Success(xmlText)
+                : CryXmlConversionResult.Failure(error);
         }, cancellationToken).ConfigureAwait(false);
     }
 

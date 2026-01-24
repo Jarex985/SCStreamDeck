@@ -1,3 +1,4 @@
+using System.Reflection;
 using FluentAssertions;
 using SCStreamDeck.Models;
 using SCStreamDeck.Services.Keybinding;
@@ -80,4 +81,473 @@ public sealed class KeybindingXmlParserServiceTests
         actions.Should().ContainSingle();
         actions[0].ActivationMode.Should().Be(ActivationMode.hold_no_retrigger);
     }
+
+    private static ActivationMode? FindExactModeMatch(
+        bool onPress,
+        bool onHold,
+        bool onRelease,
+        bool retriggerable,
+        Dictionary<string, ActivationModeMetadata> activationModes) =>
+        typeof(KeybindingXmlParserService)
+            .GetMethod("FindExactModeMatch", BindingFlags.NonPublic | BindingFlags.Static)!
+            .Invoke(null, [onPress, onHold, onRelease, retriggerable, activationModes]) as ActivationMode?;
+
+    private static ActivationMode InferFromHeuristic(
+        bool onPress,
+        bool onHold,
+        bool onRelease,
+        bool retriggerable) =>
+        typeof(KeybindingXmlParserService)
+            .GetMethod("InferFromHeuristic", BindingFlags.NonPublic | BindingFlags.Static)!
+            .Invoke(null, [onPress, onHold, onRelease, retriggerable]) as ActivationMode? ?? ActivationMode.press;
+
+    #region Heuristic Inference Tests (InferFromHeuristic)
+
+    [Fact]
+    public void ParseXmlToActions_InfersPressMode_WhenOnlyOnPress()
+    {
+        string xml = @"<root>
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" UILabel=""@label"" UIDescription=""@desc"" onPress=""1"" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].ActivationMode.Should().Be(ActivationMode.press);
+    }
+
+    [Fact]
+    public void ParseXmlToActions_InfersHoldRetriggerable_WhenOnPressOnReleaseRetriggerable()
+    {
+        string xml = @"<root>
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" UILabel=""@label"" UIDescription=""@desc"" onPress=""1"" onRelease=""1"" retriggerable=""1"" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].ActivationMode.Should().Be(ActivationMode.hold);
+    }
+
+    [Fact]
+    public void ParseXmlToActions_InfersHoldNoRetrigger_WhenOnPressOnReleaseNoRetriggerable()
+    {
+        string xml = @"<root>
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" UILabel=""@label"" UIDescription=""@desc"" onPress=""1"" onRelease=""1"" retriggerable=""0"" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].ActivationMode.Should().Be(ActivationMode.hold_no_retrigger);
+    }
+
+    [Fact]
+    public void ParseXmlToActions_InfersHold_WhenOnHoldIsTrue()
+    {
+        string xml = @"<root>
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" UILabel=""@label"" UIDescription=""@desc"" onHold=""1"" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].ActivationMode.Should().Be(ActivationMode.hold);
+    }
+
+    [Fact]
+    public void ParseXmlToActions_InfersTap_WhenOnlyOnRelease()
+    {
+        string xml = @"<root>
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" UILabel=""@label"" UIDescription=""@desc"" onRelease=""1"" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].ActivationMode.Should().Be(ActivationMode.tap);
+    }
+
+    [Fact]
+    public void ParseXmlToActions_InfersPress_WhenNoAttributes()
+    {
+        string xml = @"<root>
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" UILabel=""@label"" UIDescription=""@desc"" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].ActivationMode.Should().Be(ActivationMode.press);
+    }
+
+    [Fact]
+    public void ParseXmlToActions_InfersPress_WhenAllFalse()
+    {
+        string xml = @"<root>
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" UILabel=""@label"" UIDescription=""@desc"" onPress=""0"" onHold=""0"" onRelease=""0"" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].ActivationMode.Should().Be(ActivationMode.press);
+    }
+
+    #endregion
+
+    #region Exact Mode Match Tests (FindExactModeMatch)
+
+    [Fact]
+    public void ParseXmlToActions_UsesExactMatch_WhenModeMatchesExactly()
+    {
+        string xml = @"<root>
+  <ActivationMode name=""delayed_press"" onPress=""1"" onHold=""0"" onRelease=""0"" retriggerable=""0"" />
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" UILabel=""@label"" UIDescription=""@desc"" onPress=""1"" onHold=""0"" onRelease=""0"" retriggerable=""0"" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].ActivationMode.Should().Be(ActivationMode.delayed_press);
+    }
+
+    [Fact]
+    public void ParseXmlToActions_SkipsPressTapModes_WhenOnPressAndOnPresent()
+    {
+        string xml = @"<root>
+  <ActivationMode name=""press"" onPress=""1"" onHold=""0"" onRelease=""0"" retriggerable=""0"" />
+  <ActivationMode name=""tap"" onPress=""0"" onHold=""0"" onRelease=""1"" retriggerable=""0"" />
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" UILabel=""@label"" UIDescription=""@desc"" onPress=""1"" onRelease=""1"" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].ActivationMode.Should().Be(ActivationMode.hold_no_retrigger);
+    }
+
+    [Fact]
+    public void ParseXmlToActions_UsesHeuristic_WhenNoExactMatch()
+    {
+        string xml = @"<root>
+  <ActivationMode name=""hold"" onPress=""1"" onHold=""1"" onRelease=""1"" retriggerable=""1"" />
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" UILabel=""@label"" UIDescription=""@desc"" onPress=""1"" onHold=""0"" onRelease=""0"" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].ActivationMode.Should().Be(ActivationMode.press);
+    }
+
+    #endregion
+
+    #region ParseAction Edge Cases
+
+    [Fact]
+    public void ParseXmlToActions_SkipsActionsWithoutUILabel()
+    {
+        string xml = @"<root>
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" activationMode=""press"" keyboard=""SPACE"" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ParseXmlToActions_SkipsActionsWithoutName()
+    {
+        string xml = @"<root>
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action UILabel=""@label"" UIDescription=""@desc"" activationMode=""press"" keyboard=""SPACE"" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ParseXmlToActions_NormalizesWhitespaceInBindings()
+    {
+        string xml = @"<root>
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" UILabel=""@label"" activationMode=""press"" keyboard=""  SPACE  "" mouse=""  MOUSE1  "" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].Bindings.Keyboard.Should().Be("SPACE");
+        actions[0].Bindings.Mouse.Should().Be("MOUSE1");
+    }
+
+    [Fact]
+    public void ParseXmlToActions_SetsNullForEmptyBindings()
+    {
+        string xml = @"<root>
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" UILabel=""@label"" activationMode=""press"" keyboard="""" mouse="""" joystick="""" gamepad=""""/>
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].Bindings.Keyboard.Should().BeNull();
+        actions[0].Bindings.Mouse.Should().BeNull();
+        actions[0].Bindings.Joystick.Should().BeNull();
+        actions[0].Bindings.Gamepad.Should().BeNull();
+    }
+
+    [Fact]
+    public void ParseXmlToActions_MovesMouseWheelFromKeyboardToMouse()
+    {
+        string xml = @"<root>
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" UILabel=""@label"" activationMode=""press"" keyboard=""MWHEEL_UP"" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].Bindings.Keyboard.Should().BeNull();
+        actions[0].Bindings.Mouse.Should().Be("MWHEEL_UP");
+    }
+
+    [Fact]
+    public void ParseXmlToActions_MovesMouseButtonFromKeyboardToMouse()
+    {
+        string xml = @"<root>
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" UILabel=""@label"" activationMode=""press"" keyboard=""MOUSE1"" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].Bindings.Keyboard.Should().BeNull();
+        actions[0].Bindings.Mouse.Should().Be("MOUSE1");
+    }
+
+    [Fact]
+    public void ParseXmlToActions_HmdPrefixInKeyboardIsRemoved()
+    {
+        string xml = @"<root>
+  <actionmap name=""test"" UILabel=""@map"" UICategory=""@category"">
+    <action name=""action1"" UILabel=""@label"" activationMode=""press"" keyboard=""HMD_SPACE"" />
+  </actionmap>
+</root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].Bindings.Keyboard.Should().BeNull();
+    }
+
+    #endregion
+
+    #region ParseActivationModes Edge Cases
+
+    [Fact]
+    public void ParseActivationModes_SkipsModesWithoutName()
+    {
+        string xml = @"<root>
+  <ActivationMode onPress=""1"" onHold=""0"" onRelease=""0"" />
+</root>";
+
+        Dictionary<string, ActivationModeMetadata> modes = _service.ParseActivationModes(xml);
+
+        modes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ParseActivationModes_ParsesDefaultThresholdValues()
+    {
+        string xml = @"<root>
+  <ActivationMode name=""test"" onPress=""1"" />
+</root>";
+
+        Dictionary<string, ActivationModeMetadata> modes = _service.ParseActivationModes(xml);
+
+        modes.Should().ContainKey("test");
+        modes["test"].PressTriggerThreshold.Should().Be(-1);
+        modes["test"].ReleaseTriggerThreshold.Should().Be(-1);
+        modes["test"].ReleaseTriggerDelay.Should().Be(0);
+    }
+
+    [Fact]
+    public void ParseActivationModes_ParsesMultiTapDefaultValues()
+    {
+        string xml = @"<root>
+  <ActivationMode name=""test"" onPress=""1"" />
+</root>";
+
+        Dictionary<string, ActivationModeMetadata> modes = _service.ParseActivationModes(xml);
+
+        modes.Should().ContainKey("test");
+        modes["test"].MultiTap.Should().Be(1);
+        modes["test"].MultiTapBlock.Should().Be(1);
+    }
+
+    #endregion
+
+    #region FindExactModeMatch Tests
+
+    [Fact]
+    public void FindExactModeMatch_ReturnsMatch_WhenExactMatchExists()
+    {
+        Dictionary<string, ActivationModeMetadata> modes = new()
+        {
+            ["press"] =
+                new ActivationModeMetadata { OnPress = true, OnHold = false, OnRelease = false, Retriggerable = false },
+            ["hold"] = new ActivationModeMetadata { OnPress = true, OnHold = false, OnRelease = true, Retriggerable = true }
+        };
+
+        ActivationMode? result = FindExactModeMatch(true, false, false, false, modes);
+
+        result.Should().NotBeNull();
+        result.Value.Should().Be(ActivationMode.press);
+    }
+
+    [Fact]
+    public void FindExactModeMatch_ReturnsNull_WhenNoMatchExists()
+    {
+        Dictionary<string, ActivationModeMetadata> modes = new()
+        {
+            ["hold"] = new ActivationModeMetadata { OnPress = true, OnHold = false, OnRelease = true, Retriggerable = true }
+        };
+
+        ActivationMode? result = FindExactModeMatch(true, false, false, false, modes);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void FindExactModeMatch_SkipsPressTap_WhenOnPressAndOnRelease()
+    {
+        Dictionary<string, ActivationModeMetadata> modes = new()
+        {
+            ["press"] =
+                new ActivationModeMetadata { OnPress = true, OnHold = false, OnRelease = false, Retriggerable = false },
+            ["tap"] = new ActivationModeMetadata { OnPress = false, OnHold = false, OnRelease = true, Retriggerable = false }
+        };
+
+        ActivationMode? result = FindExactModeMatch(true, true, false, false, modes);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void FindExactModeMatch_SkipsTap_WhenOnPressAndOnRelease()
+    {
+        Dictionary<string, ActivationModeMetadata> modes = new()
+        {
+            ["press"] =
+                new ActivationModeMetadata { OnPress = true, OnHold = false, OnRelease = false, Retriggerable = false },
+            ["tap"] = new ActivationModeMetadata { OnPress = false, OnHold = false, OnRelease = true, Retriggerable = false }
+        };
+
+        ActivationMode? result = FindExactModeMatch(true, true, false, false, modes);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void FindExactModeMatch_MatchesAllAttributes()
+    {
+        Dictionary<string, ActivationModeMetadata> modes = new()
+        {
+            ["smart_toggle"] =
+                new ActivationModeMetadata { OnPress = true, OnHold = false, OnRelease = true, Retriggerable = false }
+        };
+
+        ActivationMode? result = FindExactModeMatch(true, false, true, false, modes);
+
+        result.Should().NotBeNull();
+        result.Value.Should().Be(ActivationMode.smart_toggle);
+    }
+
+    #endregion
+
+    #region InferFromHeuristic Tests
+
+    [Fact]
+    public void InferFromHeuristic_ReturnsPress_WhenOnlyOnPress()
+    {
+        ActivationMode result = InferFromHeuristic(true, false, false, false);
+
+        result.Should().Be(ActivationMode.press);
+    }
+
+    [Fact]
+    public void InferFromHeuristic_ReturnsHold_WhenOnPressAndOnReleaseAndRetriggerable()
+    {
+        ActivationMode result = InferFromHeuristic(true, false, true, true);
+
+        result.Should().Be(ActivationMode.hold);
+    }
+
+    [Fact]
+    public void InferFromHeuristic_ReturnsHoldNoRetrigger_WhenOnPressAndOnReleaseAndNotRetriggerable()
+    {
+        ActivationMode result = InferFromHeuristic(true, false, true, false);
+
+        result.Should().Be(ActivationMode.hold_no_retrigger);
+    }
+
+    [Fact]
+    public void InferFromHeuristic_ReturnsHold_WhenOnHold()
+    {
+        ActivationMode result = InferFromHeuristic(false, true, false, false);
+
+        result.Should().Be(ActivationMode.hold);
+    }
+
+    [Fact]
+    public void InferFromHeuristic_ReturnsTap_WhenOnlyOnRelease()
+    {
+        ActivationMode result = InferFromHeuristic(false, false, true, false);
+
+        result.Should().Be(ActivationMode.tap);
+    }
+
+    [Fact]
+    public void InferFromHeuristic_ReturnsPress_WhenAllFalse()
+    {
+        ActivationMode result = InferFromHeuristic(false, false, false, false);
+
+        result.Should().Be(ActivationMode.press);
+    }
+
+    #endregion
 }

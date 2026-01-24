@@ -11,6 +11,19 @@ namespace SCStreamDeck.Services.Keybinding;
 /// </summary>
 internal static class FunctionsPayloadBuilder
 {
+    private const string MouseAxisToken = "maxis_";
+
+    private const string BindingTypeKeyboard = "keyboard";
+    private const string BindingTypeMouse = "mouse";
+    private const string BindingTypeMouseAxis = "mouseaxis";
+    private const string BindingTypeJoystick = "joystick";
+    private const string BindingTypeGamepad = "gamepad";
+    private const string BindingTypeUnbound = "unbound";
+
+    private const string DisabledReasonAxisOnly = "Axis (Dial only)";
+    private const string DisabledReasonControllerOnly = "Controller bind (not supported yet)";
+    private const string DisabledReasonNoSupportedBinding = "No supported binding";
+
     internal static JArray BuildGroupedFunctionsPayload(
         IEnumerable<KeybindingAction> actions,
         nint hkl)
@@ -78,6 +91,12 @@ internal static class FunctionsPayloadBuilder
 
     private static void DisambiguateDuplicateLabels(List<GroupedActionEntry> entries)
     {
+        ApplyDuplicateLabelDisambiguators(entries);
+        AppendActivationModeLabels(entries);
+    }
+
+    private static void ApplyDuplicateLabelDisambiguators(List<GroupedActionEntry> entries)
+    {
         // Group by (Category, Label) to find duplicates
         List<IGrouping<(string GroupLabelResolved, string ActionLabelResolved), GroupedActionEntry>> labelGroups = entries
             .GroupBy(e => (e.GroupLabelResolved, e.ActionLabelResolved))
@@ -89,19 +108,11 @@ internal static class FunctionsPayloadBuilder
         {
             List<GroupedActionEntry> actionsInGroup = labelGroup.ToList();
             List<string> actionNames = actionsInGroup.Select(e => e.ActionName).ToList();
-
-            // Find common prefix among all action names in this group
             string commonPrefix = FindCommonPrefix(actionNames);
 
             foreach (GroupedActionEntry entry in actionsInGroup)
             {
-                // Extract unique suffix from action name
-                string uniquePart = entry.ActionName.Length > commonPrefix.Length
-                    ? entry.ActionName.Substring(commonPrefix.Length)
-                    : entry.ActionName;
-
-                // Clean up and format suffix
-                string suffix = FormatSuffix(uniquePart);
+                string suffix = BuildDisambiguatorSuffix(entry.ActionName, commonPrefix);
 
                 // Update the entry with disambiguated label (without ActivationMode yet)
                 // We need to create a new instance since records are immutable
@@ -109,33 +120,44 @@ internal static class FunctionsPayloadBuilder
                 entries[index] = entry with { ActionLabelResolved = $"{entry.ActionLabelResolved} ({suffix})" };
             }
         }
+    }
 
+    private static string BuildDisambiguatorSuffix(string actionName, string commonPrefix)
+    {
+        string uniquePart = actionName.Length > commonPrefix.Length
+            ? actionName.Substring(commonPrefix.Length)
+            : actionName;
+
+        return FormatSuffix(uniquePart);
+    }
+
+    private static void AppendActivationModeLabels(List<GroupedActionEntry> entries)
+    {
         // Second pass: Add ActivationMode to ALL entries
         for (int i = 0; i < entries.Count; i++)
         {
             GroupedActionEntry entry = entries[i];
             string activationModeLabel = FormatActivationMode(entry.ActivationMode);
-
-            // Format: "Label (Disambiguator - ActivationMode)" or "Label (ActivationMode)"
-            string currentLabel = entry.ActionLabelResolved;
-
-            // Check if we already added a disambiguator (ends with ")")
-            if (currentLabel.EndsWith(')'))
-            {
-                // Insert ActivationMode before the closing parenthesis
-                // "Label (Disambiguator)" → "Label (Disambiguator - ActivationMode)"
-                int lastParen = currentLabel.LastIndexOf(')');
-                currentLabel = string.Concat(currentLabel.AsSpan(0, lastParen), $" - {activationModeLabel})");
-            }
-            else
-            {
-                // No disambiguator, just add ActivationMode
-                // "Label" → "Label (ActivationMode)"
-                currentLabel = $"{currentLabel} ({activationModeLabel})";
-            }
+            string currentLabel = AppendActivationModeLabel(entry.ActionLabelResolved, activationModeLabel);
 
             entries[i] = entry with { ActionLabelResolved = currentLabel };
         }
+    }
+
+    private static string AppendActivationModeLabel(string currentLabel, string activationModeLabel)
+    {
+        // Format: "Label (Disambiguator - ActivationMode)" or "Label (ActivationMode)"
+        if (currentLabel.EndsWith(')'))
+        {
+            // Insert ActivationMode before the closing parenthesis
+            // "Label (Disambiguator)" → "Label (Disambiguator - ActivationMode)"
+            int lastParen = currentLabel.LastIndexOf(')');
+            return string.Concat(currentLabel.AsSpan(0, lastParen), $" - {activationModeLabel})");
+        }
+
+        // No disambiguator, just add ActivationMode
+        // "Label" → "Label (ActivationMode)"
+        return $"{currentLabel} ({activationModeLabel})";
     }
 
     private static string FindCommonPrefix(List<string> strings)
@@ -146,6 +168,15 @@ internal static class FunctionsPayloadBuilder
         }
 
         string first = strings[0];
+        int prefixLength = GetSharedPrefixLength(strings, first);
+
+        // Trim to last underscore to avoid cutting mid-word
+        string prefix = first.Substring(0, prefixLength);
+        return TrimPrefixToUnderscoreBoundary(prefix);
+    }
+
+    private static int GetSharedPrefixLength(List<string> strings, string first)
+    {
         int prefixLength = 0;
 
         for (int i = 0; i < first.Length; i++)
@@ -160,8 +191,11 @@ internal static class FunctionsPayloadBuilder
             }
         }
 
-        // Trim to last underscore to avoid cutting mid-word
-        string prefix = first.Substring(0, prefixLength);
+        return prefixLength;
+    }
+
+    private static string TrimPrefixToUnderscoreBoundary(string prefix)
+    {
         int lastUnderscore = prefix.LastIndexOf('_');
         return lastUnderscore > 0 ? prefix.Substring(0, lastUnderscore + 1) : prefix;
     }
@@ -183,27 +217,34 @@ internal static class FunctionsPayloadBuilder
         return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(suffix.ToLowerInvariant());
     }
 
-    private static string FormatActivationMode(ActivationMode mode) =>
+    /// <summary>
+    ///     Formats an <see cref="ActivationMode" /> enum value into a user-friendly label for display.
+    ///     Some modes share the same label (e.g., hold, hold_no_retrigger both return "Hold").
+    ///     Unknown modes fall back to enum value's string representation.
+    /// </summary>
+    /// <param name="mode">The activation mode to format.</param>
+    /// <returns>A user-friendly label for the activation mode.</returns>
+    internal static string FormatActivationMode(ActivationMode mode) =>
         mode switch
         {
-            ActivationMode.tap => "Tap",
-            ActivationMode.tap_quicker => "Quick Tap",
-            ActivationMode.press => "Press",
-            ActivationMode.press_quicker => "Quick Press",
-            ActivationMode.hold => "Hold",
-            ActivationMode.hold_no_retrigger => "Hold",
-            ActivationMode.delayed_press => "Delayed",
-            ActivationMode.delayed_press_quicker => "Quick Delay",
-            ActivationMode.delayed_press_medium => "Medium Delay",
-            ActivationMode.delayed_press_long => "Long Delay",
-            ActivationMode.delayed_hold => "Delayed Hold",
-            ActivationMode.delayed_hold_long => "Long Hold",
-            ActivationMode.delayed_hold_no_retrigger => "Delayed Hold",
-            ActivationMode.double_tap => "Double Tap",
-            ActivationMode.double_tap_nonblocking => "Double Tap",
-            ActivationMode.all => "All",
-            ActivationMode.hold_toggle => "Toggle",
-            ActivationMode.smart_toggle => "Smart Toggle",
+            ActivationMode.tap => LabelTap,
+            ActivationMode.tap_quicker => LabelQuickTap,
+            ActivationMode.press => LabelPress,
+            ActivationMode.press_quicker => LabelQuickPress,
+            ActivationMode.hold => LabelHold,
+            ActivationMode.hold_no_retrigger => LabelHold,
+            ActivationMode.delayed_press => LabelDelayed,
+            ActivationMode.delayed_press_quicker => LabelQuickDelay,
+            ActivationMode.delayed_press_medium => LabelMediumDelay,
+            ActivationMode.delayed_press_long => LabelLongDelay,
+            ActivationMode.delayed_hold => LabelDelayedHold,
+            ActivationMode.delayed_hold_long => LabelLongHold,
+            ActivationMode.delayed_hold_no_retrigger => LabelDelayedHold,
+            ActivationMode.double_tap => LabelDoubleTap,
+            ActivationMode.double_tap_nonblocking => LabelDoubleTap,
+            ActivationMode.all => LabelAll,
+            ActivationMode.hold_toggle => LabelToggle,
+            ActivationMode.smart_toggle => LabelSmartToggle,
             _ => mode.ToString()
         };
 
@@ -214,41 +255,8 @@ internal static class FunctionsPayloadBuilder
         List<ResolvedAction> list = group.ToList();
         string name = list.Select(x => x.Action.ActionName).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).First();
 
-        List<BindingDisplay> bindings = [];
-
-        foreach (ResolvedAction item in list)
-        {
-            KeybindingAction a = item.Action;
-
-            string keyboardRaw = a.KeyboardBinding.Trim();
-
-
-            if (IsMouseAxis(keyboardRaw))
-            {
-                AddBinding(bindings, InputDeviceType.MouseAxis, keyboardRaw, keyboardRaw, a.ActionName);
-            }
-            else
-            {
-                AddBinding(bindings, InputDeviceType.Keyboard, keyboardRaw,
-                    DirectInputDisplayMapper.ToDisplay(keyboardRaw, hkl), a.ActionName);
-            }
-
-            string mouseRaw = a.MouseBinding.Trim();
-            InputDeviceType mouseDevice = IsMouseAxis(mouseRaw) ? InputDeviceType.MouseAxis : InputDeviceType.Mouse;
-
-            AddBinding(bindings, mouseDevice, mouseRaw, mouseRaw, a.ActionName);
-            AddBinding(bindings, InputDeviceType.Joystick, a.JoystickBinding, a.JoystickBinding.Trim(), a.ActionName);
-            AddBinding(bindings, InputDeviceType.Gamepad, a.GamepadBinding, a.GamepadBinding.Trim(), a.ActionName);
-        }
-
-        // Suppress duplicates by (Device, Raw)
-        bindings = bindings
-            .Where(b => !string.IsNullOrWhiteSpace(b.Raw))
-            .GroupBy(b => (b.Device, b.Raw), new DeviceRawTupleComparer())
-            .Select(g => g.OrderBy(x => x.Display).First())
-            .OrderBy(b => b.Device)
-            .ThenBy(b => b.Display)
-            .ToList();
+        List<BindingDisplay> bindings = CollectBindings(list, hkl);
+        bindings = NormalizeBindings(bindings);
 
         ResolvedAction first = list[0];
         return new GroupedActionEntry(
@@ -259,6 +267,54 @@ internal static class FunctionsPayloadBuilder
             bindings,
             first.Action.ActivationMode);
     }
+
+    private static List<BindingDisplay> CollectBindings(List<ResolvedAction> actions, nint hkl)
+    {
+        List<BindingDisplay> bindings = [];
+
+        foreach (ResolvedAction item in actions)
+        {
+            KeybindingAction action = item.Action;
+            AddKeyboardBinding(bindings, action, hkl);
+            AddMouseBinding(bindings, action);
+            AddBinding(bindings, InputDeviceType.Joystick, action.JoystickBinding, action.JoystickBinding, action.ActionName);
+            AddBinding(bindings, InputDeviceType.Gamepad, action.GamepadBinding, action.GamepadBinding, action.ActionName);
+        }
+
+        return bindings;
+    }
+
+    private static void AddKeyboardBinding(List<BindingDisplay> bindings, KeybindingAction action, nint hkl)
+    {
+        string keyboardRaw = action.KeyboardBinding.Trim();
+
+        if (IsMouseAxis(keyboardRaw))
+        {
+            AddBinding(bindings, InputDeviceType.MouseAxis, keyboardRaw, keyboardRaw, action.ActionName);
+            return;
+        }
+
+        AddBinding(bindings, InputDeviceType.Keyboard, keyboardRaw,
+            DirectInputDisplayMapper.ToDisplay(keyboardRaw, hkl), action.ActionName);
+    }
+
+    private static void AddMouseBinding(List<BindingDisplay> bindings, KeybindingAction action)
+    {
+        string mouseRaw = action.MouseBinding.Trim();
+        InputDeviceType mouseDevice = IsMouseAxis(mouseRaw) ? InputDeviceType.MouseAxis : InputDeviceType.Mouse;
+
+        AddBinding(bindings, mouseDevice, mouseRaw, mouseRaw, action.ActionName);
+    }
+
+    private static List<BindingDisplay> NormalizeBindings(List<BindingDisplay> bindings) =>
+        // Suppress duplicates by (Device, Raw)
+        bindings
+            .Where(b => !string.IsNullOrWhiteSpace(b.Raw))
+            .GroupBy(b => (b.Device, b.Raw), new DeviceRawTupleComparer())
+            .Select(g => g.OrderBy(x => x.Display).First())
+            .OrderBy(b => b.Device)
+            .ThenBy(b => b.Display)
+            .ToList();
 
     private static (string text, string searchText, JObject details) BuildPayloadEntry(GroupedActionEntry entry)
     {
@@ -310,7 +366,7 @@ internal static class FunctionsPayloadBuilder
     }
 
     private static bool IsMouseAxis(string raw) =>
-        !string.IsNullOrWhiteSpace(raw) && raw.Contains("maxis_", StringComparison.OrdinalIgnoreCase);
+        !string.IsNullOrWhiteSpace(raw) && raw.Contains(MouseAxisToken, StringComparison.OrdinalIgnoreCase);
 
     private static string BuildSearchText(GroupedActionEntry entry)
     {
@@ -328,32 +384,34 @@ internal static class FunctionsPayloadBuilder
 
     private static string InferBindingType(IReadOnlyList<BindingDisplay> bindings)
     {
-        if (bindings.Any(b => b.Device == InputDeviceType.Keyboard && !string.IsNullOrWhiteSpace(b.Raw)))
+        BindingPresence presence = BindingPresence.FromBindings(bindings);
+
+        if (presence.HasKeyboard)
         {
-            return "keyboard";
+            return BindingTypeKeyboard;
         }
 
-        if (bindings.Any(b => b.Device == InputDeviceType.Mouse && !string.IsNullOrWhiteSpace(b.Raw)))
+        if (presence.HasMouseButton)
         {
-            return "mouse";
+            return BindingTypeMouse;
         }
 
-        if (bindings.Any(b => b.Device == InputDeviceType.MouseAxis && !string.IsNullOrWhiteSpace(b.Raw)))
+        if (presence.HasMouseAxis)
         {
-            return "mouseaxis";
+            return BindingTypeMouseAxis;
         }
 
-        if (bindings.Any(b => b.Device == InputDeviceType.Joystick && !string.IsNullOrWhiteSpace(b.Raw)))
+        if (presence.HasJoystick)
         {
-            return "joystick";
+            return BindingTypeJoystick;
         }
 
-        if (bindings.Any(b => b.Device == InputDeviceType.Gamepad && !string.IsNullOrWhiteSpace(b.Raw)))
+        if (presence.HasGamepad)
         {
-            return "gamepad";
+            return BindingTypeGamepad;
         }
 
-        return "unbound";
+        return BindingTypeUnbound;
     }
 
     private static void AddBinding(
@@ -374,20 +432,12 @@ internal static class FunctionsPayloadBuilder
         target.Add(new BindingDisplay(device, raw, display, sourceActionName));
     }
 
-
     private static (bool Disabled, string DisabledReason) GetDisabledStatus(GroupedActionEntry entry)
     {
         // Only enable actions that have a binding we can realistically send as a button
-        bool hasKeyboard =
-            entry.Bindings.Any(b => b.Device == InputDeviceType.Keyboard && !string.IsNullOrWhiteSpace(b.Raw));
-        bool hasMouseButton =
-            entry.Bindings.Any(b => b.Device == InputDeviceType.Mouse && !string.IsNullOrWhiteSpace(b.Raw));
-        bool hasMouseAxis =
-            entry.Bindings.Any(b => b.Device == InputDeviceType.MouseAxis && !string.IsNullOrWhiteSpace(b.Raw));
-        bool hasJoystickOrGamepad =
-            entry.Bindings.Any(b => b.Device is InputDeviceType.Joystick or InputDeviceType.Gamepad);
+        BindingPresence presence = BindingPresence.FromBindings(entry.Bindings);
 
-        bool enabledForStaticButton = hasKeyboard || hasMouseButton;
+        bool enabledForStaticButton = presence.HasKeyboard || presence.HasMouseButton;
         bool disabled = !enabledForStaticButton;
 
         string disabledReason;
@@ -395,20 +445,72 @@ internal static class FunctionsPayloadBuilder
         {
             disabledReason = string.Empty;
         }
-        else if (hasMouseAxis)
+        else if (presence.HasMouseAxis)
         {
-            disabledReason = "Axis (Dial only)";
+            disabledReason = DisabledReasonAxisOnly;
         }
-        else if (hasJoystickOrGamepad)
+        else if (presence.HasJoystick || presence.HasGamepad)
         {
-            disabledReason = "Controller bind (not supported yet)";
+            // TODO: Support controller binds once execution paths can handle them.
+            disabledReason = DisabledReasonControllerOnly;
         }
         else
         {
-            disabledReason = "No supported binding";
+            disabledReason = DisabledReasonNoSupportedBinding;
         }
 
         return (disabled, disabledReason);
+    }
+
+    private readonly record struct BindingPresence(
+        bool HasKeyboard,
+        bool HasMouseButton,
+        bool HasMouseAxis,
+        bool HasJoystick,
+        bool HasGamepad)
+    {
+        public static BindingPresence FromBindings(IReadOnlyList<BindingDisplay> bindings)
+        {
+            bool hasKeyboard = false;
+            bool hasMouseButton = false;
+            bool hasMouseAxis = false;
+            bool hasJoystick = false;
+            bool hasGamepad = false;
+
+            foreach (BindingDisplay binding in bindings)
+            {
+                if (string.IsNullOrWhiteSpace(binding.Raw))
+                {
+                    continue;
+                }
+
+                switch (binding.Device)
+                {
+                    case InputDeviceType.Keyboard:
+                        hasKeyboard = true;
+                        break;
+                    case InputDeviceType.Mouse:
+                        hasMouseButton = true;
+                        break;
+                    case InputDeviceType.MouseAxis:
+                        hasMouseAxis = true;
+                        break;
+                    case InputDeviceType.Joystick:
+                        hasJoystick = true;
+                        break;
+                    case InputDeviceType.Gamepad:
+                        hasGamepad = true;
+                        break;
+                }
+
+                if (hasKeyboard && hasMouseButton && hasMouseAxis && hasJoystick && hasGamepad)
+                {
+                    break;
+                }
+            }
+
+            return new BindingPresence(hasKeyboard, hasMouseButton, hasMouseAxis, hasJoystick, hasGamepad);
+        }
     }
 
     private sealed class DeviceRawTupleComparer : IEqualityComparer<(InputDeviceType Device, string Raw)>
@@ -419,6 +521,26 @@ internal static class FunctionsPayloadBuilder
         public int GetHashCode((InputDeviceType Device, string Raw) obj) =>
             HashCode.Combine(obj.Device, StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Raw));
     }
+
+    #region Activation Mode Labels
+
+    private const string LabelTap = "Tap";
+    private const string LabelQuickTap = "Quick Tap";
+    private const string LabelPress = "Press";
+    private const string LabelQuickPress = "Quick Press";
+    private const string LabelHold = "Hold";
+    private const string LabelDoubleTap = "Double Tap";
+    private const string LabelAll = "All";
+    private const string LabelToggle = "Toggle";
+    private const string LabelSmartToggle = "Smart Toggle";
+    private const string LabelDelayed = "Delayed";
+    private const string LabelQuickDelay = "Quick Delay";
+    private const string LabelMediumDelay = "Medium Delay";
+    private const string LabelLongDelay = "Long Delay";
+    private const string LabelDelayedHold = "Delayed Hold";
+    private const string LabelLongHold = "Long Hold";
+
+    #endregion
 }
 
 /// <summary>

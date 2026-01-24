@@ -1,4 +1,4 @@
-using BarRaider.SdTools;
+using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Services.Keybinding.ActivationHandlers;
@@ -9,7 +9,7 @@ namespace SCStreamDeck.Services.Keybinding.ActivationHandlers;
 internal sealed class ActivationModeHandlerRegistry
 {
     private readonly IActivationModeHandler _defaultHandler;
-    private readonly Dictionary<string, IActivationModeHandler> _handlers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<ActivationMode, IActivationModeHandler> _handlers = new();
 
     public ActivationModeHandlerRegistry()
     {
@@ -23,7 +23,7 @@ internal sealed class ActivationModeHandlerRegistry
 
         foreach (IActivationModeHandler handler in handlers)
         {
-            foreach (string mode in handler.SupportedModes)
+            foreach (ActivationMode mode in handler.SupportedModes)
             {
                 _handlers[mode] = handler;
             }
@@ -38,15 +38,12 @@ internal sealed class ActivationModeHandlerRegistry
     /// </summary>
     private IActivationModeHandler GetHandler(ActivationMode mode)
     {
-        string modeName = mode.ToString();
-
-        if (_handlers.TryGetValue(modeName, out IActivationModeHandler? handler))
+        if (_handlers.TryGetValue(mode, out IActivationModeHandler? handler))
         {
             return handler;
         }
 
-        Logger.Instance.LogMessage(TracingLevel.WARN,
-            $"[{nameof(ActivationModeHandlerRegistry)}] Unknown activation mode '{modeName}', using default press handler");
+        Log.Warn($"[{nameof(ActivationModeHandlerRegistry)}] Unknown activation mode '{mode}', using default press handler");
 
 
         return _defaultHandler;

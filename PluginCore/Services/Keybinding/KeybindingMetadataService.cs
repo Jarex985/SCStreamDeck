@@ -1,4 +1,3 @@
-using BarRaider.SdTools;
 using Newtonsoft.Json;
 using SCStreamDeck.Common;
 using SCStreamDeck.Logging;
@@ -9,34 +8,46 @@ namespace SCStreamDeck.Services.Keybinding;
 /// <summary>
 ///     Service for keybinding metadata operations.
 /// </summary>
-public sealed class KeybindingMetadataService : IKeybindingMetadataService
+public sealed class KeybindingMetadataService(IFileSystem fileSystem) : IKeybindingMetadataService
 {
+    private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
+
     /// <summary>
     ///     Detects the Star Citizen language from the user configuration file.
     /// </summary>
     /// <param name="channelPath">The path to the Star Citizen channel directory</param>
-    /// <returns>Detected language code (e.g., "EN", "DE")</returns>
+    /// <returns>
+    ///     Detected language identifier from user.cfg (uppercased), or the default language ("english") if missing.
+    /// </returns>
     public string DetectLanguage(string channelPath)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(channelPath);
+
         try
         {
             string userCfgPath = Path.Combine(channelPath, SCConstants.Files.UserConfigFileName);
-            if (!File.Exists(userCfgPath))
+            if (!_fileSystem.FileExists(userCfgPath))
             {
                 return SCConstants.Localization.DefaultLanguage;
             }
 
-            string? detected = File.ReadLines(userCfgPath)
-                .Select(line => line.Trim())
-                .Select(TryExtractLanguage)
-                .FirstOrDefault(lang => !string.IsNullOrWhiteSpace(lang));
+            string cfg = _fileSystem.ReadAllText(userCfgPath);
+            using StringReader reader = new(cfg);
+            string? detected = null;
+            while (reader.ReadLine() is { } line)
+            {
+                detected = TryExtractLanguage(line.Trim());
+                if (!string.IsNullOrWhiteSpace(detected))
+                {
+                    break;
+                }
+            }
 
             return detected ?? SCConstants.Localization.DefaultLanguage;
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingMetadataService)}] {ErrorMessages.LanguageDetectionFailed} {ex.Message}");
+            Log.Err($"[{nameof(KeybindingMetadataService)}] Failed to detect language", ex);
             return SCConstants.Localization.DefaultLanguage;
         }
     }
@@ -50,14 +61,16 @@ public sealed class KeybindingMetadataService : IKeybindingMetadataService
     /// <returns>True if regeneration is needed, false otherwise</returns>
     public bool NeedsRegeneration(string jsonPath, SCInstallCandidate installation)
     {
-        if (!File.Exists(jsonPath))
+        ArgumentNullException.ThrowIfNull(installation);
+
+        if (!_fileSystem.FileExists(jsonPath))
         {
             return true;
         }
 
         try
         {
-            string json = File.ReadAllText(jsonPath);
+            string json = _fileSystem.ReadAllText(jsonPath);
             KeybindingDataFile? data = JsonConvert.DeserializeObject<KeybindingDataFile>(json);
 
             if (data?.Metadata == null)
@@ -80,8 +93,7 @@ public sealed class KeybindingMetadataService : IKeybindingMetadataService
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingMetadataService)}] Failed to check JSON metadata: {ex.Message}");
+            Log.Err($"[{nameof(KeybindingMetadataService)}] Failed to check JSON metadata: {ex.Message}", ex);
             return true;
         }
     }
@@ -101,8 +113,7 @@ public sealed class KeybindingMetadataService : IKeybindingMetadataService
         }
 
         string lang = parts[1].Trim().Trim('"').ToUpperInvariant();
-        Logger.Instance.LogMessage(TracingLevel.INFO,
-            $"[{nameof(KeybindingMetadataService)}] Detected language from {SCConstants.Files.UserConfigFileName}: {lang}");
+        Log.Debug($"[{nameof(KeybindingMetadataService)}] Detected language from {SCConstants.Files.UserConfigFileName}: {lang}");
         return lang;
     }
 
@@ -111,17 +122,16 @@ public sealed class KeybindingMetadataService : IKeybindingMetadataService
         string currentLanguage = DetectLanguage(channelPath);
         if (!string.Equals(previousLanguage, currentLanguage, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Instance.LogMessage(TracingLevel.INFO,
-                $"[{nameof(KeybindingMetadataService)}] Language changed from '{previousLanguage}' to '{currentLanguage}'");
+            Log.Debug($"[{nameof(KeybindingMetadataService)}] Language changed from '{previousLanguage}' to '{currentLanguage}'");
             return true;
         }
 
         return false;
     }
 
-    private static bool HasActionMapsChanged(KeybindingMetadata metadata)
+    private bool HasActionMapsChanged(KeybindingMetadata metadata)
     {
-        if (string.IsNullOrWhiteSpace(metadata.ActionMapsPath) || !File.Exists(metadata.ActionMapsPath))
+        if (string.IsNullOrWhiteSpace(metadata.ActionMapsPath) || !_fileSystem.FileExists(metadata.ActionMapsPath))
         {
             return false;
         }

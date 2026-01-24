@@ -7,10 +7,7 @@ namespace Tests.Unit.Common;
 public sealed class UserOverrideParserTests
 {
     [Fact]
-    public void Parse_InvalidPath_ReturnsNull()
-    {
-        UserOverrideParser.Parse("invalid::path").Should().BeNull();
-    }
+    public void Parse_InvalidPath_ReturnsNull() => UserOverrideParser.Parse("invalid::path").Should().BeNull();
 
     [Fact]
     public void Parse_MissingFile_ReturnsNull()
@@ -27,26 +24,26 @@ public sealed class UserOverrideParserTests
         Directory.CreateDirectory(tempDir);
         string filePath = Path.Combine(tempDir, "actionmaps.xml");
         File.WriteAllText(filePath, """
-<actionmap>
-  <action name="throttle_up">
-    <rebind input="kb_1"/>
-  </action>
-  <action name="pitch_up">
-    <rebind input="mo_WHEEL_UP"/>
-  </action>
-  <action name="roll_left">
-    <rebind input="js_X"/>
-  </action>
-  <action name="aim">
-    <rebind input="gp_A"/>
-  </action>
-</actionmap>
-""");
+                                    <actionmap>
+                                      <action name="throttle_up">
+                                        <rebind input="kb_1"/>
+                                      </action>
+                                      <action name="pitch_up">
+                                        <rebind input="mo_WHEEL_UP"/>
+                                      </action>
+                                      <action name="roll_left">
+                                        <rebind input="js_X"/>
+                                      </action>
+                                      <action name="aim">
+                                        <rebind input="gp_A"/>
+                                      </action>
+                                    </actionmap>
+                                    """);
 
         UserOverrides? overrides = UserOverrideParser.Parse(filePath);
 
         overrides.Should().NotBeNull();
-        overrides!.Keyboard.Should().ContainKey("throttle_up").WhoseValue.Should().Be("1");
+        overrides.Keyboard.Should().ContainKey("throttle_up").WhoseValue.Should().Be("1");
         overrides.Mouse.Should().ContainKey("pitch_up").WhoseValue.Should().Be("WHEEL_UP");
         overrides.Joystick.Should().ContainKey("roll_left").WhoseValue.Should().Be("X");
         overrides.Gamepad.Should().ContainKey("aim").WhoseValue.Should().Be("A");

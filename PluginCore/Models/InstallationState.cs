@@ -1,20 +1,17 @@
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 using SCStreamDeck.Common;
 
 namespace SCStreamDeck.Models;
 
 /// <summary>
 ///     Minimal state information for a Star Citizen installation.
-///     Stores actual paths instead of computing them to support any custom installation structure.
 /// </summary>
 public sealed record InstallationState(
-    [property: JsonPropertyName("rootPath")]
-    string RootPath,
-    [property: JsonPropertyName("channel")]
-    SCChannel Channel,
-    [property: JsonPropertyName("channelPath")]
+    [property: JsonProperty("rootPath")] string RootPath,
+    [property: JsonProperty("channel")] SCChannel Channel,
+    [property: JsonProperty("channelPath")]
     string ChannelPath,
-    [property: JsonPropertyName("isCustomPath")]
+    [property: JsonProperty("isCustomPath")]
     bool IsCustomPath = false
 )
 {
@@ -43,7 +40,6 @@ public sealed record InstallationState(
 
     /// <summary>
     ///     Creates InstallationState from a detected candidate.
-    ///     Stores the actual channel path instead of computing it.
     /// </summary>
     public static InstallationState FromCandidate(SCInstallCandidate candidate)
     {
@@ -55,5 +51,46 @@ public sealed record InstallationState(
             candidate.ChannelPath,
             candidate.Source == InstallSource.UserProvided
         );
+    }
+
+    /// <summary>
+    ///     Creates a custom installation state from a Data.p4k file path.
+    ///     Intended for Control Panel overrides.
+    /// </summary>
+    public static bool TryCreateFromDataP4KPath(SCChannel channel, string dataP4KPath, out InstallationState? state)
+    {
+        state = null;
+
+        if (string.IsNullOrWhiteSpace(dataP4KPath))
+        {
+            return false;
+        }
+
+        string normalized = SecurePathValidator.TryNormalizePath(dataP4KPath, out string n) ? n : dataP4KPath.Trim();
+
+        if (!File.Exists(normalized))
+        {
+            return false;
+        }
+
+        if (!normalized.EndsWith(SCConstants.Files.DataP4KFileName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        string? channelPath = Path.GetDirectoryName(normalized);
+        string? rootPath = string.IsNullOrWhiteSpace(channelPath) ? null : Path.GetDirectoryName(channelPath);
+        if (string.IsNullOrWhiteSpace(channelPath) || string.IsNullOrWhiteSpace(rootPath))
+        {
+            return false;
+        }
+
+        state = new InstallationState(
+            SecurePathValidator.TryNormalizePath(rootPath, out string rootNorm) ? rootNorm : rootPath.Trim(),
+            channel,
+            SecurePathValidator.TryNormalizePath(channelPath, out string channelNorm) ? channelNorm : channelPath.Trim(),
+            true);
+
+        return true;
     }
 }

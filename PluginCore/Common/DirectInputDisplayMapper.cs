@@ -44,47 +44,47 @@ internal static class DirectInputDisplayMapper
 
     #region Fixed Displays
 
+    private static readonly Dictionary<DirectInputKeyCode, string> s_fixedKeyDisplayNames = new()
+    {
+        [DirectInputKeyCode.DikLshift] = "L-Shift",
+        [DirectInputKeyCode.DikRshift] = "R-Shift",
+        [DirectInputKeyCode.DikLcontrol] = "L-Ctrl",
+        [DirectInputKeyCode.DikRcontrol] = "R-Ctrl",
+        [DirectInputKeyCode.DikLalt] = "L-Alt",
+        [DirectInputKeyCode.DikRalt] = "R-Alt",
+        [DirectInputKeyCode.DikUp] = "Up",
+        [DirectInputKeyCode.DikDown] = "Down",
+        [DirectInputKeyCode.DikLeft] = "Left",
+        [DirectInputKeyCode.DikRight] = "Right",
+        [DirectInputKeyCode.DikHome] = "Home",
+        [DirectInputKeyCode.DikEnd] = "End",
+        [DirectInputKeyCode.DikPageUp] = "PgUp",
+        [DirectInputKeyCode.DikPageDown] = "PgDn",
+        [DirectInputKeyCode.DikInsert] = "Ins",
+        [DirectInputKeyCode.DikDelete] = "Del",
+        [DirectInputKeyCode.DikNumpad0] = "Num0",
+        [DirectInputKeyCode.DikNumpad1] = "Num1",
+        [DirectInputKeyCode.DikNumpad2] = "Num2",
+        [DirectInputKeyCode.DikNumpad3] = "Num3",
+        [DirectInputKeyCode.DikNumpad4] = "Num4",
+        [DirectInputKeyCode.DikNumpad5] = "Num5",
+        [DirectInputKeyCode.DikNumpad6] = "Num6",
+        [DirectInputKeyCode.DikNumpad7] = "Num7",
+        [DirectInputKeyCode.DikNumpad8] = "Num8",
+        [DirectInputKeyCode.DikNumpad9] = "Num9",
+        [DirectInputKeyCode.DikMultiply] = "Num*",
+        [DirectInputKeyCode.DikAdd] = "Num+",
+        [DirectInputKeyCode.DikSubtract] = "Num-",
+        [DirectInputKeyCode.DikDivide] = "Num/",
+        [DirectInputKeyCode.DikDecimal] = "Num.",
+        [DirectInputKeyCode.DikNumpadenter] = "NumEnter"
+    };
+
     private static bool TryGetFixedDisplay(DirectInputKeyCode dik, out string display)
     {
-        display = dik switch
+        if (s_fixedKeyDisplayNames.TryGetValue(dik, out string? foundDisplay))
         {
-            DirectInputKeyCode.DikLshift => "L-Shift",
-            DirectInputKeyCode.DikRshift => "R-Shift",
-            DirectInputKeyCode.DikLcontrol => "L-Ctrl",
-            DirectInputKeyCode.DikRcontrol => "R-Ctrl",
-            DirectInputKeyCode.DikLalt => "L-Alt",
-            DirectInputKeyCode.DikRalt => "R-Alt",
-            DirectInputKeyCode.DikUp => "Up",
-            DirectInputKeyCode.DikDown => "Down",
-            DirectInputKeyCode.DikLeft => "Left",
-            DirectInputKeyCode.DikRight => "Right",
-            DirectInputKeyCode.DikHome => "Home",
-            DirectInputKeyCode.DikEnd => "End",
-            DirectInputKeyCode.DikPageUp => "PgUp",
-            DirectInputKeyCode.DikPageDown => "PgDn",
-            DirectInputKeyCode.DikInsert => "Ins",
-            DirectInputKeyCode.DikDelete => "Del",
-            DirectInputKeyCode.DikNumpad0 => "Num0",
-            DirectInputKeyCode.DikNumpad1 => "Num1",
-            DirectInputKeyCode.DikNumpad2 => "Num2",
-            DirectInputKeyCode.DikNumpad3 => "Num3",
-            DirectInputKeyCode.DikNumpad4 => "Num4",
-            DirectInputKeyCode.DikNumpad5 => "Num5",
-            DirectInputKeyCode.DikNumpad6 => "Num6",
-            DirectInputKeyCode.DikNumpad7 => "Num7",
-            DirectInputKeyCode.DikNumpad8 => "Num8",
-            DirectInputKeyCode.DikNumpad9 => "Num9",
-            DirectInputKeyCode.DikMultiply => "Num*",
-            DirectInputKeyCode.DikAdd => "Num+",
-            DirectInputKeyCode.DikSubtract => "Num-",
-            DirectInputKeyCode.DikDivide => "Num/",
-            DirectInputKeyCode.DikDecimal => "Num.",
-            DirectInputKeyCode.DikNumpadenter => "NumEnter",
-            _ => string.Empty
-        };
-
-        if (!string.IsNullOrEmpty(display))
-        {
+            display = foundDisplay;
             return true;
         }
 
@@ -98,6 +98,7 @@ internal static class DirectInputDisplayMapper
 
         if (IsModifierKey(dik))
         {
+            display = string.Empty;
             return false;
         }
 
@@ -168,7 +169,6 @@ internal static class DirectInputDisplayMapper
 
         return ToTitleCase(character.Length == 1 ? character.ToUpperInvariant() : character);
     }
-
 
     /// <summary>
     ///     Checks if DIK is a modifier key requiring L/R distinction.

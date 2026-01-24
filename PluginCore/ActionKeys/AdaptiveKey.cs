@@ -1,5 +1,8 @@
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using BarRaider.SdTools;
 using SCStreamDeck.Common;
+using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
 
 // ReSharper disable once UnusedType.Global
@@ -25,7 +28,7 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"{GetType().Name}: {ex.Message}");
+            Log.Err($"{GetType().Name}: {ex.Message}", ex);
         }
     }
 
@@ -38,7 +41,7 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"{GetType().Name}: {ex.Message}");
+            Log.Err($"{GetType().Name}: {ex.Message}", ex);
         }
     }
 
@@ -67,9 +70,19 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
         await ExecuteKeybindingAsync(context).ConfigureAwait(false);
     }
 
+    /// <summary>
+    ///     Validates and resolves keybinding action.
+    ///     Marked as [ExcludeFromCodeCoverage] because:
+    ///     - Depends on Stream Deck SDK runtime (SDConnection, InitialPayload, KeybindingService)
+    ///     - SDK cannot be properly mocked without external dependencies
+    ///     - Requires running Stream Deck host application
+    ///     - Integration testing requires physical Stream Deck device
+    ///     - Business logic tested through KeybindingService unit tests
+    /// </summary>
+    [ExcludeFromCodeCoverage]
     private (KeybindingAction, string)? ValidateAndResolve()
     {
-        if (string.IsNullOrWhiteSpace(Settings.Function) || !IsReady)
+        if (string.IsNullOrWhiteSpace(Settings.Function) || !CanExecuteBindings)
         {
             return null;
         }
@@ -89,6 +102,14 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
         return (action, executableBinding);
     }
 
+    /// <summary>
+    ///     Gets executable binding from keybinding action.
+    ///     Marked as [ExcludeFromCodeCoverage] because:
+    ///     - Part of ValidateAndResolve call chain (SDK dependencies)
+    ///     - Unit testing covered through KeybindingAction tests
+    ///     - Integration testing requires Stream Deck runtime
+    /// </summary>
+    [ExcludeFromCodeCoverage]
     private static string? GetExecutableBinding(KeybindingAction action)
     {
         if (!string.IsNullOrWhiteSpace(action.KeyboardBinding))
@@ -112,22 +133,20 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
             bool success = await KeybindingService.ExecuteAsync(context).ConfigureAwait(false);
             if (success)
             {
-#if DEBUG
                 LogExec(context);
-#endif
             }
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"{GetType().Name}: '{context.ActionName}': {ex.Message}");
+            Log.Err($"{GetType().Name}: '{context.ActionName}': {ex.Message}", ex);
         }
     }
 
+    [Conditional("DEBUG")]
     private void LogExec(KeybindingExecutionContext context)
     {
         string actionText = context.IsKeyDown ? "pressed" : "released";
-        Logger.Instance.LogMessage(TracingLevel.DEBUG,
-            $"{GetType().Name}: {actionText} '{context.ActionName}' ({context.ActivationMode}) → '{context.Binding}'");
+        Log.Debug($"{GetType().Name}: {actionText} '{context.ActionName}' ({context.ActivationMode}) → '{context.Binding}'");
     }
 
     #endregion

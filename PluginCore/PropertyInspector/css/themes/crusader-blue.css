@@ -1,0 +1,14 @@
+:root {
+  --theme-accent-rgb: 78, 156, 255;
+  --theme-accent-hi-rgb: 150, 205, 255;
+
+  --theme-surface-0-rgb: 12, 18, 28;
+  --theme-surface-1-rgb: 10, 16, 23;
+  --theme-surface-2-rgb: 18, 26, 38;
+  --theme-border-rgb: 12, 64, 88;
+
+  /* Optional: theme-specific text colors (overrides base.css defaults) */
+  --color-text-primary: rgba(var(--theme-accent-hi-rgb), 0.95);
+  --color-text-secondary: rgba(245, 252, 255, 1);
+  --color-text-tertiary: rgba(150, 185, 200, 0.75);
+}

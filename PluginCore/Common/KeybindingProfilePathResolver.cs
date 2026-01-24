@@ -1,4 +1,4 @@
-using BarRaider.SdTools;
+using SCStreamDeck.Logging;
 
 namespace SCStreamDeck.Common;
 
@@ -28,7 +28,7 @@ public static class KeybindingProfilePathResolver
         }
         catch (Exception ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR, $"KeybindingProfilePathResolver: {ex.Message}");
+            Log.Err($"[{nameof(KeybindingProfilePathResolver)}] {ex.Message}", ex);
         }
 
         return null;

@@ -1,0 +1,11 @@
+:root {
+  /* Theme palette only. Component CSS consumes --color-* tokens from base.css. */
+  --theme-accent-rgb: 212, 175, 55;
+  --theme-accent-hi-rgb: 255, 215, 0;
+
+  --theme-surface-0-rgb: 18, 18, 18;
+  --theme-surface-1-rgb: 15, 15, 15;
+  --theme-surface-2-rgb: 33, 33, 33;
+
+  --theme-border-rgb: 42, 42, 42;
+}

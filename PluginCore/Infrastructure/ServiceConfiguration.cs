@@ -1,50 +1,52 @@
 using Microsoft.Extensions.DependencyInjection;
+using SCStreamDeck.Common;
 using SCStreamDeck.Services.Audio;
 using SCStreamDeck.Services.Core;
 using SCStreamDeck.Services.Data;
 using SCStreamDeck.Services.Installation;
 using SCStreamDeck.Services.Keybinding;
+using SCStreamDeck.Services.UI;
 using WindowsInput;
 
 namespace SCStreamDeck.Infrastructure;
 
 /// <summary>
-///     Configures and registers all SCCore services for dependency injection.
+///     Configures and registers plugin services for dependency injection.
 /// </summary>
 public static class ServiceConfiguration
 {
+    // ReSharper disable once UnusedMethodReturnValue.Local
     /// <summary>
-    ///     Registers all SCCore services to the service collection.
+    ///     Registers all plugin services to service collection.
     /// </summary>
-    public static IServiceCollection AddSCCoreServices(this IServiceCollection services)
+    private static IServiceCollection AddPluginServices(this IServiceCollection services)
     {
-        // Register external dependencies
+        services.AddSingleton<IFileSystem, SystemFileSystem>();
+
         services.AddSingleton<IInputSimulator, InputSimulator>();
-        services.AddSingleton<IAudioPlayerService, AudioPlayerService>();
+        services.AddSingleton<AudioPlayerService>();
 
-        // Register common services
+        services.AddSingleton<PathProviderService>();
 
-        services.AddSingleton<IPathProvider, PathProviderService>();
-        services.AddSingleton<IVersionProvider, VersionProviderService>();
-
-        // Register core services
-        services.AddSingleton<IStateService, StateService>();
+        services.AddSingleton<StateService>();
+        services.AddSingleton<ThemeService>();
         services.AddSingleton<IP4KArchiveService, P4KArchiveService>();
         services.AddSingleton<ICryXmlParserService, CryXmlParserService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
         services.AddSingleton<IInstallLocatorService, InstallLocatorService>();
 
-        // Register keybinding parser and output services (must be before IKeybindingProcessorService)
+        services.AddSingleton<IKeybindingsJsonCache, KeybindingsJsonCache>();
+        services.AddSingleton<ICachedInstallationsCleanupService, CachedInstallationsCleanupService>();
+
         services.AddSingleton<IKeybindingXmlParserService, KeybindingXmlParserService>();
         services.AddSingleton<IKeybindingMetadataService, KeybindingMetadataService>();
         services.AddSingleton<IKeybindingOutputService, KeybindingOutputService>();
-        services.AddSingleton<IKeybindingLoaderService, KeybindingLoaderService>();
-        services.AddSingleton<IKeybindingParserService, KeybindingParserService>();
-        services.AddSingleton<IKeybindingExecutorService, KeybindingExecutorService>();
+        services.AddSingleton<KeybindingLoaderService>();
+        services.AddSingleton<KeybindingExecutorService>();
 
-        services.AddSingleton<IKeybindingProcessorService, KeybindingProcessorService>();
-        services.AddSingleton<IKeybindingService, KeybindingService>();
-        services.AddSingleton<IInitializationService, InitializationService>();
+        services.AddSingleton<KeybindingProcessorService>();
+        services.AddSingleton<KeybindingService>();
+        services.AddSingleton<InitializationService>();
 
         return services;
     }
@@ -53,14 +55,12 @@ public static class ServiceConfiguration
     ///     Builds and initializes the service provider.
     ///     Should be called early in Program.cs before StreamDeck initialization.
     /// </summary>
-    public static IServiceProvider BuildAndInitialize()
+    public static void BuildAndInitialize()
     {
         ServiceCollection services = new();
-        services.AddSCCoreServices();
+        services.AddPluginServices();
 
         ServiceProvider serviceProvider = services.BuildServiceProvider();
         ServiceLocator.Initialize(serviceProvider);
-
-        return serviceProvider;
     }
 }

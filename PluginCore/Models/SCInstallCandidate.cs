@@ -16,13 +16,6 @@ public sealed record SCInstallCandidate(
 /// </summary>
 public enum InstallSource
 {
-    /// <summary>
-    ///     Installation was auto-detected from RSI Launcher logs
-    /// </summary>
     AutoDetected,
-
-    /// <summary>
-    ///     Installation was manually configured by user in custom-paths.ini
-    /// </summary>
     UserProvided
 }

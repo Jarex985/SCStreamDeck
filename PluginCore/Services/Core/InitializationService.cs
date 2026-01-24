@@ -1,4 +1,3 @@
-using BarRaider.SdTools;
 using SCStreamDeck.Common;
 using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
@@ -10,32 +9,39 @@ namespace SCStreamDeck.Services.Core;
 /// <summary>
 ///     Handles plugin startup, installation detection, and channel management.
 /// </summary>
-public sealed class InitializationService : IInitializationService, IDisposable
+public sealed class InitializationService : IDisposable
 {
+    private readonly ICachedInstallationsCleanupService _cachedInstallationsCleanupService;
     private readonly SemaphoreSlim _initSemaphore = new(1, 1);
     private readonly IInstallLocatorService _installLocator;
-    private readonly IKeybindingProcessorService _keybindingProcessor;
-    private readonly IKeybindingService _keybindingService;
+    private readonly KeybindingProcessorService _keybindingProcessor;
+    private readonly KeybindingService _keybindingService;
+    private readonly IKeybindingsJsonCache _keybindingsJsonCache;
     private readonly object _lock = new();
-    private readonly IPathProvider _pathProvider;
-    private readonly IStateService _stateService;
+    private readonly PathProviderService _pathProvider;
+    private readonly StateService _stateService;
 
     private SCChannel _currentChannel = SCChannel.Live;
     private Task<InitializationResult>? _initializationTask;
     private bool _initialized;
 
     public InitializationService(
-        IKeybindingService keybindingService,
+        KeybindingService keybindingService,
         IInstallLocatorService installLocator,
-        IKeybindingProcessorService keybindingProcessor,
-        IPathProvider pathProvider,
-        IStateService stateService)
+        KeybindingProcessorService keybindingProcessor,
+        PathProviderService pathProvider,
+        StateService stateService,
+        IKeybindingsJsonCache keybindingsJsonCache,
+        ICachedInstallationsCleanupService cachedInstallationsCleanupService)
     {
         _keybindingService = keybindingService ?? throw new ArgumentNullException(nameof(keybindingService));
         _installLocator = installLocator ?? throw new ArgumentNullException(nameof(installLocator));
         _keybindingProcessor = keybindingProcessor ?? throw new ArgumentNullException(nameof(keybindingProcessor));
         _pathProvider = pathProvider ?? throw new ArgumentNullException(nameof(pathProvider));
         _stateService = stateService ?? throw new ArgumentNullException(nameof(stateService));
+        _keybindingsJsonCache = keybindingsJsonCache ?? throw new ArgumentNullException(nameof(keybindingsJsonCache));
+        _cachedInstallationsCleanupService = cachedInstallationsCleanupService ??
+                                             throw new ArgumentNullException(nameof(cachedInstallationsCleanupService));
         _pathProvider.EnsureDirectoriesExist();
     }
 
@@ -50,10 +56,6 @@ public sealed class InitializationService : IInitializationService, IDisposable
         }
     }
 
-    public void Dispose() => _initSemaphore.Dispose();
-
-    //public event EventHandler<InitializationResult>? InitializationCompleted;
-
     public bool IsInitialized
     {
         get
@@ -64,6 +66,10 @@ public sealed class InitializationService : IInitializationService, IDisposable
             }
         }
     }
+
+    public void Dispose() => _initSemaphore.Dispose();
+
+    public event Action? KeybindingsStateChanged;
 
     public async Task<InitializationResult> EnsureInitializedAsync(CancellationToken cancellationToken = default)
     {
@@ -86,9 +92,14 @@ public sealed class InitializationService : IInitializationService, IDisposable
             }
 
             _initializationTask = InitializeInternalAsync(cancellationToken);
-            InitializationResult result = await _initializationTask.ConfigureAwait(false);
-            _initializationTask = null;
-            return result;
+            try
+            {
+                return await _initializationTask.ConfigureAwait(false);
+            }
+            finally
+            {
+                _initializationTask = null;
+            }
         }
         finally
         {
@@ -101,12 +112,7 @@ public sealed class InitializationService : IInitializationService, IDisposable
     {
         try
         {
-            lock (_lock)
-            {
-                _currentChannel = channel;
-            }
-
-            string jsonPath = GetKeybindingsJsonPath();
+            string jsonPath = _pathProvider.GetKeybindingJsonPath(channel.ToString());
             bool success = await _keybindingService.LoadKeybindingsAsync(jsonPath, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -115,20 +121,46 @@ public sealed class InitializationService : IInitializationService, IDisposable
                 return false;
             }
 
-            Logger.Instance.LogMessage(TracingLevel.INFO,
-                $"[{nameof(InitializationService)}] Switched to {channel}");
+            lock (_lock)
+            {
+                _currentChannel = channel;
+            }
+
+            Log.Debug($"[{nameof(InitializationService)}] Switched to {channel}");
+
+            KeybindingsStateChanged?.Invoke();
             return true;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[InitializationService] {ErrorMessages.ChannelSwitchFailed}: {ex.Message}");
+            Log.Err($"[{nameof(InitializationService)}] Failed to switch channel to {channel}", ex);
             return false;
         }
     }
 
+    public async Task<InitializationResult> FactoryResetAsync(CancellationToken cancellationToken = default)
+    {
+        lock (_lock)
+        {
+            _initialized = false;
+            _initializationTask = null;
+            _currentChannel = SCChannel.Live;
+        }
 
-    public void InvalidateCache()
+        // Full reset: delete state (including custom overrides and theme selection) and generated keybindings.
+        _stateService.DeleteStateFile();
+        _installLocator.InvalidateCache();
+
+        bool anyDeleted = _keybindingsJsonCache.TryDeleteAll();
+        if (anyDeleted)
+        {
+            KeybindingsStateChanged?.Invoke();
+        }
+
+        return await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<InitializationResult> ForceRedetectionAsync(CancellationToken cancellationToken = default)
     {
         lock (_lock)
         {
@@ -136,10 +168,233 @@ public sealed class InitializationService : IInitializationService, IDisposable
             _initializationTask = null;
         }
 
-        _stateService.InvalidateState();
         _installLocator.InvalidateCache();
-        Logger.Instance.LogMessage(TracingLevel.INFO,
-            $"[{nameof(InitializationService)}] Cache invalidated");
+        return await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    ///     Sets or clears a custom Data.p4k override for a specific channel.
+    ///     Intended for Control Panel file pickers.
+    /// </summary>
+    public async Task<bool> ApplyCustomDataP4KOverrideAsync(
+        SCChannel channel,
+        string? dataP4KPath,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return string.IsNullOrWhiteSpace(dataP4KPath)
+                ? await ClearCustomDataP4KOverrideAsync(channel, cancellationToken).ConfigureAwait(false)
+                : await SetCustomDataP4KOverrideAsync(channel, dataP4KPath, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Log.Err($"[{nameof(InitializationService)}] Failed to apply custom Data.p4k override", ex);
+            return false;
+        }
+    }
+
+    private async Task<bool> ClearCustomDataP4KOverrideAsync(SCChannel channel, CancellationToken cancellationToken)
+    {
+        bool wasActive = IsActiveChannel(channel);
+
+        await _stateService.RemoveInstallationAsync(channel, cancellationToken).ConfigureAwait(false);
+
+        DeleteKeybindingsJsonAndNotify(channel);
+
+        // Prefer minimal re-detection to avoid disrupting other channels.
+        await RedetectChannelInstallationAsync(channel, cancellationToken).ConfigureAwait(false);
+
+        if (!wasActive || KeybindingsJsonExists())
+        {
+            return true;
+        }
+
+        // Avoid getting stuck on a channel without a keybindings JSON.
+        bool healed = await TrySwitchToAvailableCachedChannelAsync(channel, cancellationToken).ConfigureAwait(false);
+        if (healed)
+        {
+            return true;
+        }
+
+        await ForceRedetectionAsync(cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    private async Task<bool> SetCustomDataP4KOverrideAsync(
+        SCChannel channel,
+        string dataP4KPath,
+        CancellationToken cancellationToken)
+    {
+        if (!InstallationState.TryCreateFromDataP4KPath(channel, dataP4KPath, out InstallationState? installation) ||
+            installation == null)
+        {
+            return false;
+        }
+
+        PluginState? before = await _stateService.LoadStateAsync(cancellationToken).ConfigureAwait(false);
+        await _stateService.UpdateInstallationAsync(channel, installation, cancellationToken).ConfigureAwait(false);
+
+        DeleteKeybindingsJsonAndNotify(channel);
+
+        bool generated = await GenerateKeybindingsForChannelAsync(installation, cancellationToken).ConfigureAwait(false);
+        if (!generated)
+        {
+            return false;
+        }
+
+        // Preserve an explicit user preference; only pick a default when no state exists.
+        if (before == null)
+        {
+            await _stateService.UpdateSelectedChannelAsync(channel, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (IsActiveOrUninitialized(channel))
+        {
+            await ReloadChannelKeybindingsIfPossibleAsync(channel, cancellationToken).ConfigureAwait(false);
+        }
+
+        _installLocator.SetSelectedInstallation(installation.ToCandidate());
+        return true;
+    }
+
+    private bool IsActiveChannel(SCChannel channel)
+    {
+        lock (_lock)
+        {
+            return _currentChannel == channel;
+        }
+    }
+
+    private bool IsActiveOrUninitialized(SCChannel channel)
+    {
+        lock (_lock)
+        {
+            return !_initialized || _currentChannel == channel;
+        }
+    }
+
+    private void DeleteKeybindingsJsonAndNotify(SCChannel channel)
+    {
+        bool deleted = _keybindingsJsonCache.TryDelete(channel);
+        if (deleted)
+        {
+            KeybindingsStateChanged?.Invoke();
+        }
+    }
+
+    private async Task ReloadChannelKeybindingsIfPossibleAsync(SCChannel channel, CancellationToken cancellationToken)
+    {
+        bool switched = await SwitchChannelAsync(channel, cancellationToken).ConfigureAwait(false);
+        if (!switched)
+        {
+            return;
+        }
+
+        lock (_lock)
+        {
+            _initialized = true;
+        }
+    }
+
+    private async Task RedetectChannelInstallationAsync(SCChannel channel, CancellationToken cancellationToken)
+    {
+        try
+        {
+            _installLocator.InvalidateCache();
+
+            SCInstallCandidate? candidate = (await _installLocator.FindInstallationsAsync(cancellationToken)
+                    .ConfigureAwait(false))
+                .FirstOrDefault(c => c.Channel == channel);
+
+            if (candidate == null)
+            {
+                return;
+            }
+
+            InstallationState installation = InstallationState.FromCandidate(candidate);
+            await _stateService.UpdateInstallationAsync(channel, installation, cancellationToken).ConfigureAwait(false);
+
+            // Best-effort regeneration for this channel only.
+            bool generated = await GenerateKeybindingsForChannelAsync(installation, cancellationToken).ConfigureAwait(false);
+            if (!generated)
+            {
+                return;
+            }
+
+            bool shouldReload;
+            lock (_lock)
+            {
+                shouldReload = !_initialized || _currentChannel == channel;
+            }
+
+            if (shouldReload)
+            {
+                bool switched = await SwitchChannelAsync(channel, cancellationToken).ConfigureAwait(false);
+                if (switched)
+                {
+                    lock (_lock)
+                    {
+                        _initialized = true;
+                    }
+                }
+            }
+
+            _installLocator.SetSelectedInstallation(candidate);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Log.Warn($"[{nameof(InitializationService)}] Failed to re-detect channel {channel}", ex);
+        }
+    }
+
+    private async Task<bool> TrySwitchToAvailableCachedChannelAsync(
+        SCChannel excludedChannel,
+        CancellationToken cancellationToken)
+    {
+        PluginState? state = await _stateService.LoadStateAsync(cancellationToken).ConfigureAwait(false);
+        if (state == null)
+        {
+            return false;
+        }
+
+        SCChannel[] priority = [SCChannel.Live, SCChannel.Hotfix, SCChannel.Ptu, SCChannel.Eptu];
+        foreach (SCChannel channel in priority)
+        {
+            if (channel == excludedChannel)
+            {
+                continue;
+            }
+
+            InstallationState? installation = state.GetInstallation(channel);
+            if (installation == null || !installation.Validate())
+            {
+                continue;
+            }
+
+            if (!_keybindingsJsonCache.Exists(channel))
+            {
+                continue;
+            }
+
+            bool switched = await SwitchChannelAsync(channel, cancellationToken).ConfigureAwait(false);
+            if (!switched)
+            {
+                continue;
+            }
+
+            await _stateService.UpdateSelectedChannelAsync(channel, cancellationToken).ConfigureAwait(false);
+            _installLocator.SetSelectedInstallation(installation.ToCandidate());
+
+            lock (_lock)
+            {
+                _initialized = true;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     public string GetKeybindingsJsonPath()
@@ -153,47 +408,15 @@ public sealed class InitializationService : IInitializationService, IDisposable
         return _pathProvider.GetKeybindingJsonPath(channel.ToString());
     }
 
-    /// <summary>
-    ///     Validates cached installations and performs cleanup for removed installations.
-    /// </summary>
-    private async Task<CacheValidationResult> ValidateAndCleanupCachedInstallationsAsync(
-        IReadOnlyList<SCInstallCandidate>? cachedCandidates, CancellationToken cancellationToken)
+    public bool KeybindingsJsonExists()
     {
-        if (cachedCandidates == null || cachedCandidates.Count == 0)
+        SCChannel channel;
+        lock (_lock)
         {
-            return new CacheValidationResult { ValidCandidates = new List<SCInstallCandidate>(), NeedsFullDetection = true };
+            channel = _currentChannel;
         }
 
-        List<SCInstallCandidate> validCandidates = new();
-        foreach (SCInstallCandidate cached in cachedCandidates)
-        {
-            if (File.Exists(cached.DataP4KPath) && Directory.Exists(cached.ChannelPath))
-            {
-                validCandidates.Add(cached);
-                continue;
-            }
-
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[{nameof(InitializationService)}] {cached.Channel} installation no longer exists, cleaning up");
-
-            string keybindingJson = _pathProvider.GetKeybindingJsonPath(cached.Channel.ToString());
-            if (File.Exists(keybindingJson))
-            {
-                try
-                {
-                    File.Delete(keybindingJson);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Instance.LogMessage(TracingLevel.WARN,
-                        $"[{nameof(InitializationService)}] {ErrorMessages.KeybindingsDeleteFailed}: {ex.Message}");
-                }
-            }
-
-            await _stateService.RemoveInstallationAsync(cached.Channel, cancellationToken).ConfigureAwait(false);
-        }
-
-        return new CacheValidationResult { ValidCandidates = validCandidates, NeedsFullDetection = validCandidates.Count == 0 };
+        return _keybindingsJsonCache.Exists(channel);
     }
 
 
@@ -202,35 +425,23 @@ public sealed class InitializationService : IInitializationService, IDisposable
     ///     Always scans RSI logs to detect new installation locations (e.g., moved to different drive).
     ///     Always checks cached paths to detect new channels in existing locations.
     /// </summary>
-    private async Task<List<SCInstallCandidate>> DetectInstallationsAsync(CacheValidationResult validationResult,
+    private async Task<List<SCInstallCandidate>> DetectInstallationsAsync(CachedInstallationsCleanupResult cleanupResult,
         CancellationToken cancellationToken)
     {
-        Dictionary<string, SCInstallCandidate> candidateMap = new(StringComparer.OrdinalIgnoreCase);
-        Dictionary<string, string> detectionSources = new();
-
         List<SCInstallCandidate> rsiLogCandidates =
             (await _installLocator.FindInstallationsAsync(cancellationToken).ConfigureAwait(false)).ToList();
 
-        foreach (SCInstallCandidate candidate in rsiLogCandidates)
-        {
-            string key = BuildCandidateKey(candidate);
-            candidateMap[key] = candidate;
-            detectionSources[candidate.Channel.ToString()] = candidate.Source == InstallSource.UserProvided
-                ? "User Config"
-                : "RSI Logs";
-        }
-
-        if (!validationResult.NeedsFullDetection && validationResult.ValidCandidates.Count > 0)
-        {
-            MergeCachedCandidates(validationResult, candidateMap, detectionSources);
-        }
+        (Dictionary<string, SCInstallCandidate> candidateMap, Dictionary<string, string> detectionSources) =
+            InstallationDetectionMerger.Merge(
+                rsiLogCandidates,
+                cleanupResult.ValidCandidates,
+                cleanupResult.NeedsFullDetection);
 
         List<SCInstallCandidate> finalCandidates = candidateMap.Values.ToList();
         if (finalCandidates.Count == 0)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[InitializationService] {ErrorMessages.InstallDetectionFailed}");
-            throw new InvalidOperationException(ErrorMessages.InstallDetectionFailed);
+            Log.Warn($"[{nameof(InitializationService)}] No installations detected");
+            return [];
         }
 
         await PersistCandidatesAsync(finalCandidates, cancellationToken).ConfigureAwait(false);
@@ -257,42 +468,35 @@ public sealed class InitializationService : IInitializationService, IDisposable
     {
         if (rsiRootPaths.Count > 0)
         {
+            // ReSharper disable once RedundantAssignment
             string pathsList = string.Join(", ", rsiRootPaths);
-            Logger.Instance.LogMessage(TracingLevel.INFO,
-                $"[InitializationService] Scanned {rsiRootPaths.Count} root path(s) from RSI logs: {pathsList}");
+            Log.Debug(
+                $"[{nameof(InitializationService)}] Scanned {rsiRootPaths.Count} root path(s) from RSI logs: {pathsList}");
         }
 
         if (candidates.Count == 0)
         {
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[{nameof(InitializationService)}] No installations detected");
+            Log.Warn($"[{nameof(InitializationService)}] No installations detected");
             return;
         }
 
-        Logger.Instance.LogMessage(TracingLevel.INFO,
-            $"[{nameof(InitializationService)}] Detected {candidates.Count} installation(s):");
-
+        Log.Info($"[{nameof(InitializationService)}] Auto-detected {candidates.Count} installation(s):");
 
         foreach (SCInstallCandidate candidate in candidates.OrderBy(c => c.Channel))
         {
-            string source = sources.TryGetValue(candidate.Channel.ToString(), out string? value) ? value : "Unknown";
-            Logger.Instance.LogMessage(TracingLevel.INFO,
-                $"[{nameof(InitializationService)}] {candidate.Channel} at {candidate.RootPath} (Source: {source})");
+            string source = sources.GetValueOrDefault(candidate.Channel.ToString(), "Unknown");
+            Log.Info($"[{nameof(InitializationService)}] {candidate.Channel} at {candidate.RootPath} (Source: {source})");
         }
     }
 
 
-    /// <summary>
-    ///     Selects the optimal channel from available installations with priority: LIVE > HOTFIX > PTU > EPTU.
-    ///     Only selects channels that actually exist in the candidates list.
-    /// </summary>
-    private SCInstallCandidate SelectOptimalChannel(List<SCInstallCandidate> candidates)
+    private SCInstallCandidate SelectPreferredOrFallbackChannel(
+        List<SCInstallCandidate> candidates,
+        SCChannel preferred,
+        out bool usedFallback)
     {
-        SCInstallCandidate selectedCandidate = candidates.FirstOrDefault(c => c.Channel == SCChannel.Live)
-                                               ?? candidates.FirstOrDefault(c => c.Channel == SCChannel.Hotfix)
-                                               ?? candidates.FirstOrDefault(c => c.Channel == SCChannel.Ptu)
-                                               ?? candidates.FirstOrDefault(c => c.Channel == SCChannel.Eptu)
-                                               ?? candidates[0];
+        SCInstallCandidate selectedCandidate =
+            ChannelSelector.SelectPreferredOrFallback(candidates, preferred, out usedFallback);
 
         lock (_lock)
         {
@@ -300,10 +504,31 @@ public sealed class InitializationService : IInitializationService, IDisposable
         }
 
         _installLocator.SetSelectedInstallation(selectedCandidate);
-        Logger.Instance.LogMessage(TracingLevel.INFO,
-            $"[InitializationService] Selected {selectedCandidate.Channel} at '{selectedCandidate.DataP4KPath}'");
 
         return selectedCandidate;
+    }
+
+    private async Task<bool> GenerateKeybindingsForChannelAsync(InstallationState installation,
+        CancellationToken cancellationToken)
+    {
+        SCInstallCandidate candidate = installation.ToCandidate();
+        string channelJsonPath = _pathProvider.GetKeybindingJsonPath(candidate.Channel.ToString());
+        string? actionMapsPath = KeybindingProfilePathResolver.TryFindActionMapsXml(candidate.ChannelPath);
+        KeybindingProcessResult processResult = await _keybindingProcessor.ProcessKeybindingsAsync(
+                candidate,
+                actionMapsPath,
+                channelJsonPath,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!processResult.IsSuccess)
+        {
+            Log.Warn(
+                $"[{nameof(InitializationService)}] Failed to generate keybindings for {candidate.Channel}: {processResult.ErrorMessage}");
+            return false;
+        }
+
+        return true;
     }
 
 
@@ -318,7 +543,8 @@ public sealed class InitializationService : IInitializationService, IDisposable
         foreach (SCInstallCandidate candidate in candidates)
         {
             string channelJsonPath = _pathProvider.GetKeybindingJsonPath(candidate.Channel.ToString());
-            if (File.Exists(channelJsonPath) && !_keybindingProcessor.NeedsRegeneration(channelJsonPath, candidate))
+            if (_keybindingsJsonCache.Exists(candidate.Channel) &&
+                !_keybindingProcessor.NeedsRegeneration(channelJsonPath, candidate))
             {
                 continue;
             }
@@ -333,13 +559,13 @@ public sealed class InitializationService : IInitializationService, IDisposable
 
             if (!processResult.IsSuccess)
             {
-                Logger.Instance.LogMessage(TracingLevel.WARN,
-                    $"[InitializationService] Failed to generate keybindings for {candidate.Channel}: {processResult.ErrorMessage}");
+                Log.Warn(
+                    $"[{nameof(InitializationService)}] Failed to generate keybindings for {candidate.Channel}: {processResult.ErrorMessage}");
 
                 if (candidate.Channel == selectedCandidate.Channel)
                 {
-                    Logger.Instance.LogMessage(TracingLevel.ERROR,
-                        $"[{nameof(InitializationService)}] {ErrorMessages.KeybindingProcessingFailed} {processResult.ErrorMessage}");
+                    Log.Err(
+                        $"[{nameof(InitializationService)}] Failed to process keybindings for selected channel {selectedCandidate.Channel}: {processResult.ErrorMessage}");
                     return false;
                 }
             }
@@ -348,44 +574,6 @@ public sealed class InitializationService : IInitializationService, IDisposable
         return true;
     }
 
-
-    private static string BuildCandidateKey(SCInstallCandidate candidate) => $"{candidate.RootPath}|{candidate.Channel}";
-
-    private static void MergeCachedCandidates(
-        CacheValidationResult validationResult,
-        Dictionary<string, SCInstallCandidate> candidateMap,
-        Dictionary<string, string> detectionSources)
-    {
-        HashSet<string> cachedRootPaths = validationResult.ValidCandidates
-            .Select(c => c.RootPath)
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        HashSet<SCChannel> cachedChannels = validationResult.ValidCandidates
-            .Select(c => c.Channel)
-            .ToHashSet();
-
-        List<SCInstallCandidate> cachedPathCandidates = new();
-        foreach (string rootPath in cachedRootPaths)
-        {
-            InstallationCandidateEnumerator.AddCandidatesFromRoot(cachedPathCandidates, rootPath);
-        }
-
-        foreach (SCInstallCandidate candidate in cachedPathCandidates)
-        {
-            string key = BuildCandidateKey(candidate);
-
-            if (!candidateMap.ContainsKey(key))
-            {
-                candidateMap[key] = candidate;
-                detectionSources[candidate.Channel.ToString()] = "Cache (New Channel)";
-            }
-            else if (cachedChannels.Contains(candidate.Channel))
-            {
-                detectionSources[candidate.Channel.ToString()] = "Cache";
-            }
-        }
-    }
 
     private async Task PersistCandidatesAsync(List<SCInstallCandidate> finalCandidates, CancellationToken cancellationToken)
     {
@@ -397,23 +585,33 @@ public sealed class InitializationService : IInitializationService, IDisposable
         }
     }
 
-    private async Task<CacheValidationResult> ValidateCacheAsync(CancellationToken cancellationToken)
+    private async Task<CachedInstallationsCleanupResult> ValidateCacheAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<SCInstallCandidate>? cachedCandidates =
             await _stateService.GetCachedCandidatesAsync(cancellationToken).ConfigureAwait(false);
-        return await ValidateAndCleanupCachedInstallationsAsync(cachedCandidates, cancellationToken).ConfigureAwait(false);
+
+        CachedInstallationsCleanupResult result =
+            await _cachedInstallationsCleanupService.CleanupAsync(cachedCandidates, cancellationToken).ConfigureAwait(false);
+
+        if (result.AnyKeybindingsDeleted)
+        {
+            KeybindingsStateChanged?.Invoke();
+        }
+
+        return result;
     }
 
     private async Task<List<SCInstallCandidate>> DetectCandidatesAsync(
-        CacheValidationResult validationResult,
+        CachedInstallationsCleanupResult cleanupResult,
         CancellationToken cancellationToken)
     {
         try
         {
-            return await DetectInstallationsAsync(validationResult, cancellationToken).ConfigureAwait(false);
+            return await DetectInstallationsAsync(cleanupResult, cancellationToken).ConfigureAwait(false);
         }
-        catch (InvalidOperationException ex) when (ex.Message == ErrorMessages.InstallDetectionFailed)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            Log.Err($"[{nameof(InitializationService)}] Failed to detect installations", ex);
             return [];
         }
     }
@@ -426,21 +624,39 @@ public sealed class InitializationService : IInitializationService, IDisposable
     {
         try
         {
-            CacheValidationResult validationResult = await ValidateCacheAsync(cancellationToken).ConfigureAwait(false);
-            List<SCInstallCandidate> candidates = await DetectCandidatesAsync(validationResult, cancellationToken)
+            PluginState? existingState = await _stateService.LoadStateAsync(cancellationToken).ConfigureAwait(false);
+            SCChannel preferredChannel = existingState?.SelectedChannel ?? SCChannel.Live;
+
+            CachedInstallationsCleanupResult cleanupResult = await ValidateCacheAsync(cancellationToken).ConfigureAwait(false);
+            List<SCInstallCandidate> candidates = await DetectCandidatesAsync(cleanupResult, cancellationToken)
                 .ConfigureAwait(false);
             if (candidates.Count == 0)
             {
-                return InitializationResult.Failure(ErrorMessages.InstallDetectionFailed);
+                return InitializationResult.Failure("No installation detected. Set custom path.");
             }
 
-            SCInstallCandidate selectedCandidate = SelectOptimalChannel(candidates);
+            SCInstallCandidate selectedCandidate =
+                SelectPreferredOrFallbackChannel(candidates, preferredChannel, out bool usedFallback);
+
+            if (usedFallback)
+            {
+                if (existingState?.GetInstallation(preferredChannel) == null)
+                {
+                    await _stateService.UpdateSelectedChannelAsync(selectedCandidate.Channel, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    Log.Warn(
+                        $"[{nameof(InitializationService)}] Preferred channel {preferredChannel} not available, using {selectedCandidate.Channel}");
+                }
+            }
 
             bool keybindingSuccess = await GenerateKeybindingsForChannelsAsync(candidates, selectedCandidate, cancellationToken)
                 .ConfigureAwait(false);
             if (!keybindingSuccess)
             {
-                return InitializationResult.Failure(ErrorMessages.KeybindingProcessingFailed);
+                return InitializationResult.Failure("Failed to generate keybindings. See logs.");
             }
 
             await _keybindingService.LoadKeybindingsAsync(GetKeybindingsJsonPath(), cancellationToken)
@@ -451,12 +667,19 @@ public sealed class InitializationService : IInitializationService, IDisposable
                 _initialized = true;
             }
 
+            // First run: persist the actually selected channel so subsequent startups don't warn about
+            // the default (Live) preference when only another channel exists.
+            if (existingState == null)
+            {
+                await _stateService.UpdateSelectedChannelAsync(selectedCandidate.Channel, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
             return InitializationResult.Success(_currentChannel, candidates.Count);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[InitializationService] Initialization failed: {ex.Message}");
+            Log.Err($"[{nameof(InitializationService)}] Initialization failed", ex);
             lock (_lock)
             {
                 _initialized = false;
@@ -465,11 +688,21 @@ public sealed class InitializationService : IInitializationService, IDisposable
             return InitializationResult.Failure($"Initialization failed: {ex.Message}");
         }
     }
+}
 
+/// <summary>
+///     Result of plugin initialization.
+/// </summary>
+public sealed class InitializationResult
+{
+    public bool IsSuccess { get; init; }
+    public string? ErrorMessage { get; init; }
+    public SCChannel SelectedChannel { get; init; }
+    public int DetectedInstallations { get; init; }
 
-    private sealed class CacheValidationResult
-    {
-        public List<SCInstallCandidate> ValidCandidates { get; init; } = [];
-        public bool NeedsFullDetection { get; init; }
-    }
+    public static InitializationResult Success(SCChannel channel, int installCount) =>
+        new() { IsSuccess = true, SelectedChannel = channel, DetectedInstallations = installCount };
+
+    public static InitializationResult Failure(string errorMessage) =>
+        new() { IsSuccess = false, ErrorMessage = errorMessage };
 }

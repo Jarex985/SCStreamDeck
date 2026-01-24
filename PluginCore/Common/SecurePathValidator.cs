@@ -1,5 +1,4 @@
 using System.Security;
-using BarRaider.SdTools;
 using SCStreamDeck.Logging;
 
 namespace SCStreamDeck.Common;
@@ -64,15 +63,12 @@ public static class SecurePathValidator
 
         catch (Exception ex) when (ex is ArgumentException or SecurityException or NotSupportedException or PathTooLongException)
         {
-            LogError(path, ex);
+            Log.Err($"[{nameof(SecurePathValidator)}] Invalid path '{path}'", ex);
             normalizedPath = string.Empty;
             return false;
         }
     }
 
-    private static void LogError(string path, Exception ex) =>
-        Logger.Instance.LogMessage(TracingLevel.ERROR,
-            $"[{nameof(SecurePathValidator)}] {ErrorMessages.InvalidPath} '{path}' - {ex.Message}");
 
     /// <summary>
     ///     Gets a secure, validated path or throws a SecurityException if validation fails.
@@ -80,7 +76,6 @@ public static class SecurePathValidator
     /// <param name="path">The path to validate.</param>
     /// <param name="baseDirectory">The base directory that the path must be within.</param>
     /// <returns>The normalized full path.</returns>
-    /// <exception cref="SecurityException">Thrown when path traversal is detected or path is invalid.</exception>
     public static string GetSecurePath(string path, string baseDirectory) =>
         !IsValidPath(path, baseDirectory, out string normalized)
             ? throw new SecurityException($"Invalid or unsafe path detected. Path must be within: {baseDirectory}")
@@ -116,7 +111,7 @@ public static class SecurePathValidator
 
         catch (Exception ex) when (ex is ArgumentException or SecurityException or NotSupportedException or PathTooLongException)
         {
-            LogError(path, ex);
+            Log.Err($"[{nameof(SecurePathValidator)}] Invalid path '{path}'", ex);
             return false;
         }
     }

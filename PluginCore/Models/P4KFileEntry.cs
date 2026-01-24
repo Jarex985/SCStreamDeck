@@ -1,4 +1,6 @@
-﻿namespace SCStreamDeck.Models;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+
+namespace SCStreamDeck.Models;
 
 /// <summary>
 ///     Represents a file entry in a P4K archive.

@@ -13,7 +13,7 @@ internal interface IActivationModeHandler
     /// <summary>
     ///     Gets the activation modes this handler supports.
     /// </summary>
-    IEnumerable<string> SupportedModes { get; }
+    IReadOnlyCollection<ActivationMode> SupportedModes { get; }
 
     /// <summary>
     ///     Executes the activation mode logic.

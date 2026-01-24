@@ -3,9 +3,9 @@
 **/obj/
 
 # IDE
-**/Docs/
 .idea/
 .apm/
+.docs/
 .vs/
 *.user
 *.suo

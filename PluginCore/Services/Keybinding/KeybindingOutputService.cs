@@ -1,4 +1,3 @@
-using System.Text;
 using Newtonsoft.Json;
 using SCStreamDeck.Common;
 using SCStreamDeck.Models;
@@ -10,8 +9,10 @@ namespace SCStreamDeck.Services.Keybinding;
 /// <summary>
 ///     Service for writing keybinding data to JSON files.
 /// </summary>
-public sealed class KeybindingOutputService : IKeybindingOutputService
+public sealed class KeybindingOutputService(IFileSystem fileSystem) : IKeybindingOutputService
 {
+    private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
+
     /// <summary>
     ///     Writes keybinding data to a JSON file.
     /// </summary>
@@ -47,14 +48,13 @@ public sealed class KeybindingOutputService : IKeybindingOutputService
         }
 
         string json = JsonConvert.SerializeObject(dataFile, Formatting.Indented);
-        await File.WriteAllTextAsync(outputJsonPath, json, Encoding.UTF8, cancellationToken)
-            .ConfigureAwait(false);
+        await _fileSystem.WriteAllTextAsync(outputJsonPath, json, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     ///     Builds the metadata object for the keybinding data file.
     /// </summary>
-    private static KeybindingMetadata BuildMetadata(
+    private KeybindingMetadata BuildMetadata(
         SCInstallCandidate installation,
         string? actionMapsPath,
         string language,
@@ -71,7 +71,7 @@ public sealed class KeybindingOutputService : IKeybindingOutputService
             ActivationModes = activationModes
         };
 
-        if (!string.IsNullOrWhiteSpace(actionMapsPath) && File.Exists(actionMapsPath))
+        if (!string.IsNullOrWhiteSpace(actionMapsPath) && _fileSystem.FileExists(actionMapsPath))
         {
             FileInfo actionMapsInfo = new(actionMapsPath);
             metadata.ActionMapsPath = NormalizePath(actionMapsPath);

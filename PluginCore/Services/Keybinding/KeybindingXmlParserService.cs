@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Xml;
-using BarRaider.SdTools;
 using SCStreamDeck.Common;
+using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Services.Keybinding;
@@ -20,69 +20,21 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
     {
         Dictionary<string, ActivationModeMetadata> modes = new(StringComparer.OrdinalIgnoreCase);
 
-        using StringReader sr = new(xmlText);
-        using XmlReader xmlReader = XmlReader.Create(sr,
-            new XmlReaderSettings
-            {
-                IgnoreComments = true, IgnoreWhitespace = true, DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null
-            });
+        using XmlReader xmlReader = CreateXmlReader(xmlText);
 
         while (xmlReader.Read())
         {
-            if (xmlReader.NodeType != XmlNodeType.Element)
+            if (!IsElementNamed(xmlReader, "ActivationMode"))
             {
                 continue;
             }
 
-            if (!xmlReader.Name.Equals("ActivationMode", StringComparison.OrdinalIgnoreCase))
+            if (!TryGetNonWhiteSpaceAttribute(xmlReader, "name", out string name))
             {
                 continue;
             }
 
-            string? name = xmlReader.GetAttribute("name");
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                continue;
-            }
-
-            string? pressTriggerAttr = xmlReader.GetAttribute("pressTriggerThreshold");
-            string? releaseTriggerAttr = xmlReader.GetAttribute("releaseTriggerThreshold");
-            string? releaseTriggerDelayAttr = xmlReader.GetAttribute("releaseTriggerDelay");
-            string? multiTapAttr = xmlReader.GetAttribute("multiTap");
-            string? multiTapBlockAttr = xmlReader.GetAttribute("multiTapBlock");
-
-            ActivationModeMetadata metadata = new()
-            {
-                OnPress = xmlReader.GetAttribute("onPress") == "1",
-                OnHold = xmlReader.GetAttribute("onHold") == "1",
-                OnRelease = xmlReader.GetAttribute("onRelease") == "1",
-                PressTriggerThreshold = !string.IsNullOrWhiteSpace(pressTriggerAttr) &&
-                                        float.TryParse(pressTriggerAttr, NumberStyles.Float, CultureInfo.InvariantCulture,
-                                            out float pt)
-                    ? pt
-                    : -1,
-                ReleaseTriggerThreshold = !string.IsNullOrWhiteSpace(releaseTriggerAttr) &&
-                                          float.TryParse(releaseTriggerAttr, NumberStyles.Float, CultureInfo.InvariantCulture,
-                                              out float rt)
-                    ? rt
-                    : -1,
-                ReleaseTriggerDelay = !string.IsNullOrWhiteSpace(releaseTriggerDelayAttr) &&
-                                      float.TryParse(releaseTriggerDelayAttr, NumberStyles.Float, CultureInfo.InvariantCulture,
-                                          out float rtd)
-                    ? rtd
-                    : 0,
-                Retriggerable = xmlReader.GetAttribute("retriggerable") == "1",
-                MultiTap = !string.IsNullOrWhiteSpace(multiTapAttr) &&
-                           int.TryParse(multiTapAttr, out int mt)
-                    ? mt
-                    : 1,
-                MultiTapBlock = !string.IsNullOrWhiteSpace(multiTapBlockAttr) &&
-                                int.TryParse(multiTapBlockAttr, out int mtb)
-                    ? mtb
-                    : 1
-            };
-
-            modes[name] = metadata;
+            modes[name] = ParseActivationModeMetadata(xmlReader);
         }
 
         return modes;
@@ -100,12 +52,7 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
         // Parse activation modes first (needed for inference)
         Dictionary<string, ActivationModeMetadata> activationModes = ParseActivationModes(xmlText);
 
-        using StringReader sr = new(xmlText);
-        using XmlReader xmlReader = XmlReader.Create(sr,
-            new XmlReaderSettings
-            {
-                IgnoreComments = true, IgnoreWhitespace = true, DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null
-            });
+        using XmlReader xmlReader = CreateXmlReader(xmlText);
 
         string currentMapName = string.Empty;
         string currentMapUiLabel = string.Empty;
@@ -138,6 +85,69 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
 
         return actions;
     }
+
+    private static XmlReader CreateXmlReader(string xmlText)
+    {
+        StringReader sr = new(xmlText);
+        return XmlReader.Create(sr,
+            new XmlReaderSettings
+            {
+                IgnoreComments = true, IgnoreWhitespace = true, DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null
+            });
+    }
+
+    private static bool IsElementNamed(XmlReader xmlReader, string elementName) =>
+        xmlReader.NodeType == XmlNodeType.Element &&
+        xmlReader.Name.Equals(elementName, StringComparison.OrdinalIgnoreCase);
+
+    private static bool TryGetNonWhiteSpaceAttribute(XmlReader xmlReader, string attributeName, out string value)
+    {
+        value = xmlReader.GetAttribute(attributeName) ?? string.Empty;
+        return !string.IsNullOrWhiteSpace(value);
+    }
+
+    private static bool GetBool01Attribute(XmlReader xmlReader, string attributeName) =>
+        xmlReader.GetAttribute(attributeName) == "1";
+
+    private static float GetFloatAttributeOrDefault(XmlReader xmlReader, string attributeName, float defaultValue)
+    {
+        string? raw = xmlReader.GetAttribute(attributeName);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return defaultValue;
+        }
+
+        return float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out float value)
+            ? value
+            : defaultValue;
+    }
+
+    private static int GetIntAttributeOrDefault(XmlReader xmlReader, string attributeName, int defaultValue)
+    {
+        string? raw = xmlReader.GetAttribute(attributeName);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return defaultValue;
+        }
+
+        return int.TryParse(raw, out int value)
+            ? value
+            : defaultValue;
+    }
+
+    private static ActivationModeMetadata ParseActivationModeMetadata(XmlReader xmlReader) =>
+        new()
+        {
+            OnPress = GetBool01Attribute(xmlReader, "onPress"),
+            OnHold = GetBool01Attribute(xmlReader, "onHold"),
+            OnRelease = GetBool01Attribute(xmlReader, "onRelease"),
+            PressTriggerThreshold = GetFloatAttributeOrDefault(xmlReader, "pressTriggerThreshold", -1f),
+            ReleaseTriggerThreshold = GetFloatAttributeOrDefault(xmlReader, "releaseTriggerThreshold", -1f),
+            ReleaseTriggerDelay = GetFloatAttributeOrDefault(xmlReader, "releaseTriggerDelay", 0f),
+            Retriggerable = GetBool01Attribute(xmlReader, "retriggerable"),
+            MultiTap = GetIntAttributeOrDefault(xmlReader, "multiTap", 1),
+            MultiTapBlock = GetIntAttributeOrDefault(xmlReader, "multiTapBlock", 1)
+        };
 
     /// <summary>
     ///     Parses a single action from XML reader.
@@ -229,11 +239,6 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
             return mode;
         }
 
-#if DEBUG
-        Logger.Instance.LogMessage(TracingLevel.WARN,
-            $"[{nameof(KeybindingXmlParserService)}] Unknown activation mode '{activationModeStr}', defaulting to 'press'");
-#endif
-
         return ActivationMode.press;
     }
 
@@ -266,11 +271,9 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
         // Fallback: heuristic if no exact match found
         ActivationMode inferred = InferFromHeuristic(onPress, onHold, onRelease, retriggerable);
 
-#if DEBUG
-        Logger.Instance.LogMessage(TracingLevel.WARN,
+        Log.Debug(
             $"[{nameof(KeybindingXmlParserService)}] Action '{actionName}' used heuristic activation mode: {inferred} " +
             $"(onPress={onPress}, onHold={onHold}, onRelease={onRelease}, retriggerable={retriggerable})");
-#endif
         return inferred;
     }
 

@@ -47,7 +47,7 @@ public static partial class KeyboardLayoutDetector
     }
 
 
-    // TODO: Why is it never used?
+    // TODO: Implement a way to listen for keyboard layout changes in the application - if possible.
     /// <summary>
     ///     Clears the cached keyboard layout, forcing the next call to <see cref="DetectCurrent" />
     ///     to re-detect the current layout. Call this when a keyboard layout change is detected.

@@ -11,7 +11,7 @@ public sealed class WindowsKeyLayoutCharMapperTests
     [Fact]
     public void TryGetChar_InvalidKey_ReturnsNull()
     {
-        string? result = WindowsKeyLayoutCharMapper.TryGetChar(DummyHkl, (VirtualKeyCode)0, 0, false, false);
+        string? result = WindowsKeyLayoutCharMapper.TryGetChar(DummyHkl, 0, 0, false, false);
 
         result.Should().BeNull();
     }

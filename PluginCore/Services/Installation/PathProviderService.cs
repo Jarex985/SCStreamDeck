@@ -5,7 +5,7 @@ namespace SCStreamDeck.Services.Installation;
 /// <summary>
 ///     Provides centralized path management for the plugin with security validation.
 /// </summary>
-public sealed class PathProviderService : IPathProvider
+public class PathProviderService
 {
     public PathProviderService()
     {
@@ -13,10 +13,19 @@ public sealed class PathProviderService : IPathProvider
         CacheDirectory = Path.Combine(BaseDirectory, "cache");
     }
 
-    public string BaseDirectory { get; }
-    public string CacheDirectory { get; }
+    /// <summary>
+    ///     Protected constructor for testing with custom directories.
+    /// </summary>
+    protected PathProviderService(string baseDirectory, string cacheDirectory)
+    {
+        BaseDirectory = baseDirectory;
+        CacheDirectory = cacheDirectory;
+    }
 
-    public string GetKeybindingJsonPath(string channel)
+    public virtual string BaseDirectory { get; }
+    public virtual string CacheDirectory { get; }
+
+    public virtual string GetKeybindingJsonPath(string channel)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel);
 
@@ -24,7 +33,7 @@ public sealed class PathProviderService : IPathProvider
         return Path.Combine(CacheDirectory, fileName);
     }
 
-    public void EnsureDirectoriesExist()
+    public virtual void EnsureDirectoriesExist()
     {
         if (Directory.Exists(CacheDirectory))
         {
@@ -34,7 +43,7 @@ public sealed class PathProviderService : IPathProvider
         Directory.CreateDirectory(CacheDirectory);
     }
 
-    public string GetSecureCachePath(string relativePath)
+    public virtual string GetSecureCachePath(string relativePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
 

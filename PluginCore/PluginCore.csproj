@@ -31,6 +31,8 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release\com.jarex985.scstreamdeck.sdPlugin\</OutputPath>
   </PropertyGroup>
+
+  <!-- EditorConfig -->
   <ItemGroup>
     <None Include="..\.editorconfig">
       <Link>.editorconfig</Link>
@@ -64,13 +66,15 @@
     <None Include="manifest.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="custom-paths.ini">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <Content Include="PropertyInspector\**\*.*">
+    <Content Include="PropertyInspector\**\*.*" Exclude="PropertyInspector\**\src\**\*.*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
+  <Target Name="BuildPropertyInspectorAssets" BeforeTargets="CopyFilesToOutputDirectory">
+    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\Tools\PiAssetsBuilder\PiAssetsBuilder.csproj&quot; --configuration $(Configuration) -- &quot;$(MSBuildProjectDirectory)\PropertyInspector&quot;"/>
+  </Target>
+
   <!-- Plugin Images -->
   <ItemGroup>
     <Content Include="Images\categoryIcon%402x.png">

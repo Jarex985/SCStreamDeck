@@ -7,9 +7,54 @@ namespace SCStreamDeck.Services.Keybinding;
 /// <summary>
 ///     Service for parsing keybinding strings into executable inputs.
 /// </summary>
-public sealed class KeybindingParserService : IKeybindingParserService
+public static class KeybindingParserService
 {
-    public ParsedInputResult? ParseBinding(string binding)
+    private static readonly Dictionary<string, DirectInputKeyCode> s_modifiers = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { SCConstants.Input.Keyboard.LAlt, DirectInputKeyCode.DikLalt },
+        { SCConstants.Input.Keyboard.RAlt, DirectInputKeyCode.DikRalt },
+        { SCConstants.Input.Keyboard.LShift, DirectInputKeyCode.DikLshift },
+        { SCConstants.Input.Keyboard.RShift, DirectInputKeyCode.DikRshift },
+        { SCConstants.Input.Keyboard.LCtrl, DirectInputKeyCode.DikLcontrol },
+        { SCConstants.Input.Keyboard.RCtrl, DirectInputKeyCode.DikRcontrol }
+    };
+
+    private static readonly Dictionary<string, DirectInputKeyCode> s_specialKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { SCConstants.Input.Keyboard.F1, DirectInputKeyCode.DikF1 },
+        { SCConstants.Input.Keyboard.F2, DirectInputKeyCode.DikF2 },
+        { SCConstants.Input.Keyboard.F3, DirectInputKeyCode.DikF3 },
+        { SCConstants.Input.Keyboard.F4, DirectInputKeyCode.DikF4 },
+        { SCConstants.Input.Keyboard.F5, DirectInputKeyCode.DikF5 },
+        { SCConstants.Input.Keyboard.F6, DirectInputKeyCode.DikF6 },
+        { SCConstants.Input.Keyboard.F7, DirectInputKeyCode.DikF7 },
+        { SCConstants.Input.Keyboard.F8, DirectInputKeyCode.DikF8 },
+        { SCConstants.Input.Keyboard.F9, DirectInputKeyCode.DikF9 },
+        { SCConstants.Input.Keyboard.F10, DirectInputKeyCode.DikF10 },
+        { SCConstants.Input.Keyboard.F11, DirectInputKeyCode.DikF11 },
+        { SCConstants.Input.Keyboard.F12, DirectInputKeyCode.DikF12 },
+        { SCConstants.Input.Keyboard.Space, DirectInputKeyCode.DikSpace },
+        { SCConstants.Input.Keyboard.Enter, DirectInputKeyCode.DikReturn },
+        { SCConstants.Input.Keyboard.Tab, DirectInputKeyCode.DikTab },
+        { SCConstants.Input.Keyboard.Escape, DirectInputKeyCode.DikEscape },
+        { SCConstants.Input.Keyboard.Backspace, DirectInputKeyCode.DikBackspace },
+        { SCConstants.Input.Keyboard.CapsLock, DirectInputKeyCode.DikCapital },
+        { SCConstants.Input.Keyboard.NumLock, DirectInputKeyCode.DikNumlock },
+        { SCConstants.Input.Keyboard.ScrollLock, DirectInputKeyCode.DikScroll },
+        { SCConstants.Input.Keyboard.Up, DirectInputKeyCode.DikUp },
+        { SCConstants.Input.Keyboard.Down, DirectInputKeyCode.DikDown },
+        { SCConstants.Input.Keyboard.Left, DirectInputKeyCode.DikLeft },
+        { SCConstants.Input.Keyboard.Right, DirectInputKeyCode.DikRight },
+        { SCConstants.Input.Keyboard.Home, DirectInputKeyCode.DikHome },
+        { SCConstants.Input.Keyboard.End, DirectInputKeyCode.DikEnd },
+        { SCConstants.Input.Keyboard.PgUp, DirectInputKeyCode.DikPageUp },
+        { SCConstants.Input.Keyboard.PgDown, DirectInputKeyCode.DikPageDown },
+        { SCConstants.Input.Keyboard.Insert, DirectInputKeyCode.DikInsert },
+        { SCConstants.Input.Keyboard.Delete, DirectInputKeyCode.DikDelete }
+    };
+
+
+    public static ParsedInputResult? ParseBinding(string binding)
     {
         if (string.IsNullOrWhiteSpace(binding))
         {
@@ -197,77 +242,27 @@ public sealed class KeybindingParserService : IKeybindingParserService
     {
         modifier = default;
 
-        return token switch
-        {
-            SCConstants.Input.Keyboard.LAlt => SetModifier(DirectInputKeyCode.DikLalt, out modifier),
-            SCConstants.Input.Keyboard.RAlt => SetModifier(DirectInputKeyCode.DikRalt, out modifier),
-            SCConstants.Input.Keyboard.LShift => SetModifier(DirectInputKeyCode.DikLshift, out modifier),
-            SCConstants.Input.Keyboard.RShift => SetModifier(DirectInputKeyCode.DikRshift, out modifier),
-            SCConstants.Input.Keyboard.LCtrl => SetModifier(DirectInputKeyCode.DikLcontrol, out modifier),
-            SCConstants.Input.Keyboard.RCtrl => SetModifier(DirectInputKeyCode.DikRcontrol, out modifier),
-            _ => false
-        };
-
-        static bool SetModifier(DirectInputKeyCode value, out DirectInputKeyCode output)
-        {
-            output = value;
-            return true;
-        }
+        return s_modifiers.TryGetValue(token, out modifier);
     }
 
     private static bool TryParseKey(string token, out DirectInputKeyCode key)
     {
         key = default;
 
-        bool specialKeyResult = token switch
+        if (s_specialKeys.TryGetValue(token, out DirectInputKeyCode result))
         {
-            SCConstants.Input.Keyboard.F1 => SetKey(DirectInputKeyCode.DikF1, out key),
-            SCConstants.Input.Keyboard.F2 => SetKey(DirectInputKeyCode.DikF2, out key),
-            SCConstants.Input.Keyboard.F3 => SetKey(DirectInputKeyCode.DikF3, out key),
-            SCConstants.Input.Keyboard.F4 => SetKey(DirectInputKeyCode.DikF4, out key),
-            SCConstants.Input.Keyboard.F5 => SetKey(DirectInputKeyCode.DikF5, out key),
-            SCConstants.Input.Keyboard.F6 => SetKey(DirectInputKeyCode.DikF6, out key),
-            SCConstants.Input.Keyboard.F7 => SetKey(DirectInputKeyCode.DikF7, out key),
-            SCConstants.Input.Keyboard.F8 => SetKey(DirectInputKeyCode.DikF8, out key),
-            SCConstants.Input.Keyboard.F9 => SetKey(DirectInputKeyCode.DikF9, out key),
-            SCConstants.Input.Keyboard.F10 => SetKey(DirectInputKeyCode.DikF10, out key),
-            SCConstants.Input.Keyboard.F11 => SetKey(DirectInputKeyCode.DikF11, out key),
-            SCConstants.Input.Keyboard.F12 => SetKey(DirectInputKeyCode.DikF12, out key),
-            SCConstants.Input.Keyboard.Space => SetKey(DirectInputKeyCode.DikSpace, out key),
-            SCConstants.Input.Keyboard.Enter => SetKey(DirectInputKeyCode.DikReturn, out key),
-            SCConstants.Input.Keyboard.Tab => SetKey(DirectInputKeyCode.DikTab, out key),
-            SCConstants.Input.Keyboard.Escape => SetKey(DirectInputKeyCode.DikEscape, out key),
-            SCConstants.Input.Keyboard.Backspace => SetKey(DirectInputKeyCode.DikBackspace, out key),
-            SCConstants.Input.Keyboard.CapsLock => SetKey(DirectInputKeyCode.DikCapital, out key),
-            SCConstants.Input.Keyboard.NumLock => SetKey(DirectInputKeyCode.DikNumlock, out key),
-            SCConstants.Input.Keyboard.ScrollLock => SetKey(DirectInputKeyCode.DikScroll, out key),
-            SCConstants.Input.Keyboard.Up => SetKey(DirectInputKeyCode.DikUp, out key),
-            SCConstants.Input.Keyboard.Down => SetKey(DirectInputKeyCode.DikDown, out key),
-            SCConstants.Input.Keyboard.Left => SetKey(DirectInputKeyCode.DikLeft, out key),
-            SCConstants.Input.Keyboard.Right => SetKey(DirectInputKeyCode.DikRight, out key),
-            SCConstants.Input.Keyboard.Home => SetKey(DirectInputKeyCode.DikHome, out key),
-            SCConstants.Input.Keyboard.End => SetKey(DirectInputKeyCode.DikEnd, out key),
-            SCConstants.Input.Keyboard.PgUp => SetKey(DirectInputKeyCode.DikPageUp, out key),
-            SCConstants.Input.Keyboard.PgDown => SetKey(DirectInputKeyCode.DikPageDown, out key),
-            SCConstants.Input.Keyboard.Insert => SetKey(DirectInputKeyCode.DikInsert, out key),
-            SCConstants.Input.Keyboard.Delete => SetKey(DirectInputKeyCode.DikDelete, out key),
-            _ => false
-        };
-
-        if (specialKeyResult)
-        {
+            key = result;
             return true;
         }
 
         return SCKeyToDirectInputMapper.TryGetDirectInputKeyCode(token, out key);
-
-        static bool SetKey(DirectInputKeyCode value, out DirectInputKeyCode output)
-        {
-            output = value;
-            return true;
-        }
     }
 
     private static string[] SplitTokens(string binding) =>
         binding.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }
+
+/// <summary>
+///     Result of parsing a binding string.
+/// </summary>
+public sealed record ParsedInputResult(InputType Type, object Value);

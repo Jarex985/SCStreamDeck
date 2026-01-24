@@ -1,4 +1,3 @@
-using BarRaider.SdTools;
 using Newtonsoft.Json;
 using SCStreamDeck.Common;
 using SCStreamDeck.Logging;
@@ -12,13 +11,18 @@ namespace SCStreamDeck.Services.Keybinding;
 /// <summary>
 ///     Service for loading and caching keybinding actions and activation modes.
 /// </summary>
-public sealed class KeybindingLoaderService : IKeybindingLoaderService
+public sealed class KeybindingLoaderService
 {
     private readonly Dictionary<string, KeybindingAction> _actions = new(StringComparer.OrdinalIgnoreCase);
     private readonly nint _currentKeyboardLayout = NativeMethods.GetKeyboardLayout(0);
+    private readonly IFileSystem _fileSystem;
     private readonly object _lock = new();
-    private Dictionary<string, ActivationModeMetadata> _activationModes = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<ActivationMode, ActivationModeMetadata> _activationModesByMode = new();
+    private Dictionary<string, ActivationModeMetadata> _activationModesByName = new(StringComparer.OrdinalIgnoreCase);
     private volatile bool _isLoaded;
+
+    public KeybindingLoaderService(IFileSystem fileSystem) =>
+        _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
 
     public bool IsLoaded => _isLoaded;
 
@@ -28,28 +32,26 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
         {
             if (!SecurePathValidator.TryNormalizePath(jsonPath, out string validatedPath))
             {
-                _isLoaded = false;
-                Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"[{nameof(KeybindingLoaderService)}] {ErrorMessages.InvalidPath}");
+                SetNotLoaded();
+                Log.Err($"[{nameof(KeybindingLoaderService)}] Invalid path");
 
                 return false;
             }
 
-            if (!File.Exists(validatedPath))
+            if (!_fileSystem.FileExists(validatedPath))
             {
-                _isLoaded = false;
-                Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"[{nameof(KeybindingLoaderService)}] File not found: '{validatedPath}'");
+                SetNotLoaded();
+                Log.Err($"[{nameof(KeybindingLoaderService)}] File not found: '{validatedPath}'");
 
                 return false;
             }
 
-            KeybindingDataFile? dataFile = await ReadAndDeserializeAsync(validatedPath, cancellationToken).ConfigureAwait(false);
+            KeybindingDataFile? dataFile =
+                await ReadAndDeserializeAsync(validatedPath, cancellationToken).ConfigureAwait(false);
             if (!IsValidDataFile(dataFile))
             {
-                _isLoaded = false;
-                Logger.Instance.LogMessage(TracingLevel.ERROR,
-                    $"[{nameof(KeybindingLoaderService)}] Invalid keybinding data file format");
+                SetNotLoaded();
+                Log.Err($"[{nameof(KeybindingLoaderService)}] Invalid keybinding data file format");
                 return false;
             }
 
@@ -58,18 +60,23 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
-            _isLoaded = false;
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingLoaderService)}] '{Path.GetFileName(jsonPath)}': {ex.Message}");
+            SetNotLoaded();
+            Log.Err($"[{nameof(KeybindingLoaderService)}] '{Path.GetFileName(jsonPath)}': {ex.Message}", ex);
             return false;
         }
     }
 
     public bool TryGetAction(string? actionName, out KeybindingAction? action)
     {
+        if (string.IsNullOrWhiteSpace(actionName))
+        {
+            action = null;
+            return false;
+        }
+
         lock (_lock)
         {
-            return _actions.TryGetValue(actionName!, out action);
+            return _actions.TryGetValue(actionName, out action);
         }
     }
 
@@ -88,7 +95,15 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
     {
         lock (_lock)
         {
-            return new Dictionary<string, ActivationModeMetadata>(_activationModes);
+            return new Dictionary<string, ActivationModeMetadata>(_activationModesByName);
+        }
+    }
+
+    public IReadOnlyDictionary<ActivationMode, ActivationModeMetadata> GetActivationModesByMode()
+    {
+        lock (_lock)
+        {
+            return new Dictionary<ActivationMode, ActivationModeMetadata>(_activationModesByMode);
         }
     }
 
@@ -106,20 +121,32 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
                 return null;
             }
 
-            string modeKey = action.ActivationMode.ToString();
-            return _activationModes.GetValueOrDefault(modeKey);
+            return _activationModesByMode.GetValueOrDefault(action.ActivationMode);
         }
     }
 
-    private static async Task<KeybindingDataFile?> ReadAndDeserializeAsync(string validatedPath,
+    private async Task<KeybindingDataFile?> ReadAndDeserializeAsync(
+        string validatedPath,
         CancellationToken cancellationToken)
     {
-        string json = await File.ReadAllTextAsync(validatedPath, cancellationToken).ConfigureAwait(false);
+        string json = await _fileSystem.ReadAllTextAsync(validatedPath, cancellationToken).ConfigureAwait(false);
         return JsonConvert.DeserializeObject<KeybindingDataFile>(json);
     }
 
     private static bool IsValidDataFile(KeybindingDataFile? dataFile) =>
         dataFile?.Actions is { Count: > 0 } && dataFile.Metadata is not null;
+
+    private void SetNotLoaded()
+    {
+        lock (_lock)
+        {
+            _actions.Clear();
+
+            _activationModesByName = new Dictionary<string, ActivationModeMetadata>(StringComparer.OrdinalIgnoreCase);
+            _activationModesByMode = new Dictionary<ActivationMode, ActivationModeMetadata>();
+            _isLoaded = false;
+        }
+    }
 
     private void CacheDataFile(KeybindingDataFile dataFile)
     {
@@ -132,13 +159,33 @@ public sealed class KeybindingLoaderService : IKeybindingLoaderService
                 _actions[$"{keybindingAction.ActionName}_{keybindingAction.UiCategory}"] = keybindingAction;
             }
 
-            if (dataFile.Metadata.ActivationModes is { Count: > 0 })
-            {
-                _activationModes = dataFile.Metadata.ActivationModes;
-            }
+            _activationModesByName = dataFile.Metadata.ActivationModes is { Count: > 0 }
+                ? new Dictionary<string, ActivationModeMetadata>(dataFile.Metadata.ActivationModes,
+                    StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, ActivationModeMetadata>(StringComparer.OrdinalIgnoreCase);
+
+            _activationModesByMode = MapActivationModesByMode(_activationModesByName);
 
             _isLoaded = true;
         }
+    }
+
+    private static Dictionary<ActivationMode, ActivationModeMetadata> MapActivationModesByMode(
+        IReadOnlyDictionary<string, ActivationModeMetadata> activationModes)
+    {
+        Dictionary<ActivationMode, ActivationModeMetadata> mapped = new();
+
+        foreach ((string key, ActivationModeMetadata metadata) in activationModes)
+        {
+            if (!Enum.TryParse(key, true, out ActivationMode mode))
+            {
+                continue;
+            }
+
+            mapped[mode] = metadata;
+        }
+
+        return mapped;
     }
 
     private static KeybindingAction MapAction(KeybindingActionData action) => new()

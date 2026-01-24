@@ -1,0 +1,283 @@
+//// ****************************************************************
+// * Function Key PI Entrypoint
+//// ****************************************************************
+
+(function () {
+  const SCPI = globalThis.SCPI;
+  SCPI?.bus?.start?.();
+
+  // #region Global State
+
+  const functionDropdown = SCPI?.ui?.dropdown?.initDropdown?.({
+    rootId: 'functionDropdown',
+    searchEnabled: true,
+    minLoadingMs: 0,
+    successFlashMs: 100,
+    emptyText: 'No matching functions found',
+    maxResults: 50,
+    getText: (opt) => String(opt?.text ?? ''),
+    getValue: (opt) => String(opt?.value ?? ''),
+    getGroup: (opt) => String(opt?.group ?? ''),
+    isDisabled: (opt) => !!opt?.disabled,
+    onSelect: (opt) => selectOption(opt, {persist: true})
+  });
+
+  functionDropdown?.setLoading?.(true, 'Loading functions');
+
+  /**
+   * Flattened list of all options for searching
+   * @type {Array}
+   */
+  let allOptions = [];
+
+  /**
+   * Currently selected function value
+   * @type {string}
+   */
+  let currentFunctionValue = '';
+
+  /**
+   * Flag to avoid feedback loops when writing settings
+   * @type {boolean}
+   */
+  let isSelectingOption = false;
+
+  // #endregion
+
+  // #region SDK Settings Integration
+
+  /**
+   * Get and set function value using SDK Settings API
+   */
+  const [getFunctionSetting, setFunctionSetting] = globalThis.SDPIComponents.useSettings(
+    'function',
+    (value) => {
+      if (!isSelectingOption) {
+        currentFunctionValue = value;
+        selectFunctionByValue(value);
+      }
+    }
+  );
+
+  SCPI?.ui?.filePicker?.createFilePicker?.({
+    rootId: 'audioFilePicker',
+    placeholderText: 'No file selected',
+    settingsKey: 'clickSoundPath'
+  });
+
+  // #endregion
+
+  // #region Dropdown Rendering
+
+  /**
+   * Flatten grouped functions data into a searchable array
+   * @param {Array} groups - Array of grouped function data
+   * @returns {Array} - Flattened array of options
+   */
+  function flattenFunctionsData(groups) {
+    const flat = [];
+
+    if (Array.isArray(groups)) {
+      groups.forEach(group => {
+        const groupName = group.label || 'Other';
+        const options = group.options || [];
+
+        options.forEach(opt => {
+          // Filter out Controller/Axis-only functions (not supported for static buttons)
+          const isControllerOnly = opt.disabledReason && (
+            opt.disabledReason.includes('Controller') ||
+            opt.disabledReason.includes('Axis')
+          );
+
+          if (isControllerOnly) {
+            return; // Skip controller-only and axis-only options
+          }
+
+          // Determine category - unbound actions go to separate category
+          let category = groupName;
+          if (opt.disabledReason === 'No supported binding') {
+            category = 'Unbound Functions';
+          }
+
+          flat.push(
+            {
+              value: opt.value,
+              text: opt.text,
+              group: category,
+              details: opt.details,
+              disabled: opt.disabled || false
+            });
+        });
+      });
+    }
+
+    return flat;
+  }
+
+  /**
+   * Populate the dropdown with functions data
+   * @param {Array} functionsData - Array of grouped function data
+   */
+  function populateFunctionsDropdown(functionsData) {
+    // Flatten data for easier searching
+    allOptions = flattenFunctionsData(functionsData);
+    functionDropdown?.setItems?.(allOptions);
+    functionDropdown?.setSelectedValue?.(currentFunctionValue, {rerender: false});
+
+    if (currentFunctionValue) {
+      selectFunctionByValue(currentFunctionValue);
+    }
+  }
+
+  // #endregion
+
+  // #region Option Selection
+
+  /**
+   * Select an option and update the display
+   * @param {Object} opt - The option object to select
+   */
+  function selectOption(opt, opts = {}) {
+    const persist = opts.persist !== false;
+
+    isSelectingOption = true;
+    currentFunctionValue = opt.value;
+    functionDropdown?.setSelectedValue?.(opt.value, {rerender: true});
+    updateFunctionDetails(opt);
+
+    if (persist) {
+      setFunctionSetting(opt.value);
+    }
+
+    // Reset flag after a longer delay to allow loadConfiguration to complete
+    setTimeout(() => {
+      isSelectingOption = false;
+    }, 200);
+  }
+
+  /**
+   * Select a function by its value
+   * @param {string} value - The function value to select
+   */
+  function selectFunctionByValue(value) {
+    const opt = allOptions.find(o => o.value === value);
+    if (opt) {
+      selectOption(opt, {persist: false});
+    }
+  }
+
+  // #endregion
+
+  // #region Details Rendering
+
+  /**
+   * Render function details panel with binding information
+   * @param {Object|null} opt - The option object (contains details), null for empty state
+   */
+  function updateFunctionDetails(opt) {
+    const detailsEl = document.querySelector('.pi-details');
+    if (!detailsEl) {
+      return;
+    }
+
+    // Show empty state if no option selected
+    if (!opt || !opt.details) {
+      const titleEl = detailsEl.querySelector('.pi-details__title');
+      if (titleEl) {
+        titleEl.textContent = '';
+      }
+
+      const scContentEl = document.querySelector('.pi-description__content');
+      if (scContentEl) {
+        scContentEl.textContent = '';
+      }
+
+      // Clear all binding values
+      document.getElementById('pi-details__binding-keyboard').textContent = '';
+      document.getElementById('pi-details__binding-mouse').textContent = '';
+      document.getElementById('pi-details__binding-gamepad').textContent = '';
+      document.getElementById('pi-details__binding-joystick').textContent = '';
+      return;
+    }
+
+    const details = opt.details;
+    const title = String(details.label || opt.text || '');
+    const desc = String(details.description || '');
+    const devices = Array.isArray(details.devices) ? details.devices : [];
+
+    const titleEl = detailsEl.querySelector('.pi-details__title');
+    if (titleEl) {
+      titleEl.textContent = title;
+    }
+
+    // Update binding values for all four device types
+    const allDeviceTypes = ['keyboard', 'mouse', 'gamepad', 'joystick'];
+
+    allDeviceTypes.forEach(deviceType => {
+      const deviceData = devices.find(d => d.device && d.device.toLowerCase() === deviceType.toLowerCase());
+      const bindingEl = document.getElementById(`pi-details__binding-${deviceType}`);
+
+      let bindingValue = 'Unbound';
+
+      if (deviceData && Array.isArray(deviceData.bindings) && deviceData.bindings.length > 0) {
+        const bindingLines = deviceData.bindings
+          .map(b => String(b.display || b.raw || ''))
+          .filter(x => x);
+
+        if (bindingLines.length > 0) {
+          bindingValue = bindingLines.join(', ');
+        }
+      }
+
+      if (bindingEl) {
+        bindingEl.textContent = bindingValue;
+      }
+    });
+
+    // Update Description content
+    const scContentEl = document.querySelector('.pi-description__content');
+    if (scContentEl) {
+      scContentEl.textContent = desc || 'No description available.';
+    }
+  }
+
+  // #endregion
+
+  // #region WebSocket Communication
+
+  SCPI?.bus?.on?.((payload) => {
+    const loaded = payload?.functionsLoaded;
+
+    if (loaded === true) {
+      functionDropdown?.setLoading?.(false);
+      document.getElementById('functionDropdown')?.classList.remove('pi-dropdown--error');
+      populateFunctionsDropdown(payload.functions || []);
+    }
+
+    if (loaded === false) {
+      document.getElementById('functionDropdown')?.classList.add('pi-dropdown--error');
+      functionDropdown?.setLoading?.(true, 'No installation detected. Set custom path.');
+      functionDropdown?.setItems?.([]);
+      updateFunctionDetails(null);
+    }
+  });
+
+  // #endregion
+
+  // #region Event Listeners
+
+  SCPI?.util?.onDocumentReady?.(() => {
+    const savedFunctionValue = getFunctionSetting();
+
+    if (savedFunctionValue) {
+      currentFunctionValue = savedFunctionValue;
+    } else {
+      updateFunctionDetails(null);
+    }
+
+    functionDropdown?.setSelectedValue?.(currentFunctionValue, {rerender: false});
+    SCPI?.bus?.sendOnce?.('pi.connected', 'propertyInspectorConnected');
+  });
+
+  // #endregion
+})();

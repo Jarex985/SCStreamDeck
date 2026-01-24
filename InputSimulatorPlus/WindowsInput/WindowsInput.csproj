@@ -47,40 +47,40 @@
     <AssemblyOriginatorKeyFile>WindowsInput.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System" />
+    <Reference Include="System"/>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="IInputSimulator.cs" />
-    <Compile Include="IMouseSimulator.cs" />
-    <Compile Include="InputSimulator.cs" />
-    <Compile Include="MouseButton.cs" />
-    <Compile Include="MouseSimulator.cs" />
-    <Compile Include="Native\DirectInputKeyCode.cs" />
-    <Compile Include="Native\NativeMethods.cs" />
-    <Compile Include="Native\HARDWAREINPUT.cs" />
-    <Compile Include="IInputDeviceStateAdaptor.cs" />
-    <Compile Include="IInputMessageDispatcher.cs" />
-    <Compile Include="IKeyboardSimulator.cs" />
-    <Compile Include="Native\INPUT.cs" />
-    <Compile Include="InputBuilder.cs" />
-    <Compile Include="KeyboardSimulator.cs" />
-    <Compile Include="Native\InputType.cs" />
-    <Compile Include="Native\KEYBDINPUT.cs" />
-    <Compile Include="Native\KeyboardFlag.cs" />
-    <Compile Include="Native\MouseFlag.cs" />
-    <Compile Include="Native\MOUSEINPUT.cs" />
-    <Compile Include="Native\MOUSEKEYBDHARDWAREINPUT.cs" />
-    <Compile Include="WindowsInputDeviceStateAdaptor.cs" />
-    <Compile Include="WindowsInputMessageDispatcher.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Native\VirtualKeyCode.cs" />
-    <Compile Include="Native\XButton.cs" />
+    <Compile Include="IInputSimulator.cs"/>
+    <Compile Include="IMouseSimulator.cs"/>
+    <Compile Include="InputSimulator.cs"/>
+    <Compile Include="MouseButton.cs"/>
+    <Compile Include="MouseSimulator.cs"/>
+    <Compile Include="Native\DirectInputKeyCode.cs"/>
+    <Compile Include="Native\NativeMethods.cs"/>
+    <Compile Include="Native\HARDWAREINPUT.cs"/>
+    <Compile Include="IInputDeviceStateAdaptor.cs"/>
+    <Compile Include="IInputMessageDispatcher.cs"/>
+    <Compile Include="IKeyboardSimulator.cs"/>
+    <Compile Include="Native\INPUT.cs"/>
+    <Compile Include="InputBuilder.cs"/>
+    <Compile Include="KeyboardSimulator.cs"/>
+    <Compile Include="Native\InputType.cs"/>
+    <Compile Include="Native\KEYBDINPUT.cs"/>
+    <Compile Include="Native\KeyboardFlag.cs"/>
+    <Compile Include="Native\MouseFlag.cs"/>
+    <Compile Include="Native\MOUSEINPUT.cs"/>
+    <Compile Include="Native\MOUSEKEYBDHARDWAREINPUT.cs"/>
+    <Compile Include="WindowsInputDeviceStateAdaptor.cs"/>
+    <Compile Include="WindowsInputMessageDispatcher.cs"/>
+    <Compile Include="Properties\AssemblyInfo.cs"/>
+    <Compile Include="Native\VirtualKeyCode.cs"/>
+    <Compile Include="Native\XButton.cs"/>
   </ItemGroup>
   <ItemGroup>
-    <None Include="WindowsInput.snk" />
+    <None Include="WindowsInput.snk"/>
   </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it.
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
   </Target>

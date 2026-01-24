@@ -1,35 +1,36 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using BarRaider.SdTools;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using SCStreamDeck.Common;
+using SCStreamDeck.Logging;
 
 namespace SCStreamDeck.Models;
 
 /// <summary>
 ///     Modern plugin state for caching installation data and initialization status.
-///     Stored as JSON file in plugin cache directory for immediate availability.
 /// </summary>
 public sealed record PluginState(
-    [property: JsonPropertyName("pluginVersion")]
-    string PluginVersion,
-    [property: JsonPropertyName("lastInitialized")]
+    [property: JsonProperty("lastInitialized")]
     DateTime LastInitialized,
-    [property: JsonPropertyName("selectedChannel")]
+    [property: JsonProperty("selectedChannel")]
     SCChannel SelectedChannel,
-    [property: JsonPropertyName("liveInstallation")]
+    [property: JsonProperty("selectedTheme")]
+    string? SelectedTheme,
+    [property: JsonProperty("liveInstallation")]
     InstallationState? LiveInstallation,
-    [property: JsonPropertyName("hotfixInstallation")]
+    [property: JsonProperty("hotfixInstallation")]
     InstallationState? HotfixInstallation,
-    [property: JsonPropertyName("ptuInstallation")]
+    [property: JsonProperty("ptuInstallation")]
     InstallationState? PtuInstallation,
-    [property: JsonPropertyName("eptuInstallation")]
+    [property: JsonProperty("eptuInstallation")]
     InstallationState? EptuInstallation
 )
 {
-    private static readonly JsonSerializerOptions s_loadOptions =
-        new() { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } };
+    private static readonly JsonSerializerSettings s_loadSettings = new() { Converters = { new StringEnumConverter() } };
 
-    private static readonly JsonSerializerOptions s_saveOptions =
-        new() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
+    private static readonly JsonSerializerSettings s_saveSettings = new()
+    {
+        Formatting = Formatting.Indented, Converters = { new StringEnumConverter() }
+    };
 
     /// <summary>
     ///     Gets the installation state for the specified channel.
@@ -75,12 +76,16 @@ public sealed record PluginState(
     }
 
     /// <summary>
-    ///     Validates that the current state is still valid (installation exists and is accessible).
+    ///     Validates that the state contains at least one accessible installation.
     /// </summary>
-    public bool IsValid()
+    public bool IsValid() => GetAllInstallations().Any(i => i != null && i.Validate());
+
+    private IEnumerable<InstallationState?> GetAllInstallations()
     {
-        InstallationState? installation = GetInstallation(SelectedChannel);
-        return installation != null && installation.Validate();
+        yield return LiveInstallation;
+        yield return HotfixInstallation;
+        yield return PtuInstallation;
+        yield return EptuInstallation;
     }
 
     /// <summary>
@@ -115,6 +120,11 @@ public sealed record PluginState(
     public PluginState WithSelectedChannel(SCChannel channel) => this with { SelectedChannel = channel };
 
     /// <summary>
+    ///     Creates a new PluginState with updated theme selection.
+    /// </summary>
+    public PluginState WithSelectedTheme(string? themeFile) => this with { SelectedTheme = themeFile };
+
+    /// <summary>
     ///     Creates a new PluginState with updated last initialized timestamp.
     /// </summary>
     public PluginState WithLastInitialized(DateTime timestamp) => this with { LastInitialized = timestamp };
@@ -122,29 +132,28 @@ public sealed record PluginState(
     /// <summary>
     ///     Loads plugin state from disk. Returns null if file doesn't exist or is invalid.
     /// </summary>
-    public static async Task<PluginState?> LoadAsync(string cacheDir, CancellationToken cancellationToken = default)
+    public static async Task<PluginState?> LoadAsync(
+        IFileSystem fileSystem,
+        string cacheDir,
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(fileSystem);
+
         string filePath = Path.Combine(cacheDir, ".plugin-state.json");
 
-        if (!File.Exists(filePath))
+        if (!fileSystem.FileExists(filePath))
         {
             return null;
         }
 
         try
         {
-            await using FileStream stream = File.OpenRead(filePath);
-            PluginState? state = await JsonSerializer.DeserializeAsync<PluginState>(
-                stream,
-                s_loadOptions,
-                cancellationToken).ConfigureAwait(false);
-
-            return state;
+            string json = await fileSystem.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
+            return JsonConvert.DeserializeObject<PluginState>(json, s_loadSettings);
         }
         catch (Exception ex) when (ex is JsonException or IOException)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(PluginState)}]: Failed to load plugin state: {ex.Message}");
+            Log.Err($"[{nameof(PluginState)}]: Failed to load plugin state: {ex.Message}", ex);
             return null;
         }
     }
@@ -152,22 +161,22 @@ public sealed record PluginState(
     /// <summary>
     ///     Saves plugin state to disk.
     /// </summary>
-    public async Task SaveAsync(string cacheDir, CancellationToken cancellationToken = default)
+    public async Task SaveAsync(
+        IFileSystem fileSystem,
+        string cacheDir,
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(fileSystem);
+
         string filePath = Path.Combine(cacheDir, ".plugin-state.json");
 
         try
         {
-            await using FileStream stream = File.Create(filePath);
-            await JsonSerializer.SerializeAsync(
-                stream,
-                this,
-                s_saveOptions,
-                cancellationToken).ConfigureAwait(false);
+            string json = JsonConvert.SerializeObject(this, s_saveSettings);
+            await fileSystem.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
         }
         catch (IOException ex)
         {
-            // Log error but don't throw - state saving failure shouldn't crash initialization
             throw new InvalidOperationException($"Failed to save plugin state: {ex.Message}", ex);
         }
     }

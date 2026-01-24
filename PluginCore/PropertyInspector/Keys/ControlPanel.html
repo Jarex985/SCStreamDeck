@@ -1,0 +1,97 @@
+<!--suppress CssUnusedSymbol, CssNonIntegerLengthInPixels, JSUnusedGlobalSymbols -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Star Citizen Stream Deck Plugin PI - Control Panel</title>
+  <link href="../css/base.css" rel="stylesheet">
+  <link id="pi-theme-styles" rel="stylesheet">
+  <script src="../js/sc-preload.js"></script>
+  <script defer src="../js/sdpi-components.js"></script>
+  <script defer src="../js/sc-components.js"></script>
+  <script defer src="../js/pi-control-panel.js"></script>
+</head>
+<body>
+<div class="pi-container">
+  <div class="pi-panel">
+    <div class="pi-page-title">Control Panel</div>
+
+    <div class="pi-section">
+      <div class="pi-picker-grid pi-picker-grid--top">
+        <div class="pi-picker-row">
+          <div class="pi-picker-label">Theme:</div>
+          <div class="pi-dropdown" data-placeholder="Selected theme" id="themeDropdown"></div>
+        </div>
+
+        <div class="pi-picker-row">
+          <div class="pi-picker-label">Channel:</div>
+          <div class="pi-dropdown" data-placeholder="Preferred channel" id="channelDropdown"></div>
+        </div>
+      </div>
+
+      <div class="pi-inline-banner" id="pi-install-warning-frame" style="display: none;">
+        <div class="pi-inline-error" id="pi-install-warning" style="display: none;"></div>
+      </div>
+    </div>
+
+    <div class="pi-section">
+      <div class="pi-section__header">Custom Installation Paths</div>
+
+      <div class="pi-content-box">
+        Set per-channel overrides by selecting the corresponding <b>Data.p4k</b>.
+      </div>
+
+      <div class="pi-picker-grid">
+        <div class="pi-picker-row">
+          <div class="pi-picker-label">LIVE</div>
+          <div class="pi-file-picker"
+               data-accept=".p4k"
+               data-clear-title="Clear LIVE override"
+               data-placeholder="No override"
+               data-select-title="Select LIVE Data.p4k"
+               id="liveP4KPicker"></div>
+        </div>
+
+        <div class="pi-picker-row">
+          <div class="pi-picker-label">HOTFIX</div>
+          <div class="pi-file-picker"
+               data-accept=".p4k"
+               data-clear-title="Clear HOTFIX override"
+               data-placeholder="No override"
+               data-select-title="Select HOTFIX Data.p4k"
+               id="hotfixP4KPicker"></div>
+        </div>
+
+        <div class="pi-picker-row">
+          <div class="pi-picker-label">PTU</div>
+          <div class="pi-file-picker"
+               data-accept=".p4k"
+               data-clear-title="Clear PTU override"
+               data-placeholder="No override"
+               data-select-title="Select PTU Data.p4k"
+               id="ptuP4KPicker"></div>
+        </div>
+
+        <div class="pi-picker-row">
+          <div class="pi-picker-label">EPTU</div>
+          <div class="pi-file-picker"
+               data-accept=".p4k"
+               data-clear-title="Clear EPTU override"
+               data-placeholder="No override"
+               data-select-title="Select EPTU Data.p4k"
+               id="eptuP4KPicker"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pi-section">
+      <div class="pi-button-row">
+        <button class="pi-button" id="forceRedetectBtn" type="button">Force Redetection</button>
+        <button class="pi-button pi-button--danger" id="factoryResetBtn" type="button">Factory Reset</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

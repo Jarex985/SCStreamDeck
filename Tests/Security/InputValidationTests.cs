@@ -29,7 +29,7 @@ public sealed class InputValidationTests
     [Fact]
     public async Task KeybindingLoader_InvalidPath_ReturnsFalseAndDoesNotThrow()
     {
-        KeybindingLoaderService loader = new();
+        KeybindingLoaderService loader = new(new SystemFileSystem());
 
         bool result = await loader.LoadKeybindingsAsync("C::/bad/path.json");
 
@@ -40,7 +40,7 @@ public sealed class InputValidationTests
     [Fact]
     public async Task KeybindingLoader_NonexistentFile_ReturnsFalse()
     {
-        KeybindingLoaderService loader = new();
+        KeybindingLoaderService loader = new(new SystemFileSystem());
         string tempPath = Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid()}.json");
 
         bool result = await loader.LoadKeybindingsAsync(tempPath);
@@ -52,7 +52,7 @@ public sealed class InputValidationTests
     [Fact]
     public async Task KeybindingLoader_MalformedJson_ReturnsFalseWithoutSensitiveLeak()
     {
-        KeybindingLoaderService loader = new();
+        KeybindingLoaderService loader = new(new SystemFileSystem());
         string tempFile = Path.GetTempFileName();
         await File.WriteAllTextAsync(tempFile, "{ invalid json }");
 

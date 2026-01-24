@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using BarRaider.SdTools;
 using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
 using SCStreamDeck.Services.Keybinding.ActivationHandlers;
@@ -10,28 +9,24 @@ namespace SCStreamDeck.Services.Keybinding;
 /// <summary>
 ///     Service for executing keybinding actions.
 /// </summary>
-public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDisposable
+public sealed class KeybindingExecutorService : IDisposable
 {
     private readonly ConcurrentDictionary<string, Timer> _activationTimers = new(StringComparer.OrdinalIgnoreCase);
     private readonly ActivationModeHandlerRegistry _handlerRegistry;
     private readonly ConcurrentDictionary<string, byte> _holdStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly IInputExecutor _inputExecutor;
-    private readonly IInputSimulator _inputSimulator;
-    private readonly IKeybindingLoaderService _loaderService;
-    private readonly IKeybindingParserService _parserService;
+    private readonly KeybindingLoaderService _loaderService;
     private bool _disposed;
 
     public KeybindingExecutorService(
-        IKeybindingLoaderService loaderService,
-        IKeybindingParserService parserService,
-        IInputSimulator? inputSimulator = null)
+        KeybindingLoaderService loaderService,
+        IInputSimulator inputSimulator)
     {
         _loaderService = loaderService ?? throw new ArgumentNullException(nameof(loaderService));
-        _parserService = parserService ?? throw new ArgumentNullException(nameof(parserService));
-        _inputSimulator = inputSimulator ?? new InputSimulator();
+        ArgumentNullException.ThrowIfNull(inputSimulator);
 
         _handlerRegistry = new ActivationModeHandlerRegistry();
-        _inputExecutor = new KeybindingInputExecutor(_inputSimulator, _holdStates, _activationTimers);
+        _inputExecutor = new KeybindingInputExecutor(inputSimulator, _holdStates, _activationTimers);
     }
 
     public void Dispose()
@@ -41,13 +36,10 @@ public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDis
             return;
         }
 
-        // Collect all timers first
         Timer[] timers = _activationTimers.Values.ToArray();
 
-        // Clear the dictionary
         _activationTimers.Clear();
 
-        // Dispose all timers
         foreach (Timer timer in timers)
         {
             timer.Dispose();
@@ -63,8 +55,7 @@ public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDis
 
         if (!context.IsValid(out string? errorMessage))
         {
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[{nameof(KeybindingExecutorService)}] Invalid execution context - {errorMessage}");
+            Log.Warn($"[{nameof(KeybindingExecutorService)}] Invalid execution context - {errorMessage}");
 
             return false;
         }
@@ -76,8 +67,9 @@ public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDis
         }
         catch (InvalidOperationException ex)
         {
-            Logger.Instance.LogMessage(TracingLevel.ERROR,
-                $"[{nameof(KeybindingExecutorService)}] {ErrorMessages.OperationFailedFor} '{context.ActionName}': {ex.Message}");
+            Log.Err(
+                $"[{nameof(KeybindingExecutorService)}] Operation failed for '{context.ActionName}'",
+                ex);
 
             return false;
         }
@@ -91,11 +83,10 @@ public sealed class KeybindingExecutorService : IKeybindingExecutorService, IDis
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        ParsedInputResult? parsedInput = _parserService.ParseBinding(context.Binding);
+        ParsedInputResult? parsedInput = KeybindingParserService.ParseBinding(context.Binding);
         if (parsedInput == null)
         {
-            Logger.Instance.LogMessage(TracingLevel.WARN,
-                $"[{nameof(KeybindingExecutorService)}] Failed to parse binding '{context.Binding}'");
+            Log.Warn($"[{nameof(KeybindingExecutorService)}] Failed to parse binding '{context.Binding}'");
 
             return false;
         }

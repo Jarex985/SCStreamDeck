@@ -1,0 +1,24 @@
+:root {
+  /* Copy this file and change the RGB triplets below.
+     Name the new file according to your theme, e.g., "my-theme.css".
+     Plugin will automatically convert the name to "My Theme" in the UI.
+     All component styles consume derived --color-* tokens from base.css. */
+
+  /* Accent */
+  --theme-accent-rgb: 212, 175, 55;
+  --theme-accent-hi-rgb: 255, 215, 0;
+
+  /* Surfaces */
+  --theme-surface-0-rgb: 18, 18, 18;
+  --theme-surface-1-rgb: 15, 15, 15;
+  --theme-surface-2-rgb: 33, 33, 33;
+
+  /* Borders */
+  --theme-border-rgb: 42, 42, 42;
+
+  /* Optional: theme-specific text colors (overrides base.css defaults) */
+  --color-text-primary: rgba(245, 252, 255, 1);
+  --color-text-secondary: rgba(var(--theme-accent-hi-rgb), 0.95);
+  --color-text-tertiary: rgba(150, 185, 200, 0.75);
+
+}

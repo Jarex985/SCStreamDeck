@@ -1,4 +1,4 @@
-﻿# Star Citizen Stream Deck Plugin 
+# Star Citizen Stream Deck Plugin 
 
 
 #### *A Stream Deck plugin that provides bindable actions for Star Citizen, allowing seamless integration of game controls with your Stream Deck device.*
@@ -30,7 +30,11 @@
 #### Status
 [![GitHub release](https://img.shields.io/github/release/Jarex985/SCStreamDeck?include_prereleases=&sort=semver&color=2ea44f)](https://github.com/Jarex985/SCStreamDeck/releases/)
 [![License](https://img.shields.io/badge/License-MIT-2ea44f)](LICENSE.md)
-[![Contributions - welcome](https://img.shields.io/badge/Contributions-welcome-2ea44f)](CONTRIBUTING.md)
+[![Contributions - welcome](https://img.shields.io/badge/Contributions-welcome-2ea44f)](CONTRIBUTING.md)  
+
+![Code scanning](https://github.com/Jarex985/SCStreamDeck/workflows/CodeQL/badge.svg)
+[![CI](https://github.com/Jarex985/SCStreamDeck/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jarex985/SCStreamDeck/actions/workflows/ci.yml)
+
 
 #### Programming Languages
 [![C#](https://img.shields.io/badge/C%23-239120?logo=c-sharp&logoColor=white)](https://learn.microsoft.com/dotnet/csharp)
@@ -56,7 +60,15 @@
 ## _Current Features_
 
 - **Adaptive Key**: Dynamically bindable key actions for Star Citizen that execute only their assigned function based on the ActivationMode.
-    - *Example:* Tap vs Hold on `Num-` executes only the Tap function when this is the assigned function.
+    - *Example:* Tap vs Hold on `Num-` executes only the Tap function when this is the assigned function.  
+  
+
+- **Control Panel Key**: Allows you to change settings like: 
+  - Current Theme for the Plugin to use
+  - Current Channel (`LIVE, HOTFIX, PTU, EPTU`) 
+  - Custom Installation Paths (if auto-detection fails)
+  - Force Redetection for auto detection (e.g. after moving the installation)
+  - Factory Reset (clears cached installs + custom overrides, rebuilds keybindings; keeps theme)
 
 
 - **Mouse Wheel Support**: Supports mouse wheel actions for bindings that utilize mouse wheel input (Mouse Wheel Up/Down).  
@@ -65,10 +77,13 @@
 - **Custom Language Support**: Supports custom language files for localization when using custom global.ini from the Community, e.g. [StarCitizen-Deutsch-INI by rjcncpt](https://github.com/rjcncpt/StarCitizen-Deutsch-INI).
 
 
-- **Basic Support for all Channels**: Basic implementation for supporting `HOTFIX, PTU, and EPTU` in the future. Currently only `LIVE` is fully supported, but the framework is in place for switching to other channels.  
+- **Support for all Channels**: `LIVE, HOTFIX, PTU, and EPTU` support. You can switch between channels via Control Panel Key. 
 
 
 - **Auto-Detection of Star Citizen Installation Path**: Automatically detects the installation path of Star Citizen.
+
+
+- **Theme Support**: Themes for customizing the appearance of the plugin. Includes a template for creating your own themes!
 
 
 - **(Experimental) Click Sound**: Provides audio feedback on key presses with configurable sound files (.wav and .mp3).
@@ -126,4 +141,3 @@ This project was inspired by the following repositories (code rewritten from scr
 - [unp4k by dolkensp](https://github.com/dolkensp/unp4k) - for letting me browse through the P4K file and understand its structure.
 - [SCJMapper-V2 by SCToolsfactory](https://github.com/SCToolsfactory/SCJMapper-V2) - for the great work on Star Citizen keybindings extraction.
 - [streamdeck-starcitizen by mhwlng](https://github.com/mhwlng/streamdeck-starcitizen) - for the initial idea of a Stream Deck plugin for Star Citizen. :)
-
