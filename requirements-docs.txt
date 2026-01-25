@@ -1,0 +1,4 @@
+mkdocs>=1.6,<2
+mkdocs-material>=9.5,<10
+pymdown-extensions>=10,<11
+mkdocs-glightbox>=0.5,<1

@@ -6,6 +6,8 @@
 .idea/
 .apm/
 .docs/
+.venv/
+site/
 .vs/
 *.user
 *.suo

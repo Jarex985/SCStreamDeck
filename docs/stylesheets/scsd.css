@@ -1,0 +1,222 @@
+[data-md-color-scheme="slate"] {
+  --md-text-font: "Atkinson Hyperlegible", sans-serif;
+  --md-code-font: "Jetbrains Mono", monospace;
+
+  /* Edit these 6 palette values only (RGB triplets). */
+  --sc-surface-0: 18, 18, 18;
+  --sc-surface-1: 15, 15, 15;
+  --sc-surface-2: 33, 33, 33;
+  --sc-border: 42, 42, 42;
+  --sc-accent: 44, 142, 134;
+  --sc-accent-hi: 82, 184, 175;
+
+  /* Derived tokens. */
+  --sc-ui-font-size: 1rem;
+  --sc-accent-14: rgba(var(--sc-accent), 0.14);
+
+  --md-default-bg-color: rgb(var(--sc-surface-0));
+  --md-default-fg-color: rgba(255, 255, 255, 0.88);
+  --md-default-fg-color--light: rgba(255, 255, 255, 0.65);
+  --md-default-fg-color--lighter: rgba(255, 255, 255, 0.48);
+  --md-default-fg-color--lightest: rgba(255, 255, 255, 0.22);
+
+  --md-primary-fg-color: rgb(var(--sc-surface-2));
+  --md-primary-bg-color: rgba(255, 255, 255, 0.92);
+
+  --md-accent-fg-color: rgb(var(--sc-accent));
+  --md-accent-fg-color--transparent: rgba(var(--sc-accent), 0.18);
+  --md-typeset-a-color: rgb(var(--sc-accent-hi));
+
+  --md-code-bg-color: rgba(255, 255, 255, 0.06);
+
+  --md-code-hl-color: rgb(var(--sc-accent-hi));
+  --md-code-hl-color--light: var(--sc-accent-14);
+  --md-typeset-mark-color: rgba(var(--sc-accent), 0.18);
+  --md-typeset-table-color: rgba(255, 255, 255, 0.1);
+}
+
+html {
+  font-size: 16px;
+}
+
+.md-container {
+  background:
+    radial-gradient(900px 600px at 18% 0%, rgba(var(--sc-accent), 0.16), transparent 58%),
+    radial-gradient(900px 650px at 95% 10%, rgba(var(--sc-accent), 0.08), transparent 60%),
+    var(--md-default-bg-color);
+}
+
+.md-typeset {
+  font-weight: 400;
+  line-height: 1.65;
+}
+
+.md-typeset p,
+.md-typeset li {
+  font-size: 1rem;
+}
+
+.md-typeset h1 {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.md-typeset h2,
+.md-typeset h3 {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.md-header {
+  background: rgb(var(--sc-surface-2));
+  border-bottom: 1px solid rgba(var(--sc-accent), 0.45);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+}
+
+.md-footer-meta {
+  background: rgb(var(--sc-surface-2));
+  border-top: 1px solid rgba(var(--sc-accent), 0.45);
+}
+
+.md-tabs {
+  background: rgb(var(--sc-surface-1));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Buttons: teal primary, readable text. */
+:is(.md-button, .md-typeset .md-button) {
+  border-radius: 999px;
+  border-width: 2px;
+  padding: 0.55em 1.05em;
+  font-weight: 700;
+  border-color: rgba(var(--sc-accent), 0.55);
+  color: rgb(var(--sc-accent-hi));
+  background: transparent;
+}
+
+:is(.md-button, .md-typeset .md-button):hover {
+  border-color: rgb(var(--sc-accent-hi));
+  background: var(--sc-accent-14);
+}
+
+:is(.md-button--primary, .md-typeset .md-button--primary) {
+  background: linear-gradient(180deg, rgb(var(--sc-accent-hi)), rgb(var(--sc-accent)));
+  border-color: rgb(var(--sc-accent-hi));
+  color: rgb(var(--sc-surface-1));
+}
+
+:is(.md-button--primary, .md-typeset .md-button--primary):hover {
+  background: linear-gradient(180deg, rgb(var(--sc-accent-hi)), rgb(var(--sc-accent)));
+  border-color: rgb(var(--sc-accent-hi));
+}
+
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.25);
+}
+
+/* Ensure the UI chrome uses the configured text font. */
+.md-header,
+.md-tabs,
+.md-nav,
+.md-search,
+.md-footer,
+.md-source {
+  font-family: var(--md-text-font), system-ui, sans-serif;
+}
+
+.md-nav__link {
+  font-size: var(--sc-ui-font-size);
+}
+
+.md-nav__item--section > .md-nav__link {
+  font-weight: 700;
+}
+
+.md-nav--primary .md-nav__item--section > .md-nav__link[for] {
+  background: rgb(var(--md-code-hl-color));
+  box-shadow: inset 0 -1px 0 rgb(var(--sc-accent));
+}
+
+.md-tabs__link {
+  font-size: var(--sc-ui-font-size);
+  font-weight: 700;
+}
+
+.md-header__title {
+  font-size: var(--sc-ui-font-size);
+  font-weight: 700;
+}
+
+.md-source,
+.md-source__repository,
+.md-source__facts,
+.md-source__icon {
+  font-size: var(--sc-ui-font-size);
+}
+
+.md-search__form {
+  height: 2rem;
+}
+
+.md-search__input {
+  font-size: var(--sc-ui-font-size);
+  font-weight: 700;
+}
+
+/* Footer "Made with Material for MkDocs" and other meta */
+.md-footer-meta,
+.md-footer-meta *,
+.md-copyright,
+.md-copyright * {
+  font-size: var(--sc-ui-font-size);
+}
+
+@media screen and (max-width: 76.1875em) {
+  /* Give mobile/tablet header a touch more legibility. */
+  .md-header__title {
+    font-size: 1.1rem;
+  }
+}
+
+/* Remove remaining "default blue" accents in navigation by forcing everything
+   interactive to use the single accent color. */
+.md-nav__link:focus,
+.md-nav__link:hover,
+.md-nav__link--active,
+.md-nav__item--active > .md-nav__link {
+  color: rgb(var(--sc-accent-hi));
+}
+
+.md-nav--secondary .md-nav__link:focus,
+.md-nav--secondary .md-nav__link:hover,
+.md-nav--secondary .md-nav__link--active {
+  color: rgb(var(--sc-accent-hi));
+}
+
+.md-nav--secondary .md-nav__link--active {
+  background: var(--sc-accent-14);
+}
+
+/* Repo link in header */
+.md-source a:focus,
+.md-source a:hover {
+  color: rgb(var(--sc-accent-hi));
+}
+
+/* Repo name truncation (top-right source link) */
+.md-source__repository {
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+/* If the header gets tight, prefer truncating facts (stars) instead. */
+.md-source__facts {
+  max-width: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -1,0 +1,49 @@
+site_name: Star Citizen Stream Deck
+site_description: User guide for the Star Citizen Stream Deck plugin
+site_url: https://jarex985.github.io/SCStreamDeck/
+
+theme:
+  name: material
+  font:
+    text: Atkinson Hyperlegible
+    code: Atkinson Hyperlegible
+  palette:
+    - scheme: slate
+      primary: black
+      accent: teal
+  features:
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+
+repo_url: https://github.com/Jarex985/SCStreamDeck
+repo_name: Jarex985/SCStreamDeck
+
+plugins:
+  - search
+  - glightbox
+
+markdown_extensions:
+  - attr_list
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+
+extra_css:
+  - stylesheets/scsd.css
+
+nav:
+    - Home: index.md
+    - Getting Started:
+          - Download & Installation: install.md
+          - Update & Uninstall: update.md
+    - Using the Plugin:
+          - Usage: usage.md
+          - Themes:
+                - About Themes: themes.md
+                - Theme Gallery: themegallery.md
+    - Help:
+          - Troubleshooting: troubleshooting.md
+          - FAQ: faq.md
+    - Support the Project: support.md

@@ -20,5 +20,4 @@
   --color-text-primary: rgba(245, 252, 255, 1);
   --color-text-secondary: rgba(var(--theme-accent-hi-rgb), 0.95);
   --color-text-tertiary: rgba(150, 185, 200, 0.75);
-
 }
