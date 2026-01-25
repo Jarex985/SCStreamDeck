@@ -1,12 +1,11 @@
 # Star Citizen Stream Deck Plugin
 
-A Stream Deck plugin that provides bindable actions for Star Citizen.
+**A Stream Deck plugin that provides bindable actions for Star Citizen.**
 
-User Guide (Website): https://jarex985.github.io/SCStreamDeck/
-
-Download latest: https://github.com/Jarex985/SCStreamDeck/releases/latest/download/com.jarex985.scstreamdeck.streamDeckPlugin
-
+User Guide: https://jarex985.github.io/SCStreamDeck/  
+Download latest Release: [Here](https://github.com/Jarex985/SCStreamDeck/releases/latest/download/com.jarex985.scstreamdeck.streamDeckPlugin)  
 Report bugs / feature requests: https://github.com/Jarex985/SCStreamDeck/issues
+
 
 ## Requirements
 
@@ -69,9 +68,9 @@ Report bugs / feature requests: https://github.com/Jarex985/SCStreamDeck/issues
 - **(Experimental) Click Sound**: Provides audio feedback on key presses with configurable sound files (.wav and .mp3).
 
 
-## Install
+## Installation
 
-See the full install guide: https://jarex985.github.io/SCStreamDeck/install/
+See the full installation guide: https://jarex985.github.io/SCStreamDeck/install/
 
 
 ## Credits

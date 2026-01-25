@@ -1,7 +1,5 @@
 # Update / Uninstall
 
-Stream Deck installs plugins system-wide, and updating is safest if you uninstall first.
-
 ## Update
 
 1. Uninstall the old version (see below).
