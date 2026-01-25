@@ -48,7 +48,7 @@ Report bugs / feature requests: https://github.com/Jarex985/SCStreamDeck/issues
   - Current Channel (`LIVE, HOTFIX, PTU, EPTU`) 
   - Custom Installation Paths (if auto-detection fails)
   - Force Redetection for auto detection (e.g. after moving the installation)
-  - Factory Reset (clears cached installs + custom overrides, rebuilds keybindings; keeps theme)
+  - Factory Reset (clears cached installs + custom overrides current theme, rebuilds keybindings)
 
 
 - **Mouse Wheel Support**: Supports mouse wheel actions for bindings that utilize mouse wheel input (Mouse Wheel Up/Down).  
@@ -73,10 +73,6 @@ Report bugs / feature requests: https://github.com/Jarex985/SCStreamDeck/issues
 
 See the full install guide: https://jarex985.github.io/SCStreamDeck/install/
 
-## Development
-
-- Build: `dotnet build SCStreamDeck.sln -c Release`
-- Test: `dotnet test Tests/Tests.csproj -c Release --no-build`
 
 ## Credits
 
