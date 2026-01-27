@@ -1,18 +1,18 @@
 # Themes
 
-The Plugin supports themes for the Property Inspector UI.
+The plugin supports themes for the Property Inspector UI.
 
 ## Pick a Theme
 
 1. Add `Control Panel` to any key.
 2. Open the Property Inspector.
-3. Choose a theme from the Theme dropdown.
+3. Choose a theme from the **Theme** dropdown.
 
 ![Theme Dropdown](assets/images/theme-dropdown.png){ style="width:45%; height:auto;" }
 
 ## Create a Custom Theme
 
-You can create your own theme by copying the `_theme-template.css` and changing a few color values.
+You can create your own theme by copying `_theme-template.css` and changing a few color values.
 
 Template file location:
 
@@ -48,9 +48,9 @@ You will find RGB color values defined as:
 
 ### Steps
 
-1. Copy content of `_theme-template.css` to a new file, for example `my-theme.css`.
+1. Copy the contents of `_theme-template.css` to a new file, for example `my-theme.css`.
 2. Change the RGB values in the new file.
-    - You can use e.g. [https://rgbcolorpicker.com/](https://rgbcolorpicker.com/) if you need help picking colors.
+    - You can use [https://rgbcolorpicker.com/](https://rgbcolorpicker.com/) if you need help picking colors.
 3. Save the new file in the `themes` folder.
 4. Restart Stream Deck.
 5. Open `Control Panel` and select the new theme.

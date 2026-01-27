@@ -17,7 +17,7 @@ internal static class ControlPanelPayloadBuilder
 
         SCChannel preferred = state?.SelectedChannel ?? SCChannel.Live;
 
-        JArray channels = new();
+        JArray channels = [];
         foreach (SCChannel ch in Enum.GetValues<SCChannel>())
         {
             InstallationState? install = state?.GetInstallation(ch);

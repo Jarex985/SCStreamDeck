@@ -19,11 +19,9 @@ internal sealed class TestFileSystem : IFileSystem
     public Task<string[]> ReadAllLinesAsync(string path, CancellationToken cancellationToken = default) =>
         Task.FromResult(ReadAllText(path).Split(new[] { "\r\n", "\n" }, StringSplitOptions.None));
 
-    public void WriteAllText(string path, string contents) => _files[Normalize(path)] = contents;
-
     public Task WriteAllTextAsync(string path, string contents, CancellationToken cancellationToken = default)
     {
-        WriteAllText(path, contents);
+        _files[Normalize(path)] = contents;
         return Task.CompletedTask;
     }
 
@@ -34,25 +32,6 @@ internal sealed class TestFileSystem : IFileSystem
     }
 
     public void DeleteFile(string path) => _files.Remove(Normalize(path));
-
-    public void MoveFile(string sourceFileName, string destFileName, bool overwrite)
-    {
-        string sourceKey = Normalize(sourceFileName);
-        string destKey = Normalize(destFileName);
-
-        if (!_files.TryGetValue(sourceKey, out string? contents))
-        {
-            throw new FileNotFoundException($"File not found: '{sourceFileName}'");
-        }
-
-        if (!overwrite && _files.ContainsKey(destKey))
-        {
-            throw new IOException($"Destination exists: '{destFileName}'");
-        }
-
-        _files[destKey] = contents;
-        _files.Remove(sourceKey);
-    }
 
     public void AddFile(string path, string contents) => _files[Normalize(path)] = contents;
 

@@ -9,8 +9,9 @@ public class PathProviderService
 {
     public PathProviderService()
     {
-        BaseDirectory = AppContext.BaseDirectory;
-        CacheDirectory = Path.Combine(BaseDirectory, "cache");
+        string baseDirectory = AppContext.BaseDirectory;
+        BaseDirectory = baseDirectory;
+        CacheDirectory = Path.Combine(baseDirectory, "cache");
     }
 
     /// <summary>
@@ -22,15 +23,17 @@ public class PathProviderService
         CacheDirectory = cacheDirectory;
     }
 
-    public virtual string BaseDirectory { get; }
-    public virtual string CacheDirectory { get; }
+    public string BaseDirectory { get; }
+    public string CacheDirectory { get; }
 
-    public virtual string GetKeybindingJsonPath(string channel)
+    public string GetKeybindingJsonPath(string channel)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel);
 
+        EnsureDirectoriesExist();
+
         string fileName = $"{channel.ToUpperInvariant()}-keybindings.json";
-        return Path.Combine(CacheDirectory, fileName);
+        return GetSecureCachePath(fileName);
     }
 
     public virtual void EnsureDirectoriesExist()

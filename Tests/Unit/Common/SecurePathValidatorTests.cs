@@ -74,6 +74,21 @@ public sealed class SecurePathValidatorTests
     }
 
     [Fact]
+    public void IsValidPath_PrefixEscape_ReturnsFalse()
+    {
+        string parentDir = CreateTempDirectory();
+        string baseDir = Path.Combine(parentDir, "cache");
+        string escapeDir = Path.Combine(parentDir, "cache2");
+        Directory.CreateDirectory(baseDir);
+        Directory.CreateDirectory(escapeDir);
+
+        bool result = SecurePathValidator.IsValidPath(Path.Combine(escapeDir, "file.txt"), baseDir, out string normalized);
+
+        result.Should().BeFalse();
+        normalized.Should().BeEmpty();
+    }
+
+    [Fact]
     public void IsValidPath_PathCausesException_ReturnsFalse()
     {
         string baseDir = CreateTempDirectory();

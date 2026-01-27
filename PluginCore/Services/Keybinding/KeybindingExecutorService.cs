@@ -14,7 +14,7 @@ public sealed class KeybindingExecutorService : IDisposable
     private readonly ConcurrentDictionary<string, Timer> _activationTimers = new(StringComparer.OrdinalIgnoreCase);
     private readonly ActivationModeHandlerRegistry _handlerRegistry;
     private readonly ConcurrentDictionary<string, byte> _holdStates = new(StringComparer.OrdinalIgnoreCase);
-    private readonly IInputExecutor _inputExecutor;
+    private readonly KeybindingInputExecutor _inputExecutor;
     private readonly KeybindingLoaderService _loaderService;
     private bool _disposed;
 
@@ -71,6 +71,53 @@ public sealed class KeybindingExecutorService : IDisposable
                 $"[{nameof(KeybindingExecutorService)}] Operation failed for '{context.ActionName}'",
                 ex);
 
+            return false;
+        }
+    }
+
+    internal async Task<bool> ExecutePressNoRepeatAsync(
+        string actionName,
+        string binding,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(actionName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(binding);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        try
+        {
+            return await Task.Run(
+                    () =>
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        ParsedInputResult? parsedInput = KeybindingParserService.ParseBinding(binding);
+                        if (parsedInput == null)
+                        {
+                            Log.Warn($"[{nameof(KeybindingExecutorService)}] Failed to parse binding '{binding}'");
+                            return false;
+                        }
+
+                        bool success =
+                            _inputExecutor.ExecutePressNoRepeat(new ParsedInput
+                            {
+                                Type = parsedInput.Type, Value = parsedInput.Value
+                            });
+                        if (!success)
+                        {
+                            Log.Warn(
+                                $"[{nameof(KeybindingExecutorService)}] Failed to execute no-repeat binding '{binding}' for '{actionName}'");
+                        }
+
+                        return success;
+                    },
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Log.Err($"[{nameof(KeybindingExecutorService)}] Operation failed for '{actionName}'", ex);
             return false;
         }
     }

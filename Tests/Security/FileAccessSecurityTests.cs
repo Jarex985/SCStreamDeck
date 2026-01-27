@@ -1,5 +1,6 @@
 using System.Security;
 using FluentAssertions;
+using Moq;
 using SCStreamDeck.Common;
 using SCStreamDeck.Models;
 using SCStreamDeck.Services.Core;
@@ -48,22 +49,29 @@ public sealed class FileAccessSecurityTests
     public async Task StateService_SaveState_InvalidCachePath_ThrowsOrBlocks()
     {
         FakePathProvider pathProvider = new("C:/Windows/System32");
-        StateService stateService = new(pathProvider, new SystemFileSystem());
+        Mock<IFileSystem> fileSystem = new(MockBehavior.Strict);
+        StateService stateService = new(pathProvider, fileSystem.Object);
 
         PluginState state = new(DateTime.UtcNow, SCChannel.Live, null, null, null, null, null);
 
         Func<Task> act = async () => await stateService.SaveStateAsync(state);
 
-        await act.Should().ThrowAsync<Exception>();
+        await act.Should().ThrowAsync<SecurityException>();
+        pathProvider.EnsureDirectoriesExistCallCount.Should().Be(1);
+        pathProvider.GetSecureCachePathCallCount.Should().Be(1);
     }
 
     private sealed class FakePathProvider(string cacheDirectory) : PathProviderService(cacheDirectory, cacheDirectory)
     {
-        public override void EnsureDirectoriesExist()
-        {
-        }
+        public int EnsureDirectoriesExistCallCount { get; private set; }
+        public int GetSecureCachePathCallCount { get; private set; }
 
-        public override string GetSecureCachePath(string relativePath) =>
-            SecurePathValidator.GetSecurePath(relativePath, CacheDirectory);
+        public override void EnsureDirectoriesExist() => EnsureDirectoriesExistCallCount++;
+
+        public override string GetSecureCachePath(string relativePath)
+        {
+            GetSecureCachePathCallCount++;
+            return base.GetSecureCachePath(relativePath);
+        }
     }
 }

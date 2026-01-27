@@ -11,6 +11,96 @@ namespace Tests.Unit.Services.Keybinding;
 public sealed class KeybindingExecutorServiceTests
 {
     [Fact]
+    public async Task ExecutePressNoRepeatAsync_KeyboardSingleKey_ExecutesDelayedKeyPress()
+    {
+        KeybindingLoaderService loader = new(new SystemFileSystem());
+
+        Mock<IKeyboardSimulator> keyboard = new(MockBehavior.Strict);
+        keyboard.Setup(k => k.DelayedKeyPress(DirectInputKeyCode.DikF1, 50)).Returns(keyboard.Object);
+
+        Mock<IInputSimulator> inputSimulator = new(MockBehavior.Strict);
+        inputSimulator.SetupGet(i => i.Keyboard).Returns(keyboard.Object);
+
+        KeybindingExecutorService service = new(loader, inputSimulator.Object);
+
+        bool result = await service.ExecutePressNoRepeatAsync("TestAction", "f1");
+
+        result.Should().BeTrue();
+        keyboard.Verify(k => k.DelayedKeyPress(DirectInputKeyCode.DikF1, 50), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecutePressNoRepeatAsync_MouseLeftButton_ExecutesLeftClick()
+    {
+        KeybindingLoaderService loader = new(new SystemFileSystem());
+
+        Mock<IMouseSimulator> mouse = new(MockBehavior.Strict);
+        mouse.Setup(m => m.LeftButtonClick()).Returns(mouse.Object);
+
+        Mock<IInputSimulator> inputSimulator = new(MockBehavior.Strict);
+        inputSimulator.SetupGet(i => i.Mouse).Returns(mouse.Object);
+
+        KeybindingExecutorService service = new(loader, inputSimulator.Object);
+
+        bool result = await service.ExecutePressNoRepeatAsync("TestAction", SCConstants.Input.Mouse.LeftButton);
+
+        result.Should().BeTrue();
+        mouse.Verify(m => m.LeftButtonClick(), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecutePressNoRepeatAsync_MouseWheelUp_ExecutesVerticalScroll()
+    {
+        KeybindingLoaderService loader = new(new SystemFileSystem());
+
+        Mock<IMouseSimulator> mouse = new(MockBehavior.Strict);
+        mouse.Setup(m => m.VerticalScroll(1)).Returns(mouse.Object);
+
+        Mock<IInputSimulator> inputSimulator = new(MockBehavior.Strict);
+        inputSimulator.SetupGet(i => i.Mouse).Returns(mouse.Object);
+
+        KeybindingExecutorService service = new(loader, inputSimulator.Object);
+
+        bool result = await service.ExecutePressNoRepeatAsync("TestAction", SCConstants.Input.Mouse.WheelUp);
+
+        result.Should().BeTrue();
+        mouse.Verify(m => m.VerticalScroll(1), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecutePressNoRepeatAsync_MouseWheelDown_ExecutesVerticalScroll()
+    {
+        KeybindingLoaderService loader = new(new SystemFileSystem());
+
+        Mock<IMouseSimulator> mouse = new(MockBehavior.Strict);
+        mouse.Setup(m => m.VerticalScroll(-1)).Returns(mouse.Object);
+
+        Mock<IInputSimulator> inputSimulator = new(MockBehavior.Strict);
+        inputSimulator.SetupGet(i => i.Mouse).Returns(mouse.Object);
+
+        KeybindingExecutorService service = new(loader, inputSimulator.Object);
+
+        bool result = await service.ExecutePressNoRepeatAsync("TestAction", SCConstants.Input.Mouse.WheelDown);
+
+        result.Should().BeTrue();
+        mouse.Verify(m => m.VerticalScroll(-1), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecutePressNoRepeatAsync_InvalidBinding_ReturnsFalse_AndDoesNotExecute()
+    {
+        KeybindingLoaderService loader = new(new SystemFileSystem());
+
+        Mock<IInputSimulator> inputSimulator = new(MockBehavior.Strict);
+
+        KeybindingExecutorService service = new(loader, inputSimulator.Object);
+
+        bool result = await service.ExecutePressNoRepeatAsync("TestAction", "$$invalid$$");
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ReturnsFalse_WhenContextInvalid()
     {
         KeybindingLoaderService loader = new(new SystemFileSystem());

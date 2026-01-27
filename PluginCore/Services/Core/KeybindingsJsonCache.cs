@@ -26,16 +26,8 @@ public sealed class KeybindingsJsonCache(PathProviderService pathProvider, IFile
         return _fileSystem.FileExists(keybindingJson);
     }
 
-    public bool TryDeleteAll()
-    {
-        bool anyDeleted = false;
-        foreach (SCChannel channel in Enum.GetValues<SCChannel>())
-        {
-            anyDeleted |= TryDelete(channel);
-        }
-
-        return anyDeleted;
-    }
+    public bool TryDeleteAll() =>
+        Enum.GetValues<SCChannel>().Aggregate(false, (current, channel) => current || TryDelete(channel));
 
     public bool TryDelete(SCChannel channel)
     {

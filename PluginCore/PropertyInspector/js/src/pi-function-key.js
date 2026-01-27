@@ -65,6 +65,65 @@
     settingsKey: 'clickSoundPath'
   });
 
+  const resetHoldSecondsInput = document.getElementById('resetHoldSeconds');
+  if (resetHoldSecondsInput) {
+    const defaultSeconds = 1.0;
+    const minSeconds = 0.2;
+    const maxSeconds = 10.0;
+
+    const resetHoldSecondsClearBtn = document.getElementById('resetHoldSecondsClear');
+
+    function clampResetHoldSeconds(raw) {
+      const value = (typeof raw === 'number') ? raw : parseFloat(String(raw));
+      if (!Number.isFinite(value)) {
+        return defaultSeconds;
+      }
+
+      return Math.min(maxSeconds, Math.max(minSeconds, value));
+    }
+
+    function updateResetHoldClearButton() {
+      if (!resetHoldSecondsClearBtn) {
+        return;
+      }
+
+      const normalized = clampResetHoldSeconds(resetHoldSecondsInput.value);
+      resetHoldSecondsClearBtn.disabled = Math.abs(normalized - defaultSeconds) < 0.0001;
+    }
+
+    const [getResetHoldSecondsSetting, setResetHoldSecondsSetting] = globalThis.SDPIComponents.useSettings(
+      'resetHoldSeconds',
+      (value) => {
+        const normalized = clampResetHoldSeconds(value);
+        resetHoldSecondsInput.value = normalized.toFixed(1);
+        updateResetHoldClearButton();
+      }
+    );
+
+    if (resetHoldSecondsClearBtn) {
+      resetHoldSecondsClearBtn.addEventListener('click', () => {
+        resetHoldSecondsInput.value = defaultSeconds.toFixed(1);
+        setResetHoldSecondsSetting(defaultSeconds);
+        updateResetHoldClearButton();
+      });
+    }
+
+    resetHoldSecondsInput.addEventListener('input', () => {
+      updateResetHoldClearButton();
+    });
+
+    resetHoldSecondsInput.addEventListener('change', () => {
+      const normalized = clampResetHoldSeconds(resetHoldSecondsInput.value);
+      resetHoldSecondsInput.value = normalized.toFixed(1);
+      setResetHoldSecondsSetting(normalized);
+      updateResetHoldClearButton();
+    });
+
+    // Ensure the initial UI reflects current settings (or defaults).
+    resetHoldSecondsInput.value = clampResetHoldSeconds(getResetHoldSecondsSetting()).toFixed(1);
+    updateResetHoldClearButton();
+  }
+
   // #endregion
 
   // #region Dropdown Rendering
@@ -93,11 +152,15 @@
             return; // Skip controller-only and axis-only options
           }
 
-          // Determine category - unbound actions go to separate category
-          let category = groupName;
-          if (opt.disabledReason === 'No supported binding') {
-            category = 'Unbound Functions';
-          }
+          // Keep the original category; unbound actions are shown with a warning indicator.
+          const category = groupName;
+
+          const bindingType = String(opt.bindingType || '').toLowerCase();
+          const disabledReason = String(opt.disabledReason || '');
+          const isUnbound = bindingType === 'unbound' || disabledReason === 'No supported binding';
+
+          // Unbound actions are selectable (so users can bind them later), but still visually flagged.
+          const isDisabled = !!opt.disabled && !isUnbound;
 
           flat.push(
             {
@@ -105,7 +168,10 @@
               text: opt.text,
               group: category,
               details: opt.details,
-              disabled: opt.disabled || false
+              bindingType,
+              disabledReason,
+              unbound: isUnbound,
+              disabled: isDisabled
             });
         });
       });
@@ -193,10 +259,17 @@
       }
 
       // Clear all binding values
-      document.getElementById('pi-details__binding-keyboard').textContent = '';
-      document.getElementById('pi-details__binding-mouse').textContent = '';
-      document.getElementById('pi-details__binding-gamepad').textContent = '';
-      document.getElementById('pi-details__binding-joystick').textContent = '';
+      const kbEl = document.getElementById('pi-details__binding-keyboard');
+      const mouseEl = document.getElementById('pi-details__binding-mouse');
+      const gpEl = document.getElementById('pi-details__binding-gamepad');
+      const jsEl = document.getElementById('pi-details__binding-joystick');
+
+      [kbEl, mouseEl, gpEl, jsEl].forEach((el) => {
+        if (!el) {
+          return;
+        }
+        el.textContent = '';
+      });
       return;
     }
 

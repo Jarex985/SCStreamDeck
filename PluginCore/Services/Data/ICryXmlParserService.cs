@@ -1,5 +1,6 @@
 namespace SCStreamDeck.Services.Data;
 
+// ReSharper disable UnusedMemberInSuper.Global
 /// <summary>
 ///     Service for parsing CryEngine binary XML files.
 /// </summary>

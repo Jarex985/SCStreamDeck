@@ -197,7 +197,7 @@ internal static class DirectInputDisplayMapper
     private static string? GetKeyNameTextFromScanCode(uint scanCode)
     {
         char[] buffer = new char[BufferSize];
-        long lParam = scanCode << LParamShift; // lParam format for GetKeyNameText
+        long lParam = scanCode << LParamShift;
         int result = GetKeyNameText(lParam, buffer, BufferSize);
         return result > 0 ? new string(buffer, 0, result) : null;
     }

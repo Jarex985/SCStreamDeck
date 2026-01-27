@@ -30,12 +30,9 @@ internal static class Program
         }
 
         string piRoot = Path.GetFullPath(args[0]);
-        if (!Directory.Exists(piRoot))
-        {
-            throw new DirectoryNotFoundException($"PropertyInspector directory not found: {piRoot}");
-        }
-
-        return piRoot;
+        return !Directory.Exists(piRoot)
+            ? throw new DirectoryNotFoundException($"PropertyInspector directory not found: {piRoot}")
+            : piRoot;
     }
 
     private static void BuildAll(string piRoot)

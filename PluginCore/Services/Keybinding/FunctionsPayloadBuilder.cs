@@ -55,11 +55,11 @@ internal static class FunctionsPayloadBuilder
             .ThenBy(x => x.ActionLabelResolved)
             .GroupBy(x => x.GroupLabelResolved);
 
-        JArray groups = new();
+        JArray groups = [];
 
         foreach (IGrouping<string, GroupedActionEntry> categoryGroup in grouped)
         {
-            JArray options = new();
+            JArray options = [];
 
             foreach (GroupedActionEntry groupedEntry in categoryGroup.OrderBy(e => e.ActionLabelResolved))
             {
@@ -125,7 +125,7 @@ internal static class FunctionsPayloadBuilder
     private static string BuildDisambiguatorSuffix(string actionName, string commonPrefix)
     {
         string uniquePart = actionName.Length > commonPrefix.Length
-            ? actionName.Substring(commonPrefix.Length)
+            ? actionName[commonPrefix.Length..]
             : actionName;
 
         return FormatSuffix(uniquePart);
@@ -171,7 +171,7 @@ internal static class FunctionsPayloadBuilder
         int prefixLength = GetSharedPrefixLength(strings, first);
 
         // Trim to last underscore to avoid cutting mid-word
-        string prefix = first.Substring(0, prefixLength);
+        string prefix = first[..prefixLength];
         return TrimPrefixToUnderscoreBoundary(prefix);
     }
 
@@ -197,7 +197,7 @@ internal static class FunctionsPayloadBuilder
     private static string TrimPrefixToUnderscoreBoundary(string prefix)
     {
         int lastUnderscore = prefix.LastIndexOf('_');
-        return lastUnderscore > 0 ? prefix.Substring(0, lastUnderscore + 1) : prefix;
+        return lastUnderscore > 0 ? prefix[..(lastUnderscore + 1)] : prefix;
     }
 
     private static string FormatSuffix(string suffix)
@@ -342,7 +342,7 @@ internal static class FunctionsPayloadBuilder
             .GroupBy(b => b.Device)
             .OrderBy(g => g.Key);
 
-        JArray devices = new();
+        JArray devices = [];
 
         foreach (IGrouping<InputDeviceType, BindingDisplay> g in byDevice)
         {

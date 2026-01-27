@@ -206,6 +206,8 @@
       const optionEl = document.createElement('div');
       optionEl.className = 'pi-dropdown__option';
 
+      const isUnbound = !!item?.unbound;
+
       const disabled = isDisabled(item);
       if (disabled) {
         optionEl.classList.add('disabled');
@@ -215,6 +217,14 @@
       nameEl.className = 'pi-dropdown__option-label';
       nameEl.textContent = getText(item);
       optionEl.appendChild(nameEl);
+
+      if (isUnbound) {
+        const badgeEl = document.createElement('span');
+        badgeEl.className = 'pi-dropdown__option-badge pi-dropdown__option-badge--warn';
+        badgeEl.textContent = '!';
+        badgeEl.title = 'No supported binding';
+        optionEl.appendChild(badgeEl);
+      }
 
       optionEl.addEventListener('mousedown', () => {
         isSelecting = true;

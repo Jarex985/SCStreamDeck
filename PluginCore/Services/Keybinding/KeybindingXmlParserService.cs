@@ -181,17 +181,9 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
 
         // Try to get explicit activationMode, otherwise infer from action attributes
         string activationModeStr = xmlReader.GetAttribute("activationMode") ?? string.Empty;
-        ActivationMode activationMode;
-
-        if (!string.IsNullOrWhiteSpace(activationModeStr))
-        {
-            activationMode = ParseActivationMode(activationModeStr);
-        }
-        else
-        {
-            // No explicit activationMode - infer from action attributes using exact match first
-            activationMode = InferActivationModeFromAttributes(xmlReader, activationModes, actionName);
-        }
+        ActivationMode activationMode = !string.IsNullOrWhiteSpace(activationModeStr)
+            ? ParseActivationMode(activationModeStr)
+            : InferActivationModeFromAttributes(xmlReader, activationModes, actionName);
 
         // Extract raw binding strings
         string keyboard = (xmlReader.GetAttribute("keyboard") ?? string.Empty).Trim();

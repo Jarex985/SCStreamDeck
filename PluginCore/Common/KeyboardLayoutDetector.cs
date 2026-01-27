@@ -24,7 +24,6 @@ public static partial class KeyboardLayoutDetector
     /// <summary>
     ///     Detects the current keyboard layout.
     ///     Cached after the first call to avoid repeated Win32 calls.
-    ///     Call <see cref="InvalidateCache" /> when keyboard layout changes are detected.
     /// </summary>
     public static KeyboardLayoutInfo DetectCurrent()
     {
@@ -43,20 +42,6 @@ public static partial class KeyboardLayoutDetector
 
             s_cached = new KeyboardLayoutInfo(hkl);
             return s_cached;
-        }
-    }
-
-
-    // TODO: Implement a way to listen for keyboard layout changes in the application - if possible.
-    /// <summary>
-    ///     Clears the cached keyboard layout, forcing the next call to <see cref="DetectCurrent" />
-    ///     to re-detect the current layout. Call this when a keyboard layout change is detected.
-    /// </summary>
-    public static void InvalidateCache()
-    {
-        lock (s_lock)
-        {
-            s_cached = null;
         }
     }
 }

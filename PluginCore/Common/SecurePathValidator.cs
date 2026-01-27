@@ -50,8 +50,10 @@ public static class SecurePathValidator
         {
             string fullPath = Path.GetFullPath(Path.Combine(baseDirectory, path));
             string fullBase = Path.GetFullPath(baseDirectory);
+            string fullBaseWithSeparator = Path.TrimEndingDirectorySeparator(fullBase) + Path.DirectorySeparatorChar;
 
-            if (fullPath.StartsWith(fullBase, StringComparison.OrdinalIgnoreCase))
+            if (fullPath.Equals(fullBase, StringComparison.OrdinalIgnoreCase) ||
+                fullPath.StartsWith(fullBaseWithSeparator, StringComparison.OrdinalIgnoreCase))
             {
                 normalizedPath = fullPath;
                 return true;

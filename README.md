@@ -1,11 +1,18 @@
-# Star Citizen Stream Deck Plugin
+![Star Citizen Stream Deck Plugin](./docs/assets/images/scsd-banner.png)
 
-**A Stream Deck plugin that provides bindable actions for Star Citizen.**
 
 User Guide: https://jarex985.github.io/SCStreamDeck/  
 Download latest Release: [Here](https://github.com/Jarex985/SCStreamDeck/releases/latest/download/com.jarex985.scstreamdeck.streamDeckPlugin)  
 Report bugs / feature requests: https://github.com/Jarex985/SCStreamDeck/issues
 
+<br>
+
+> [!WARNING]
+> **This site is not endorsed by or affiliated with the Cloud Imperium or Roberts Space Industries group of companies. 
+> All game content and materials are copyright Cloud Imperium Rights LLC and Cloud Imperium Rights Ltd.. Star Citizen®, 
+> Squadron 42®, Roberts Space Industries®, and Cloud Imperium® are registered trademarks of Cloud Imperium Rights LLC. All rights reserved.**  
+
+<br>
 
 ## Requirements
 
@@ -32,40 +39,24 @@ Report bugs / feature requests: https://github.com/Jarex985/SCStreamDeck/issues
 [![JetBrains Rider](https://img.shields.io/badge/JetBrains%20Rider-000000?logo=JetBrains&logoColor=white)](https://www.jetbrains.com/rider/)
 [![JetBrains WebStorm](https://img.shields.io/badge/JetBrains%20WebStorm-000000?logo=JetBrains&logoColor=white)](https://www.jetbrains.com/webstorm/)
 ### Support / Funding
-[![Buy Me A Coffee](https://img.shields.io/badge/BuyMeACoffee-Support-orange)](https://www.buymeacoffee.com/jarex9851)
+[![Buy Me A Coffee](https://img.shields.io/badge/BuyMeACoffee-Support-yellow?style=flat&logo=buy-me-a-coffee&logoColor=white)](https://www.buymeacoffee.com/jarex9851)
 [![Ko-Fi](https://img.shields.io/badge/Ko--Fi-Support-orange?style=flat&logo=kofi&logoColor=white)](https://ko-fi.com/jarex985)
+[![PayPal](https://img.shields.io/badge/PayPal-Support-blue?style=flat&logo=paypal&logoColor=white)](https://www.paypal.me/jarex985)
+
 
 
 ## Current Features
 
-- **Adaptive Key**: Dynamically bindable key actions for Star Citizen that execute only their assigned function based on the ActivationMode.
-    - *Example:* Tap vs Hold on `Num-` executes only the Tap function when this is the assigned function.  
-  
-
-- **Control Panel Key**: Allows you to change settings like: 
-  - Current Theme for the Plugin to use
-  - Current Channel (`LIVE, HOTFIX, PTU, EPTU`) 
-  - Custom Installation Paths (if auto-detection fails)
-  - Force Redetection for auto detection (e.g. after moving the installation)
-  - Factory Reset (clears cached installs + custom overrides current theme, rebuilds keybindings)
-
-
-- **Mouse Wheel Support**: Supports mouse wheel actions for bindings that utilize mouse wheel input (Mouse Wheel Up/Down).  
-  
-
-- **Custom Language Support**: Supports custom language files for localization when using custom global.ini from the Community, e.g. [StarCitizen-Deutsch-INI by rjcncpt](https://github.com/rjcncpt/StarCitizen-Deutsch-INI).
-
-
-- **Support for all Channels**: `LIVE, HOTFIX, PTU, and EPTU` support. You can switch between channels via Control Panel Key. 
-
-
+- **Adaptive Key**: A key that executes keybindings based on the activation mode for a given binding.
+    - *Example:* Two in-game bindings (Tap vs Hold) on `Num-` executes only the Tap function when this is the assigned function.
+- **Toggle Key**: A key that toggles between two states (e.g., landing gear up/down). Can be reset to match the current in-game state on de-sync.
+- **Control Panel Key**: A dedicated key for managing global plugin settings such as themes, channel selection, and installation paths.
 - **Auto-Detection of Star Citizen Installation Path**: Automatically detects the installation path of Star Citizen.
-
-
+- **Multiple Channels Support**: Supports different Star Citizen channels including LIVE, HOTFIX, PTU, and EPTU.
+- **Mouse Wheel Support**: Supports mouse wheel actions for bindings that use mouse wheel input (Mouse Wheel Up/Down).
+- **Custom Language Support**: Supports custom language files for localization when using custom global.ini from the community, e.g. [StarCitizen-Deutsch-INI by rjcncpt](https://github.com/rjcncpt/StarCitizen-Deutsch-INI).
 - **Theme Support**: Themes for customizing the appearance of the plugin. Includes a template for creating your own themes!
-
-
-- **(Experimental) Click Sound**: Provides audio feedback on key presses with configurable sound files (.wav and .mp3).
+- **Click Sound**: Provides audio feedback on key presses with configurable sound files (.wav and .mp3).
 
 
 ## Installation

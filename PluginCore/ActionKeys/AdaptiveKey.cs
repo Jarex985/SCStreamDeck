@@ -5,14 +5,13 @@ using SCStreamDeck.Common;
 using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
 
-// ReSharper disable once UnusedType.Global
-
 namespace SCStreamDeck.ActionKeys;
 
 /// <summary>
 ///     Adaptive Star Citizen Key.
 ///     Automatically adjusts behavior based on action activation modes.
 /// </summary>
+[SuppressMessage("ReSharper", "UnusedType.Global", Justification = "Stream Deck action instantiated via SDK reflection")]
 [PluginActionId("com.jarex985.scstreamdeck.adaptivekey")]
 public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload) : SCActionBase(connection, payload)
 {
@@ -20,10 +19,9 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
 
     public override async void KeyPressed(KeyPayload payload)
     {
-        PlayClickSoundIfConfigured();
-
         try
         {
+            PlayClickSoundIfConfigured();
             await ProcessKeyEventAsync(true).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -143,11 +141,9 @@ public sealed class AdaptiveKey(SDConnection connection, InitialPayload payload)
     }
 
     [Conditional("DEBUG")]
-    private void LogExec(KeybindingExecutionContext context)
-    {
-        string actionText = context.IsKeyDown ? "pressed" : "released";
-        Log.Debug($"{GetType().Name}: {actionText} '{context.ActionName}' ({context.ActivationMode}) → '{context.Binding}'");
-    }
+    private void LogExec(KeybindingExecutionContext context) =>
+        Log.Debug(
+            $"{GetType().Name}: {(context.IsKeyDown ? "pressed" : "released")} '{context.ActionName}' ({context.ActivationMode}) → '{context.Binding}'");
 
     #endregion
 }

@@ -20,24 +20,17 @@ public sealed class ThemeService(PathProviderService pathProvider)
             string dir = ThemesDirectory;
             if (!Directory.Exists(dir))
             {
-                return Array.Empty<ThemeInfo>();
+                return [];
             }
 
             string[] files = Directory.GetFiles(dir, "*.css", SearchOption.TopDirectoryOnly);
 
-            List<ThemeInfo> themes = new();
-            foreach (string fullPath in files)
-            {
-                string fileName = Path.GetFileName(fullPath);
-
-                // Underscore-prefixed files are templates/internal.
-                if (fileName.StartsWith('_'))
-                {
-                    continue;
-                }
-
-                themes.Add(new ThemeInfo(fileName, ToDisplayName(fileName)));
-            }
+            List<ThemeInfo> themes = [];
+            themes.AddRange(from fullPath in files
+                select Path.GetFileName(fullPath)
+                into fileName
+                where !fileName.StartsWith('_')
+                select new ThemeInfo(fileName, ToDisplayName(fileName)));
 
             return themes
                 .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
@@ -46,7 +39,7 @@ public sealed class ThemeService(PathProviderService pathProvider)
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Log.Err($"[{nameof(ThemeService)}] Failed to enumerate themes: {ex.Message}", ex);
-            return Array.Empty<ThemeInfo>();
+            return [];
         }
     }
 

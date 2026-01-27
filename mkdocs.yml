@@ -4,9 +4,10 @@ site_url: https://jarex985.github.io/SCStreamDeck/
 
 theme:
   name: material
+  custom_dir: docs/overrides
   font:
     text: Atkinson Hyperlegible
-    code: Atkinson Hyperlegible
+    code: Atkinson Hyperlegible Mono
   palette:
     - scheme: slate
       primary: black

@@ -2,6 +2,7 @@ using SCStreamDeck.Models;
 
 namespace SCStreamDeck.Services.Installation;
 
+// ReSharper disable UnusedMemberInSuper.Global
 /// <summary>
 ///     Abstraction for installation discovery and selection.
 ///     Used by core orchestration (InitializationService) and implemented by InstallLocatorService.

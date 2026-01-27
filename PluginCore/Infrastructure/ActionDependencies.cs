@@ -1,6 +1,5 @@
 using SCStreamDeck.Services.Audio;
 using SCStreamDeck.Services.Core;
-using SCStreamDeck.Services.Installation;
 using SCStreamDeck.Services.Keybinding;
 using SCStreamDeck.Services.UI;
 
@@ -22,7 +21,6 @@ internal static class ActionDependencies
         ServiceLocator.GetService<InitializationService>(),
         ServiceLocator.GetService<StateService>(),
         ServiceLocator.GetService<ThemeService>(),
-        ServiceLocator.GetService<PathProviderService>(),
         ServiceLocator.GetService<IKeybindingsJsonCache>());
 }
 
@@ -31,9 +29,27 @@ internal sealed record SCActionBaseDependencies(
     KeybindingService KeybindingService,
     AudioPlayerService AudioPlayerService);
 
-internal sealed record ControlPanelKeyDependencies(
-    InitializationService InitializationService,
-    StateService StateService,
-    ThemeService ThemeService,
-    PathProviderService PathProviderService,
-    IKeybindingsJsonCache KeybindingsJsonCache);
+internal sealed class ControlPanelKeyDependencies
+{
+    public ControlPanelKeyDependencies(
+        InitializationService initializationService,
+        StateService stateService,
+        ThemeService themeService,
+        IKeybindingsJsonCache keybindingsJsonCache)
+    {
+        ArgumentNullException.ThrowIfNull(initializationService);
+        ArgumentNullException.ThrowIfNull(stateService);
+        ArgumentNullException.ThrowIfNull(themeService);
+        ArgumentNullException.ThrowIfNull(keybindingsJsonCache);
+
+        InitializationService = initializationService;
+        StateService = stateService;
+        ThemeService = themeService;
+        KeybindingsJsonCache = keybindingsJsonCache;
+    }
+
+    public InitializationService InitializationService { get; }
+    public StateService StateService { get; }
+    public ThemeService ThemeService { get; }
+    public IKeybindingsJsonCache KeybindingsJsonCache { get; }
+}

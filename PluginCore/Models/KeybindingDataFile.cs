@@ -8,7 +8,7 @@ namespace SCStreamDeck.Models;
 /// </summary>
 public sealed class KeybindingDataFile
 {
-    [JsonProperty("metadata")] public KeybindingMetadata Metadata { get; set; } = new();
+    [JsonProperty("metadata")] public KeybindingMetadata? Metadata { get; set; } = new();
 
     [JsonProperty("actions")] public List<KeybindingActionData> Actions { get; set; } = [];
 }

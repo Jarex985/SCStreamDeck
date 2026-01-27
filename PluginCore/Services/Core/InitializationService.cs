@@ -169,7 +169,17 @@ public sealed class InitializationService : IDisposable
         }
 
         _installLocator.InvalidateCache();
-        return await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        // Force regeneration: re-detection should pick up new/changed actionmaps.xml overrides and in-game keybind updates.
+        // Do not raise KeybindingsStateChanged here; it would make open Property Inspectors show a false "No installation" error.
+        _keybindingsJsonCache.TryDeleteAll();
+
+        InitializationResult result = await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        // Refresh open Property Inspectors so updated bindings/categories are shown immediately.
+        KeybindingsStateChanged?.Invoke();
+
+        return result;
     }
 
     /// <summary>
@@ -217,7 +227,7 @@ public sealed class InitializationService : IDisposable
             return true;
         }
 
-        await ForceRedetectionAsync(cancellationToken).ConfigureAwait(false);
+        _ = await ForceRedetectionAsync(cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -397,7 +407,7 @@ public sealed class InitializationService : IDisposable
         return false;
     }
 
-    public string GetKeybindingsJsonPath()
+    private string GetKeybindingsJsonPath()
     {
         SCChannel channel;
         lock (_lock)
@@ -695,10 +705,10 @@ public sealed class InitializationService : IDisposable
 /// </summary>
 public sealed class InitializationResult
 {
-    public bool IsSuccess { get; init; }
-    public string? ErrorMessage { get; init; }
-    public SCChannel SelectedChannel { get; init; }
-    public int DetectedInstallations { get; init; }
+    public bool IsSuccess { get; private init; }
+    public string? ErrorMessage { get; private init; }
+    public SCChannel SelectedChannel { get; private init; }
+    public int DetectedInstallations { get; private init; }
 
     public static InitializationResult Success(SCChannel channel, int installCount) =>
         new() { IsSuccess = true, SelectedChannel = channel, DetectedInstallations = installCount };

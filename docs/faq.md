@@ -4,13 +4,13 @@
 
 Use the `Download Latest` button on [Home](index.md) or go to [Download & Installation](install.md) if you need more details.
 
-## Do I need a GitHub Account?
+## Do I need a GitHub account?
 
-No. You can download the Plugin without an account.
+No. You can download the plugin without an account.
 
 ## How do I update?
 
-Go to [Update & Uninstall](update.md). Current release builds require uninstall before installing a newer version.
+Go to [Update & Uninstall](update.md). Current release builds require you to uninstall before installing a newer version.
 
 ## I want to create my own theme. How?
 

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Moq;
 using Newtonsoft.Json;
 using SCStreamDeck.Common;
 using SCStreamDeck.Models;
@@ -185,12 +186,45 @@ public sealed class StateServiceTests
     [Fact]
     public void Constructor_ThrowsArgumentNullException_WhenPathProviderIsNull()
     {
-        using TestStateFile testState = new();
-        TestPathProvider pathProvider = new(testState.CacheDirectory);
-
         Action act = () => new StateService(null!, new SystemFileSystem());
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("pathProvider");
+    }
+
+    [Fact]
+    public async Task LoadStateAsync_ValidatesStatePath_UsingPathProvider()
+    {
+        using TestStateFile testState = new();
+        TrackingPathProvider pathProvider = new(testState.CacheDirectory);
+
+        Mock<IFileSystem> fileSystem = new(MockBehavior.Strict);
+        fileSystem.Setup(fs => fs.FileExists(It.IsAny<string>())).Returns(false);
+
+        StateService stateService = new(pathProvider, fileSystem.Object);
+
+        PluginState? result = await stateService.LoadStateAsync();
+
+        result.Should().BeNull();
+        pathProvider.GetSecureCachePathCallCount.Should().Be(1);
+        pathProvider.LastRelativePath.Should().Be(".plugin-state.json");
+    }
+
+    [Fact]
+    public void DeleteStateFile_ValidatesStatePath_UsingPathProvider()
+    {
+        using TestStateFile testState = new();
+        TrackingPathProvider pathProvider = new(testState.CacheDirectory);
+
+        Mock<IFileSystem> fileSystem = new(MockBehavior.Strict);
+        fileSystem.Setup(fs => fs.FileExists(It.IsAny<string>())).Returns(false);
+
+        StateService stateService = new(pathProvider, fileSystem.Object);
+
+        stateService.DeleteStateFile();
+
+        pathProvider.GetSecureCachePathCallCount.Should().Be(1);
+        pathProvider.LastRelativePath.Should().Be(".plugin-state.json");
+        fileSystem.Verify(fs => fs.DeleteFile(It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
@@ -228,6 +262,19 @@ public sealed class StateServiceTests
     {
         public override string GetSecureCachePath(string relativePath) =>
             SecurePathValidator.GetSecurePath(relativePath, CacheDirectory);
+    }
+
+    private sealed class TrackingPathProvider(string cacheDir) : PathProviderService(cacheDir, cacheDir)
+    {
+        public int GetSecureCachePathCallCount { get; private set; }
+        public string? LastRelativePath { get; private set; }
+
+        public override string GetSecureCachePath(string relativePath)
+        {
+            GetSecureCachePathCallCount++;
+            LastRelativePath = relativePath;
+            return base.GetSecureCachePath(relativePath);
+        }
     }
 
     private sealed class TestStateFile : IDisposable

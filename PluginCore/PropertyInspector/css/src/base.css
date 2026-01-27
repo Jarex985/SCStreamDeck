@@ -59,6 +59,9 @@
 
   --color-error: rgba(244, 67, 54, 1);
 
+  --color-warning: rgba(255, 193, 7, 1);
+  --color-warning-glow: rgba(255, 193, 7, 0.35);
+
   --color-success: rgba(76, 175, 80, 1);
   --color-success-glow: rgba(76, 175, 80, 0.55);
   --color-success-opacity-20: rgba(76, 175, 80, 0.2);
@@ -374,9 +377,6 @@ body {
   margin-top: 0;
 }
 
-.pi-section__header + .pi-button-row {
-  margin-top: var(--space-sm);
-}
 
 .pi-button-row > .pi-button {
   flex: 1 1 0;
@@ -457,7 +457,7 @@ body {
 }
 
 .pi-picker-label {
-  min-width: 58px;
+  min-width: 60px;
   font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
   letter-spacing: 0.6px;
@@ -571,21 +571,13 @@ body {
   animation: pi-success-blink 0.22s ease-out 1;
 }
 
-.pi-dropdown--loading .pi-dropdown__input-wrapper input {
-  opacity: 0;
-  pointer-events: none;
-}
-
+.pi-dropdown--loading .pi-dropdown__input-wrapper input,
 .pi-dropdown--success .pi-dropdown__input-wrapper input {
   opacity: 0;
   pointer-events: none;
 }
 
-.pi-dropdown--loading .pi-dropdown__toggle {
-  opacity: 0.65;
-  pointer-events: none;
-}
-
+.pi-dropdown--loading .pi-dropdown__toggle,
 .pi-dropdown--success .pi-dropdown__toggle {
   opacity: 0.65;
   pointer-events: none;
@@ -739,6 +731,25 @@ body {
   flex: 1;
 }
 
+.pi-dropdown__option-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  margin-left: var(--space-sm);
+  user-select: none;
+}
+
+.pi-dropdown__option-badge--warn {
+  color: rgba(0, 0, 0, 0.95);
+  background: var(--color-warning);
+  box-shadow: 0 0 10px var(--color-warning-glow);
+}
+
 /* === SECTION HEADER (inside .pi-section) === */
 .pi-section__header {
   padding: var(--space-sm);
@@ -814,15 +825,6 @@ body {
   overflow-x: hidden;
 }
 
-/* === FOOTER === */
-.pi-footer {
-  text-align: center;
-  padding: var(--space-sm);
-  font-size: var(--font-size-sm);
-  margin-top: var(--space-sm);
-  color: var(--color-text-tertiary);
-}
-
 /* === AUDIO FILE PICKER === */
 .file-picker-container {
   display: flex;
@@ -871,10 +873,6 @@ body {
   font-size: var(--font-size-md);
   line-height: 1;
   border-radius: var(--radius-sm);
-}
-
-/* === DESTRUCTIVE VARIANT (keeps hover mechanics consistent) === */
-.file-picker-clear {
   border-color: var(--color-error-opacity-40);
   color: var(--color-error-opacity-70);
 }

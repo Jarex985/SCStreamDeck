@@ -231,13 +231,13 @@ public sealed class KeybindingProcessorServiceTests
     }
 
     [Fact]
-    public async Task ApplyLocalizationAsync_DoesNotModify_WhenLocalizationIsNull()
+    public async Task ApplyLocalizationAsync_DoesNotModify_WhenLocalizationLoadThrows()
     {
         Mock<ILocalizationService> mockLocalizationService = new();
         mockLocalizationService
             .Setup(x => x.LoadGlobalIniAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))!
-            .ReturnsAsync((IReadOnlyDictionary<string, string>?)null);
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("boom"));
 
         KeybindingProcessorService service = new(
             Mock.Of<IP4KArchiveService>(),
@@ -909,6 +909,159 @@ public sealed class KeybindingProcessorServiceTests
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorMessage.Should().Be("No actions found in defaultProfile.xml");
+    }
+
+    #endregion
+
+    #region ApplyOverridesIfPresent
+
+    [Fact]
+    public void ApplyOverridesIfPresent_DoesNothing_WhenParsedOverridesAreEmpty()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), $"scstreamdeck_tests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        string actionMapsPath = Path.Combine(tempDir, SCConstants.Files.ActionMapsFileName);
+        File.WriteAllText(actionMapsPath,
+            "<?xml version=\"1.0\"?><root><action name=\"test_action\"><rebind input=\"xx_FOO\"/></action></root>");
+
+        try
+        {
+            KeybindingProcessorService service = new(
+                Mock.Of<IP4KArchiveService>(),
+                Mock.Of<ICryXmlParserService>(),
+                Mock.Of<ILocalizationService>(),
+                Mock.Of<IKeybindingXmlParserService>(),
+                Mock.Of<IKeybindingMetadataService>(),
+                Mock.Of<IKeybindingOutputService>(),
+                new SystemFileSystem());
+
+            List<KeybindingActionData> actions =
+            [
+                new()
+                {
+                    Name = "test_action",
+                    Label = "@label",
+                    Category = "@category",
+                    Bindings = new InputBindings { Keyboard = "W", Mouse = "MOUSE2" }
+                }
+            ];
+
+            MethodInfo methodInfo = typeof(KeybindingProcessorService)
+                .GetMethod("ApplyOverridesIfPresent", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+            methodInfo.Invoke(service, [actions, actionMapsPath]);
+
+            actions[0].Bindings.Keyboard.Should().Be("W");
+            actions[0].Bindings.Mouse.Should().Be("MOUSE2");
+        }
+        finally
+        {
+            if (File.Exists(actionMapsPath))
+            {
+                File.Delete(actionMapsPath);
+            }
+
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void ApplyOverridesIfPresent_AppliesOverrides_WhenOverridesPresent()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), $"scstreamdeck_tests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        string actionMapsPath = Path.Combine(tempDir, SCConstants.Files.ActionMapsFileName);
+        File.WriteAllText(actionMapsPath,
+            "<?xml version=\"1.0\"?><root><action name=\"test_action\"><rebind input=\"kb_A\"/><rebind input=\"mo_MOUSE1\"/></action></root>");
+
+        try
+        {
+            KeybindingProcessorService service = new(
+                Mock.Of<IP4KArchiveService>(),
+                Mock.Of<ICryXmlParserService>(),
+                Mock.Of<ILocalizationService>(),
+                Mock.Of<IKeybindingXmlParserService>(),
+                Mock.Of<IKeybindingMetadataService>(),
+                Mock.Of<IKeybindingOutputService>(),
+                new SystemFileSystem());
+
+            List<KeybindingActionData> actions =
+            [
+                new()
+                {
+                    Name = "test_action",
+                    Label = "@label",
+                    Category = "@category",
+                    Bindings = new InputBindings { Keyboard = "W", Mouse = "MOUSE2" }
+                }
+            ];
+
+            MethodInfo methodInfo = typeof(KeybindingProcessorService)
+                .GetMethod("ApplyOverridesIfPresent", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+            methodInfo.Invoke(service, [actions, actionMapsPath]);
+
+            actions[0].Bindings.Keyboard.Should().Be("A");
+            actions[0].Bindings.Mouse.Should().Be("MOUSE1");
+        }
+        finally
+        {
+            if (File.Exists(actionMapsPath))
+            {
+                File.Delete(actionMapsPath);
+            }
+
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void ApplyOverridesIfPresent_DoesNotThrow_WhenApplyOverridesThrows()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), $"scstreamdeck_tests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        string actionMapsPath = Path.Combine(tempDir, SCConstants.Files.ActionMapsFileName);
+        File.WriteAllText(actionMapsPath,
+            "<?xml version=\"1.0\"?><root><action name=\"test_action\"><rebind input=\"kb_A\"/></action></root>");
+
+        try
+        {
+            KeybindingProcessorService service = new(
+                Mock.Of<IP4KArchiveService>(),
+                Mock.Of<ICryXmlParserService>(),
+                Mock.Of<ILocalizationService>(),
+                Mock.Of<IKeybindingXmlParserService>(),
+                Mock.Of<IKeybindingMetadataService>(),
+                Mock.Of<IKeybindingOutputService>(),
+                new SystemFileSystem());
+
+            MethodInfo methodInfo = typeof(KeybindingProcessorService)
+                .GetMethod("ApplyOverridesIfPresent", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+            Action act = () => methodInfo.Invoke(service, new object?[] { null, actionMapsPath });
+            act.Should().NotThrow();
+        }
+        finally
+        {
+            if (File.Exists(actionMapsPath))
+            {
+                File.Delete(actionMapsPath);
+            }
+
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
     }
 
     #endregion

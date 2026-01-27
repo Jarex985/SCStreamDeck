@@ -10,13 +10,9 @@ public interface IFileSystem
 
     Task<string[]> ReadAllLinesAsync(string path, CancellationToken cancellationToken = default);
 
-    void WriteAllText(string path, string contents);
-
     Task WriteAllTextAsync(string path, string contents, CancellationToken cancellationToken = default);
 
     Stream OpenRead(string path);
 
     void DeleteFile(string path);
-
-    void MoveFile(string sourceFileName, string destFileName, bool overwrite);
 }

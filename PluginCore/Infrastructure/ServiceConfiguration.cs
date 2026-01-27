@@ -15,11 +15,10 @@ namespace SCStreamDeck.Infrastructure;
 /// </summary>
 public static class ServiceConfiguration
 {
-    // ReSharper disable once UnusedMethodReturnValue.Local
     /// <summary>
     ///     Registers all plugin services to service collection.
     /// </summary>
-    private static IServiceCollection AddPluginServices(this IServiceCollection services)
+    private static void AddPluginServices(this IServiceCollection services)
     {
         services.AddSingleton<IFileSystem, SystemFileSystem>();
 
@@ -47,8 +46,6 @@ public static class ServiceConfiguration
         services.AddSingleton<KeybindingProcessorService>();
         services.AddSingleton<KeybindingService>();
         services.AddSingleton<InitializationService>();
-
-        return services;
     }
 
     /// <summary>

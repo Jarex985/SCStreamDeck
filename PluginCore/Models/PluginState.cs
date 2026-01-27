@@ -76,19 +76,6 @@ public sealed record PluginState(
     }
 
     /// <summary>
-    ///     Validates that the state contains at least one accessible installation.
-    /// </summary>
-    public bool IsValid() => GetAllInstallations().Any(i => i != null && i.Validate());
-
-    private IEnumerable<InstallationState?> GetAllInstallations()
-    {
-        yield return LiveInstallation;
-        yield return HotfixInstallation;
-        yield return PtuInstallation;
-        yield return EptuInstallation;
-    }
-
-    /// <summary>
     ///     Creates a new PluginState with updated installation for the specified channel.
     /// </summary>
     public PluginState WithInstallation(SCChannel channel, InstallationState installation) =>

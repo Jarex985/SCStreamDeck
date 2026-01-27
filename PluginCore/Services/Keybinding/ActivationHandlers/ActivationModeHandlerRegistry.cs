@@ -9,7 +9,7 @@ namespace SCStreamDeck.Services.Keybinding.ActivationHandlers;
 internal sealed class ActivationModeHandlerRegistry
 {
     private readonly IActivationModeHandler _defaultHandler;
-    private readonly Dictionary<ActivationMode, IActivationModeHandler> _handlers = new();
+    private readonly Dictionary<ActivationMode, IActivationModeHandler> _handlers = [];
 
     public ActivationModeHandlerRegistry()
     {

@@ -91,7 +91,7 @@ public sealed class InstallLocatorService : IInstallLocatorService
 
     private async Task<List<SCInstallCandidate>> FindInstallationsFromSourcesAsync(CancellationToken cancellationToken)
     {
-        List<SCInstallCandidate> candidates = new();
+        List<SCInstallCandidate> candidates = [];
 
         HashSet<string> rootPaths = await CollectRootPathsAsync(cancellationToken).ConfigureAwait(false);
         if (rootPaths.Count == 0)

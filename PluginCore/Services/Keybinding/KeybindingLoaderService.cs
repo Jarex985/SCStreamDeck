@@ -11,18 +11,14 @@ namespace SCStreamDeck.Services.Keybinding;
 /// <summary>
 ///     Service for loading and caching keybinding actions and activation modes.
 /// </summary>
-public sealed class KeybindingLoaderService
+public sealed class KeybindingLoaderService(IFileSystem fileSystem)
 {
     private readonly Dictionary<string, KeybindingAction> _actions = new(StringComparer.OrdinalIgnoreCase);
-    private readonly nint _currentKeyboardLayout = NativeMethods.GetKeyboardLayout(0);
-    private readonly IFileSystem _fileSystem;
+    private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
     private readonly object _lock = new();
-    private Dictionary<ActivationMode, ActivationModeMetadata> _activationModesByMode = new();
+    private Dictionary<ActivationMode, ActivationModeMetadata> _activationModesByMode = [];
     private Dictionary<string, ActivationModeMetadata> _activationModesByName = new(StringComparer.OrdinalIgnoreCase);
     private volatile bool _isLoaded;
-
-    public KeybindingLoaderService(IFileSystem fileSystem) =>
-        _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
 
     public bool IsLoaded => _isLoaded;
 
@@ -89,8 +85,6 @@ public sealed class KeybindingLoaderService
         }
     }
 
-    public IntPtr GetKeyboardLayoutId() => _currentKeyboardLayout;
-
     public IReadOnlyDictionary<string, ActivationModeMetadata> GetActivationModes()
     {
         lock (_lock)
@@ -134,7 +128,7 @@ public sealed class KeybindingLoaderService
     }
 
     private static bool IsValidDataFile(KeybindingDataFile? dataFile) =>
-        dataFile?.Actions is { Count: > 0 } && dataFile.Metadata is not null;
+        dataFile is { Actions.Count: > 0, Metadata: not null };
 
     private void SetNotLoaded()
     {
@@ -143,13 +137,15 @@ public sealed class KeybindingLoaderService
             _actions.Clear();
 
             _activationModesByName = new Dictionary<string, ActivationModeMetadata>(StringComparer.OrdinalIgnoreCase);
-            _activationModesByMode = new Dictionary<ActivationMode, ActivationModeMetadata>();
+            _activationModesByMode = [];
             _isLoaded = false;
         }
     }
 
     private void CacheDataFile(KeybindingDataFile dataFile)
     {
+        KeybindingMetadata metadata = dataFile.Metadata!;
+
         lock (_lock)
         {
             _actions.Clear();
@@ -159,8 +155,8 @@ public sealed class KeybindingLoaderService
                 _actions[$"{keybindingAction.ActionName}_{keybindingAction.UiCategory}"] = keybindingAction;
             }
 
-            _activationModesByName = dataFile.Metadata.ActivationModes is { Count: > 0 }
-                ? new Dictionary<string, ActivationModeMetadata>(dataFile.Metadata.ActivationModes,
+            _activationModesByName = metadata.ActivationModes is { Count: > 0 }
+                ? new Dictionary<string, ActivationModeMetadata>(metadata.ActivationModes,
                     StringComparer.OrdinalIgnoreCase)
                 : new Dictionary<string, ActivationModeMetadata>(StringComparer.OrdinalIgnoreCase);
 
@@ -173,7 +169,7 @@ public sealed class KeybindingLoaderService
     private static Dictionary<ActivationMode, ActivationModeMetadata> MapActivationModesByMode(
         IReadOnlyDictionary<string, ActivationModeMetadata> activationModes)
     {
-        Dictionary<ActivationMode, ActivationModeMetadata> mapped = new();
+        Dictionary<ActivationMode, ActivationModeMetadata> mapped = [];
 
         foreach ((string key, ActivationModeMetadata metadata) in activationModes)
         {

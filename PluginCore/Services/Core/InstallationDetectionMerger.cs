@@ -16,7 +16,7 @@ internal static class InstallationDetectionMerger
         ArgumentNullException.ThrowIfNull(validCachedCandidates);
 
         Dictionary<string, SCInstallCandidate> candidateMap = new(StringComparer.OrdinalIgnoreCase);
-        Dictionary<string, string> detectionSources = new();
+        Dictionary<string, string> detectionSources = [];
 
         foreach (SCInstallCandidate candidate in rsiLogCandidates)
         {
@@ -38,9 +38,8 @@ internal static class InstallationDetectionMerger
                 continue;
             }
 
-            if (!candidateMap.ContainsKey(key))
+            if (candidateMap.TryAdd(key, cached))
             {
-                candidateMap[key] = cached;
                 detectionSources[cached.Channel.ToString()] = "Cache";
             }
         }
@@ -67,7 +66,7 @@ internal static class InstallationDetectionMerger
             .Select(c => c.Channel)
             .ToHashSet();
 
-        List<SCInstallCandidate> cachedPathCandidates = new();
+        List<SCInstallCandidate> cachedPathCandidates = [];
         foreach (string rootPath in cachedRootPaths)
         {
             InstallationCandidateEnumerator.AddCandidatesFromRoot(cachedPathCandidates, rootPath);
@@ -77,9 +76,8 @@ internal static class InstallationDetectionMerger
         {
             string key = BuildCandidateKey(candidate);
 
-            if (!candidateMap.ContainsKey(key))
+            if (candidateMap.TryAdd(key, candidate))
             {
-                candidateMap[key] = candidate;
                 detectionSources[candidate.Channel.ToString()] = "Cache (New Channel)";
             }
             else if (cachedChannels.Contains(candidate.Channel))

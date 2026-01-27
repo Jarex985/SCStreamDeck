@@ -2,12 +2,12 @@
 
 ## The plugin does not show up in Stream Deck
 
-1. Confirm Stream Deck App is 6.4+.
+1. Confirm the Stream Deck app is version 6.4+.
 2. Confirm .NET 8 Desktop Runtime is installed.
-3. Close Stream Deck completely and open it again.
+3. Close Stream Deck completely then open it again.
 4. Go to `%APPDATA%\Elgato\StreamDeck\Plugins`. If you see a folder named `com.jarex985.scstreamdeck.sdPlugin`, delete it and try reinstalling after confirming steps 1 and 2.
 
-## Double-clicking the .streamDeckPlugin does nothing
+## Double-clicking `com.jarex985.scstreamdeck.streamDeckPlugin` does nothing
 
 1. Right-click the downloaded file and choose `Properties`.
 2. If you see an `Unblock` checkbox, enable it.
@@ -25,9 +25,9 @@
 ## Actions do nothing in game
 
 - Make sure Star Citizen is the active window.
-- Try to run Stream Deck Software as Administrator.
-- When you changed any keybinding in game while using the Plugin, you can either:
+- Try running the Stream Deck app as Administrator.
+- If you changed any keybinding in-game while using the Plugin, you can either:
 
     1. Restart Stream Deck app.
     2. Use `Control Panel` and click `FORCE REDETECTION`.
-- If you use different keybind profiles or channels, switch channel in `Control Panel`.
+

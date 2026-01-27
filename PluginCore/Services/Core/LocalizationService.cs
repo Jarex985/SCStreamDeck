@@ -10,7 +10,7 @@ namespace SCStreamDeck.Services.Core;
 /// <summary>
 ///     Provides localization services for Star Citizen UI strings.
 /// </summary>
-public sealed class LocalizationService : ILocalizationService
+public sealed class LocalizationService(IP4KArchiveService p4KService, IFileSystem fileSystem) : ILocalizationService
 {
     private static readonly ImmutableHashSet<string> s_supportedLanguages = ImmutableHashSet.Create(
         StringComparer.OrdinalIgnoreCase,
@@ -18,17 +18,11 @@ public sealed class LocalizationService : ILocalizationService
         "german_(germany)", "italian_(italy)", "japanese_(japan)", "korean_(south_korea)",
         "polish_(poland)", "portuguese_(brazil)", "spanish_(latin_america)", "spanish_(spain)");
 
-    private readonly Dictionary<(string channelPath, string language), Dictionary<string, string>> _cache = new();
+    private readonly Dictionary<(string channelPath, string language), Dictionary<string, string>> _cache = [];
     private readonly object _cacheLock = new();
-    private readonly IFileSystem _fileSystem;
+    private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
 
-    private readonly IP4KArchiveService _p4KService;
-
-    public LocalizationService(IP4KArchiveService p4KService, IFileSystem fileSystem)
-    {
-        _p4KService = p4KService ?? throw new ArgumentNullException(nameof(p4KService));
-        _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
-    }
+    private readonly IP4KArchiveService _p4KService = p4KService ?? throw new ArgumentNullException(nameof(p4KService));
 
     public async Task<IReadOnlyDictionary<string, string>> LoadGlobalIniAsync(
         string channelPath,
@@ -119,7 +113,7 @@ public sealed class LocalizationService : ILocalizationService
         }
     }
 
-    private string NormalizeLanguage(string language)
+    private static string NormalizeLanguage(string language)
     {
         language = language.Trim().ToUpperInvariant();
         if (s_supportedLanguages.Contains(language))
@@ -136,7 +130,7 @@ public sealed class LocalizationService : ILocalizationService
     {
         lock (_cacheLock)
         {
-            return _cache.TryGetValue(cacheKey, out Dictionary<string, string>? cached) ? cached : null;
+            return _cache.GetValueOrDefault(cacheKey);
         }
     }
 
@@ -253,20 +247,8 @@ public sealed class LocalizationService : ILocalizationService
         }
 
         string trimmed = line.Trim();
-        if (string.IsNullOrEmpty(trimmed))
-        {
-            return true;
-        }
-
-        foreach (string prefix in SCConstants.Localization.IniCommentPrefixes)
-        {
-            if (trimmed.StartsWith(prefix, StringComparison.Ordinal))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return string.IsNullOrEmpty(trimmed) ||
+               SCConstants.Localization.IniCommentPrefixes.Any(prefix => trimmed.StartsWith(prefix, StringComparison.Ordinal));
     }
 
     private static (string? key, string? value) ParseKeyValueLine(string line)
@@ -280,12 +262,7 @@ public sealed class LocalizationService : ILocalizationService
         string key = line[..equalsIndex].Trim();
         string value = line[(equalsIndex + 1)..].Trim();
 
-        if (string.IsNullOrEmpty(key))
-        {
-            return (null, null);
-        }
-
-        return (key, value);
+        return string.IsNullOrEmpty(key) ? (null, null) : (key, value);
     }
 
     private static string TransformIniKey(string key)
@@ -301,12 +278,7 @@ public sealed class LocalizationService : ILocalizationService
     private static string NormalizeLanguageFromConfig(string value)
     {
         string normalized = value.ToUpperInvariant();
-        if (s_supportedLanguages.Contains(normalized))
-        {
-            return normalized;
-        }
-
-        return SCConstants.Localization.DefaultLanguage;
+        return s_supportedLanguages.Contains(normalized) ? normalized : SCConstants.Localization.DefaultLanguage;
     }
 
 
@@ -356,7 +328,7 @@ public sealed class LocalizationService : ILocalizationService
                 continue;
             }
 
-            (string? key, string? value) = ParseKeyValueLine(trimmed);
+            (_, string? value) = ParseKeyValueLine(trimmed);
             if (value == null || string.IsNullOrWhiteSpace(value))
             {
                 continue;

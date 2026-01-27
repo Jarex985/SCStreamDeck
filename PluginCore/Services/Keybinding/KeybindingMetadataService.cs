@@ -84,7 +84,7 @@ public sealed class KeybindingMetadataService(IFileSystem fileSystem) : IKeybind
                 return true;
             }
 
-            if (HasActionMapsChanged(data.Metadata))
+            if (HasActionMapsChanged(data.Metadata, installation.ChannelPath))
             {
                 return true;
             }
@@ -129,14 +129,45 @@ public sealed class KeybindingMetadataService(IFileSystem fileSystem) : IKeybind
         return false;
     }
 
-    private bool HasActionMapsChanged(KeybindingMetadata metadata)
+    private bool HasActionMapsChanged(KeybindingMetadata metadata, string channelPath)
     {
-        if (string.IsNullOrWhiteSpace(metadata.ActionMapsPath) || !_fileSystem.FileExists(metadata.ActionMapsPath))
+        string? detectedActionMapsPath = KeybindingProfilePathResolver.TryFindActionMapsXml(channelPath);
+
+        string? previousPath = string.IsNullOrWhiteSpace(metadata.ActionMapsPath)
+            ? null
+            : metadata.ActionMapsPath;
+
+        string? currentPath = string.IsNullOrWhiteSpace(detectedActionMapsPath)
+            ? null
+            : detectedActionMapsPath;
+
+        // If the presence of actionmaps.xml changed (appeared/disappeared), overrides likely changed.
+        if (previousPath == null && currentPath == null)
         {
             return false;
         }
 
-        FileInfo actionMapsInfo = new(metadata.ActionMapsPath);
+        if (previousPath == null || currentPath == null)
+        {
+            return true;
+        }
+
+        // If the path changed, treat as changed even if file timestamps happen to match.
+        string previousNormalized = previousPath.Replace('\\', '/');
+        string currentNormalized = currentPath.Replace('\\', '/');
+
+        if (!string.Equals(previousNormalized, currentNormalized, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Same file: compare size + last write time.
+        if (!_fileSystem.FileExists(currentPath))
+        {
+            return true;
+        }
+
+        FileInfo actionMapsInfo = new(currentPath);
         return HasFileChanged(metadata.ActionMapsSize, metadata.ActionMapsLastWrite, actionMapsInfo);
     }
 

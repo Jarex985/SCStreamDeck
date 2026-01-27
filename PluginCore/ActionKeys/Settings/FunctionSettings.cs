@@ -15,4 +15,7 @@ public sealed class FunctionSettings
 
     [JsonProperty(PropertyName = "clickSoundPath")]
     public string? ClickSoundPath { get; set; }
+
+    [JsonProperty(PropertyName = "resetHoldSeconds")]
+    public double? ResetHoldSeconds { get; set; }
 }

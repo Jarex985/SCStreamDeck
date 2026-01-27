@@ -53,9 +53,9 @@ public sealed class AudioPlayerService : IDisposable
                 return;
             }
 
-            _outputDevice?.Stop();
-            _outputDevice?.Dispose();
-            _deviceEnumerator?.Dispose();
+            _outputDevice.Stop();
+            _outputDevice.Dispose();
+            _deviceEnumerator.Dispose();
 
             _disposed = true;
         }

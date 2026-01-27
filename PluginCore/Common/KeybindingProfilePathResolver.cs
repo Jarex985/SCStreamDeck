@@ -36,6 +36,7 @@ public static class KeybindingProfilePathResolver
 
     private static string? FindFirstExistingProfile(string clientDir)
     {
+        // ReSharper disable once LoopCanBeConvertedToQuery
         foreach (string instanceDir in Directory.GetDirectories(clientDir))
         {
             string candidate = Path.Combine(instanceDir, "Profiles", "default", SCConstants.Files.ActionMapsFileName);

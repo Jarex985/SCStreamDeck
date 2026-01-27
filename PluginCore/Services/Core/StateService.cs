@@ -21,10 +21,11 @@ public sealed class StateService(PathProviderService pathProvider, IFileSystem f
     {
         try
         {
+            _ = _pathProvider.GetSecureCachePath(".plugin-state.json");
             return await PluginState.LoadAsync(_fileSystem, _pathProvider.CacheDirectory, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or SecurityException)
         {
             Log.Err($"[{nameof(StateService)}] Failed to load plugin state", ex);
             return null;
@@ -103,19 +104,17 @@ public sealed class StateService(PathProviderService pathProvider, IFileSystem f
     {
         try
         {
-            string stateFile = GetStateFilePath();
+            string stateFile = _pathProvider.GetSecureCachePath(".plugin-state.json");
             if (_fileSystem.FileExists(stateFile))
             {
                 _fileSystem.DeleteFile(stateFile);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
         {
             Log.Err($"[{nameof(StateService)}] Failed to delete plugin state", ex);
         }
     }
-
-    private string GetStateFilePath() => Path.Combine(_pathProvider.CacheDirectory, ".plugin-state.json");
 
     private async Task<PluginState> LoadOrCreateStateAsync(CancellationToken cancellationToken)
     {

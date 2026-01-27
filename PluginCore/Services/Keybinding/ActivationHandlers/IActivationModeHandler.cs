@@ -1,6 +1,7 @@
 using SCStreamDeck.Models;
 
 // ReSharper disable UnusedMember.Global
+// ReSharper disable UnusedMemberInSuper.Global
 
 namespace SCStreamDeck.Services.Keybinding.ActivationHandlers;
 

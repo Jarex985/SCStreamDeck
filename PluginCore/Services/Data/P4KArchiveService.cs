@@ -168,7 +168,7 @@ public sealed class P4KArchiveService(IFileSystem fileSystem) : IP4KArchiveServi
     /// <summary>
     ///     Scans directory for matching entries in P4K archive.
     /// </summary>
-    private IReadOnlyList<P4KFileEntry> ScanDirectoryInternal(string directory, string filePattern,
+    private List<P4KFileEntry> ScanDirectoryInternal(string directory, string filePattern,
         CancellationToken cancellationToken)
     {
         try
@@ -177,11 +177,11 @@ public sealed class P4KArchiveService(IFileSystem fileSystem) : IP4KArchiveServi
             {
                 if (_zipFile == null || _disposed)
                 {
-                    return Array.Empty<P4KFileEntry>();
+                    return [];
                 }
 
                 ZipFile zipFile = _zipFile;
-                List<P4KFileEntry> results = new();
+                List<P4KFileEntry> results = [];
                 string normalizedPattern = NormalizePath(filePattern);
                 string normalizedDirectory = NormalizePath(directory);
 
@@ -216,7 +216,7 @@ public sealed class P4KArchiveService(IFileSystem fileSystem) : IP4KArchiveServi
         catch (Exception ex) when (ex is ObjectDisposedException or InvalidOperationException)
         {
             Log.Err($"[{nameof(P4KArchiveService)}] Failed to scan P4K directory", ex);
-            return Array.Empty<P4KFileEntry>();
+            return [];
         }
     }
 
@@ -283,7 +283,7 @@ public sealed class P4KArchiveService(IFileSystem fileSystem) : IP4KArchiveServi
         }
         else
         {
-            string withoutPrefix = normalized.Substring(SCConstants.Paths.DataPrefix.Length);
+            string withoutPrefix = normalized[SCConstants.Paths.DataPrefix.Length..];
             entry = zipFile.GetEntry(withoutPrefix);
             if (entry != null)
             {
@@ -307,7 +307,7 @@ public sealed class P4KArchiveService(IFileSystem fileSystem) : IP4KArchiveServi
     /// <summary>
     ///     Sets encryption key on ZipFile instance using reflection.
     /// </summary>
-    private bool TrySetEncryptionKey(ZipFile? zipFile)
+    private static bool TrySetEncryptionKey(ZipFile? zipFile)
     {
         if (zipFile == null)
         {

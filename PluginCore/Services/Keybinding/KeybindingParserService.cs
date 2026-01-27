@@ -125,7 +125,7 @@ public static class KeybindingParserService
         out DirectInputKeyCode[] modifiers,
         out int wheelDirection)
     {
-        modifiers = Array.Empty<DirectInputKeyCode>();
+        modifiers = [];
         wheelDirection = 0;
 
         if (!binding.Contains('+', StringComparison.Ordinal))
@@ -138,7 +138,7 @@ public static class KeybindingParserService
             return false;
         }
 
-        List<DirectInputKeyCode> modifierList = new();
+        List<DirectInputKeyCode> modifierList = [];
 
         foreach (string token in SplitTokens(binding))
         {
@@ -208,11 +208,11 @@ public static class KeybindingParserService
 
     private static bool TryParseKeyboard(string scBinding, out DirectInputKeyCode[] modifiers, out DirectInputKeyCode[] keys)
     {
-        modifiers = Array.Empty<DirectInputKeyCode>();
-        keys = Array.Empty<DirectInputKeyCode>();
+        modifiers = [];
+        keys = [];
 
-        List<DirectInputKeyCode> modifierList = new();
-        List<DirectInputKeyCode> keyList = new();
+        List<DirectInputKeyCode> modifierList = [];
+        List<DirectInputKeyCode> keyList = [];
 
         foreach (string token in SplitTokens(scBinding))
         {

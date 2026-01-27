@@ -22,7 +22,7 @@ public interface IKeybindingOutputService
     /// <exception cref="ArgumentException">Thrown when any path parameter is invalid.</exception>
     /// <exception cref="IOException">Thrown when the file cannot be written.</exception>
     /// <exception cref="UnauthorizedAccessException">Thrown when access to the file is denied.</exception>
-    /// <exception cref="JsonSerializationException">Thrown when JSON serialization fails.</exception>
+    /// <exception cref="Newtonsoft.Json.JsonSerializationException">Thrown when JSON serialization fails.</exception>
     /// <exception cref="OperationCanceledException">Thrown when the operation is canceled.</exception>
     Task WriteKeybindingsJsonAsync(
         SCInstallCandidate installation,

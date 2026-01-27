@@ -39,10 +39,14 @@ public sealed class KeybindingService(
     public async Task<bool> ExecuteAsync(KeybindingExecutionContext context, CancellationToken cancellationToken = default) =>
         await _executorService.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
+    internal async Task<bool> ExecutePressNoRepeatAsync(
+        string actionName,
+        string binding,
+        CancellationToken cancellationToken = default) =>
+        await _executorService.ExecutePressNoRepeatAsync(actionName, binding, cancellationToken).ConfigureAwait(false);
+
     public bool TryGetAction(string? actionName, out KeybindingAction? action) =>
         _loaderService.TryGetAction(actionName, out action);
 
     public IReadOnlyList<KeybindingAction> GetAllActions() => _loaderService.GetAllActions();
-
-    public IntPtr GetKeyboardLayoutId() => _loaderService.GetKeyboardLayoutId();
 }

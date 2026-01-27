@@ -50,7 +50,6 @@ public static class SCConstants
 
         public const string RsiFolderName = "Roberts Space Industries";
         public const string SCFolderName = "StarCitizen";
-        public const string UserProfilePathPattern = "user/client/0/Profiles/default";
     }
 
     #endregion

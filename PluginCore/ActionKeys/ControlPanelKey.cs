@@ -8,10 +8,7 @@ using SCStreamDeck.Infrastructure;
 using SCStreamDeck.Logging;
 using SCStreamDeck.Models;
 using SCStreamDeck.Services.Core;
-using SCStreamDeck.Services.Installation;
 using SCStreamDeck.Services.UI;
-
-// ReSharper disable UnusedType.Global
 
 namespace SCStreamDeck.ActionKeys;
 
@@ -19,6 +16,7 @@ namespace SCStreamDeck.ActionKeys;
 ///     Control Panel action.
 ///     Intended as a "settings" UI entrypoint (no-op on press).
 /// </summary>
+[SuppressMessage("ReSharper", "UnusedType.Global", Justification = "Stream Deck action instantiated via SDK reflection")]
 [PluginActionId("com.jarex985.scstreamdeck.controlpanel")]
 public sealed class ControlPanelKey : KeyAndEncoderBase
 {
@@ -36,7 +34,6 @@ public sealed class ControlPanelKey : KeyAndEncoderBase
         InitializationService = deps.InitializationService;
         StateService = deps.StateService;
         ThemeService = deps.ThemeService;
-        PathProviderService = deps.PathProviderService;
         KeybindingsJsonCache = deps.KeybindingsJsonCache;
 
         Connection.OnPropertyInspectorDidAppear += OnPropertyInspectorDidAppear;
@@ -48,7 +45,6 @@ public sealed class ControlPanelKey : KeyAndEncoderBase
     private InitializationService InitializationService { get; }
     private StateService StateService { get; }
     private ThemeService ThemeService { get; }
-    private PathProviderService PathProviderService { get; }
     private IKeybindingsJsonCache KeybindingsJsonCache { get; }
 
     public override void KeyPressed(KeyPayload payload)
@@ -176,7 +172,7 @@ public sealed class ControlPanelKey : KeyAndEncoderBase
             bool switched = await InitializationService.SwitchChannelAsync(channel).ConfigureAwait(false);
             if (!switched)
             {
-                await InitializationService.ForceRedetectionAsync().ConfigureAwait(false);
+                _ = await InitializationService.ForceRedetectionAsync().ConfigureAwait(false);
             }
         });
     }
@@ -185,7 +181,7 @@ public sealed class ControlPanelKey : KeyAndEncoderBase
         RunBackground(async () => await InitializationService.FactoryResetAsync().ConfigureAwait(false));
 
     private void HandleForceRedetection() =>
-        RunBackground(async () => await InitializationService.ForceRedetectionAsync().ConfigureAwait(false));
+        RunBackground(async () => _ = await InitializationService.ForceRedetectionAsync().ConfigureAwait(false));
 
     private void HandleSetDataP4KOverride(JObject payload)
     {
@@ -229,7 +225,7 @@ public sealed class ControlPanelKey : KeyAndEncoderBase
         {
             JObject controlPanel = await BuildControlPanelPayloadAsync().ConfigureAwait(false);
 
-            JArray themePayload = new();
+            JArray themePayload = [];
             string selectedTheme = string.Empty;
 
             try

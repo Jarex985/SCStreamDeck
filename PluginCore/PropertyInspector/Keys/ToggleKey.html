@@ -1,12 +1,31 @@
-<!--suppress CssUnusedSymbol, CssNonIntegerLengthInPixels, JSUnusedGlobalSymbols -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>Star Citizen Stream Deck Plugin PI - Function Key</title>
+  <title>Star Citizen Stream Deck Plugin PI - Toggle Key</title>
   <link href="../css/base.css" rel="stylesheet">
   <link id="pi-theme-styles" rel="stylesheet">
+  <style>
+    #resetHoldSeconds::-webkit-outer-spin-button,
+    #resetHoldSeconds::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    #resetHoldSeconds {
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+
+    .pi-toggle-options .pi-dropdown__input-row {
+      height: 32px;
+    }
+
+    .pi-toggle-options .pi-dropdown__input-wrapper {
+      border-radius: var(--radius-sm);
+    }
+  </style>
   <script src="../js/sc-preload.js"></script>
   <script defer src="../js/sdpi-components.js"></script>
   <script defer src="../js/sc-components.js"></script>
@@ -38,18 +57,33 @@
     </div>
 
     <div class="pi-section">
-      <div class="pi-section__header">Description</div>
       <div class="pi-description__content pi-content-box"></div>
     </div>
 
-    <div class="pi-section audio-file-section">
-      <div class="pi-section__header">Click Sound</div>
-      <div class="pi-file-picker"
-           data-accept=".wav,.mp3"
-           data-clear-title="Clear audio file"
-           data-placeholder="No file selected"
-           data-select-title="Select audio file"
-           id="audioFilePicker"></div>
+    <div class="pi-section pi-toggle-options">
+      <div class="pi-picker-grid">
+        <div class="pi-picker-row">
+          <div class="pi-picker-label" title="Hold duration (seconds) to flip state without executing the binding.">Reset (s)</div>
+          <div class="pi-dropdown">
+            <div class="pi-dropdown__input-row">
+              <div class="pi-dropdown__input-wrapper">
+                <input aria-label="Reset hold seconds" id="resetHoldSeconds" max="10" min="0.2" step="0.1" type="number" value="1.0">
+              </div>
+              <button class="file-picker-clear" disabled id="resetHoldSecondsClear" title="Reset to default" type="button">X</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="pi-picker-row">
+          <div class="pi-picker-label">Sound</div>
+          <div class="pi-file-picker"
+               data-accept=".wav,.mp3"
+               data-clear-title="Clear audio file"
+               data-placeholder="No file selected"
+               data-select-title="Select audio file"
+               id="audioFilePicker"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

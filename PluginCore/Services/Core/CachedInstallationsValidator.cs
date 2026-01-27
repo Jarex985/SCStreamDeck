@@ -12,13 +12,13 @@ internal static class CachedInstallationsValidator
         if (cachedCandidates == null || cachedCandidates.Count == 0)
         {
             return new Result(
-                Array.Empty<SCInstallCandidate>(),
-                Array.Empty<SCInstallCandidate>(),
+                [],
+                [],
                 true);
         }
 
-        List<SCInstallCandidate> valid = new();
-        List<SCInstallCandidate> invalid = new();
+        List<SCInstallCandidate> valid = [];
+        List<SCInstallCandidate> invalid = [];
 
         foreach (SCInstallCandidate cached in cachedCandidates)
         {

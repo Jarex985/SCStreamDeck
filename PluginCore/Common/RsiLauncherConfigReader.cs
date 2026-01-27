@@ -22,7 +22,7 @@ internal sealed partial class RsiLauncherConfigReader
 
     // MEDIUM CONFIDENCE: Regex for "[Installer] - Installing Star Citizen... at PATH" entries
     [GeneratedRegex(
-        @"\[Installer\]\s*-\s*(?:Installing|Starting|Delta update applied).*?(?:at|in)\s+([A-Z]:[^""<>\r\n]+?)(?=""|$)",
+        """\[Installer\]\s*-\s*(?:Installing|Starting|Delta update applied).*?(?:at|in)\s+([A-Z]:[^"<>\r\n]+?)(?="|$)""",
         RegexOptions.IgnoreCase)]
     private static partial Regex InstallerPathRegex();
 
@@ -88,7 +88,6 @@ internal sealed partial class RsiLauncherConfigReader
     /// </summary>
     private static IEnumerable<string> GetDefaultInstallationPaths()
     {
-        // Common default paths
         yield return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
             SCConstants.Paths.RsiFolderName,
@@ -112,7 +111,6 @@ internal sealed partial class RsiLauncherConfigReader
 
     /// <summary>
     ///     Extracts Star Citizen installation root paths from a log file by detecting channel folders.
-    ///     Returns only unique root paths without duplicates.
     /// </summary>
     public static async Task<HashSet<string>> ExtractPathsFromLogAsync(string logFilePath,
         CancellationToken cancellationToken = default)
@@ -140,7 +138,6 @@ internal sealed partial class RsiLauncherConfigReader
                              .Where(IsValidGameRootCandidate))
                 {
                     paths.Add(defaultPath);
-                    Log.Info($"[{nameof(RsiLauncherConfigReader)}] Found installation at common path: '{defaultPath}'");
                 }
             }
         }
@@ -169,9 +166,6 @@ internal sealed partial class RsiLauncherConfigReader
             Log.Warn(
                 $"[{nameof(RsiLauncherConfigReader)}] No installation paths found using any detection strategy. RSI Launcher log format may have changed, or no installations have been launched yet.");
         }
-
-        Log.Debug(
-            $"[{nameof(RsiLauncherConfigReader)}] Extracted {paths.Count} unique root path(s) from log content (Strategy 1: {strategy1Count}, Strategy 2: {strategy2Count}, Strategy 3: {strategy3Count})");
     }
 
     private static int ExtractFromValidateDirectories(string content, HashSet<string> paths)
@@ -183,7 +177,7 @@ internal sealed partial class RsiLauncherConfigReader
             string pathList = match.Groups[1].Value;
             foreach (string path in pathList.Split(','))
             {
-                string trimmedPath = path.Trim().Replace("\\\\", "\\");
+                string trimmedPath = path.Trim().Replace(@"\\", "\\");
                 if (IsValidGameRootCandidate(trimmedPath))
                 {
                     int beforeCount = paths.Count;
@@ -226,7 +220,7 @@ internal sealed partial class RsiLauncherConfigReader
 
         foreach (Match match in InstallerPathRegex().Matches(content))
         {
-            string path = match.Groups[1].Value.Trim().Replace("\\\\", "\\");
+            string path = match.Groups[1].Value.Trim().Replace(@"\\", "\\");
             if (IsValidGameRootCandidate(path))
             {
                 int beforeCount = paths.Count;
@@ -253,7 +247,6 @@ internal sealed partial class RsiLauncherConfigReader
             return;
         }
 
-        // Check if path contains any channel folder
         foreach (SCChannel channel in Enum.GetValues<SCChannel>())
         {
             string channelFolder = $"\\{channel.GetFolderName()}";
@@ -262,20 +255,17 @@ internal sealed partial class RsiLauncherConfigReader
             if (channelIndex > 0)
             {
                 // Extract root as parent of channel folder
-                string gameRoot = normalizedPath.Substring(0, channelIndex).TrimEnd('\\', '/');
+                string gameRoot = normalizedPath[..channelIndex].TrimEnd('\\', '/');
 
                 if (!string.IsNullOrWhiteSpace(gameRoot) &&
                     SecurePathValidator.TryNormalizePath(gameRoot, out string normalizedRoot))
                 {
                     paths.Add(normalizedRoot);
-                    return; // Found valid root, stop checking other channels
+                    return;
                 }
             }
         }
 
-        // If no channel folder detected:
-        // - For launch/validate entries: reject (prevents false positives from partial paths)
-        // - For installer entries: accept as root (installer creates channel folders inside)
         if (!requireChannelFolder)
         {
             paths.Add(normalizedPath);
@@ -305,23 +295,18 @@ internal sealed partial class RsiLauncherConfigReader
         [
             "\\rsilauncher", // Launcher directory
             "\\rsilauncher-updater", // Updater directory
-            "\\appdata\\local", // User temp directories
-            "\\appdata\\roaming", // User config directories
-            "\\windows\\", // Windows system directory
-            "\\program files\\roberts space industries\\rsi launcher", // Launcher installation
+            @"\appdata\local", // User temp directories
+            @"\appdata\roaming", // User config directories
+            @"\windows\", // Windows system directory
+            @"\program files\roberts space industries\rsi launcher", // Launcher installation
             ".exe", // Executable files
             ".dll", // Libraries
             ".log", // Log files
-            "\\resources\\", // Launcher resources
-            "\\pending\\", // Update pending directory
+            @"\resources\", // Launcher resources
+            @"\pending\", // Update pending directory
             "installer.exe" // Installer executables
         ];
 
-        if (blacklist.Any(blocked => path.Contains(blocked, StringComparison.OrdinalIgnoreCase)))
-        {
-            return false;
-        }
-
-        return true;
+        return !blacklist.Any(blocked => path.Contains(blocked, StringComparison.OrdinalIgnoreCase));
     }
 }

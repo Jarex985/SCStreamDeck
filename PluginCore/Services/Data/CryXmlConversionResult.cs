@@ -2,9 +2,9 @@ namespace SCStreamDeck.Services.Data;
 
 public sealed record CryXmlConversionResult
 {
-    public bool IsSuccess { get; init; }
-    public string? Xml { get; init; }
-    public string? ErrorMessage { get; init; }
+    public bool IsSuccess { get; private init; }
+    public string? Xml { get; private init; }
+    public string? ErrorMessage { get; private init; }
 
     public static CryXmlConversionResult Success(string xml) =>
         new() { IsSuccess = true, Xml = xml };

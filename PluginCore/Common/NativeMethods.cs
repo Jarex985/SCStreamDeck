@@ -8,16 +8,6 @@ namespace SCStreamDeck.Common;
 internal static class NativeMethods
 {
     /// <summary>
-    ///     Retrieves the active input locale identifier for the specified thread.
-    ///     If the idThread parameter is zero, the input locale identifier for the active thread is returned.
-    /// </summary>
-    /// <param name="idThread">Identifier of the thread for which to retrieve the keyboard layout</param>
-    /// <returns>Handle to the keyboard layout (HKL)</returns>
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    internal static extern nint GetKeyboardLayout(uint idThread);
-
-    /// <summary>
     ///     Maps a scan code to a virtual-key code.
     /// </summary>
     /// <param name="uCode">The scan code or virtual-key code to be translated</param>

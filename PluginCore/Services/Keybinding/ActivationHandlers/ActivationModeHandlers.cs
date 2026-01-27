@@ -41,17 +41,9 @@ internal sealed class ImmediatePressHandler : IActivationModeHandler
             return true; // Ignore KeyDown, wait for KeyUp
         }
 
-        bool result;
-        if (context.Metadata.Retriggerable)
-        {
-            // Start hold with repetition (for firing, continuous actions)
-            result = executor.ExecuteDown(context.Input, context.ActionName);
-        }
-        else
-        {
-            // Single press without repetition (toggles, one-shot actions)
-            result = executor.ExecutePressNoRepeat(context.Input);
-        }
+        bool result = context.Metadata.Retriggerable
+            ? executor.ExecuteDown(context.Input, context.ActionName)
+            : executor.ExecutePressNoRepeat(context.Input);
 
         // If MultiTapBlock is set, block subsequent OnRelease execution
         if (context.Metadata.MultiTapBlock > 0)

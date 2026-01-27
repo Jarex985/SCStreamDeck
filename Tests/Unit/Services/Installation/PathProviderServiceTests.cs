@@ -9,7 +9,9 @@ public sealed class PathProviderServiceTests
     [Fact]
     public void GetKeybindingJsonPath_UppercasesChannel()
     {
-        PathProviderService service = new();
+        string baseDir = CreateTempDirectory();
+        string cacheDir = Path.Combine(baseDir, "cache");
+        PathProviderService service = new TestPathProviderService(baseDir, cacheDir);
 
         string path = service.GetKeybindingJsonPath("live");
 
@@ -19,22 +21,26 @@ public sealed class PathProviderServiceTests
     [Fact]
     public void EnsureDirectoriesExist_CreatesCacheDirectory()
     {
-        PathProviderService service = new();
-        string cacheDir = service.CacheDirectory;
-        if (Directory.Exists(cacheDir))
+        string baseDir = CreateTempDirectory();
+        string cacheDir = Path.Combine(baseDir, "cache");
+        PathProviderService service = new TestPathProviderService(baseDir, cacheDir);
+        string actualCacheDir = service.CacheDirectory;
+        if (Directory.Exists(actualCacheDir))
         {
-            Directory.Delete(cacheDir, true);
+            Directory.Delete(actualCacheDir, true);
         }
 
         service.EnsureDirectoriesExist();
 
-        Directory.Exists(cacheDir).Should().BeTrue();
+        Directory.Exists(actualCacheDir).Should().BeTrue();
     }
 
     [Fact]
     public void GetSecureCachePath_ReturnsPathWithinCacheOrThrowsWhenBlockedBase()
     {
-        PathProviderService service = new();
+        string baseDir = CreateTempDirectory();
+        string cacheDir = Path.Combine(baseDir, "cache");
+        PathProviderService service = new TestPathProviderService(baseDir, cacheDir);
         service.EnsureDirectoriesExist();
 
         string relative = Path.Combine("sub", "file.txt");
@@ -48,6 +54,20 @@ public sealed class PathProviderServiceTests
         {
             string fullPath = service.GetSecureCachePath(relative);
             fullPath.Should().StartWith(service.CacheDirectory, "Path should be under cache directory");
+        }
+    }
+
+    private static string CreateTempDirectory()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        return tempDir;
+    }
+
+    private sealed class TestPathProviderService : PathProviderService
+    {
+        public TestPathProviderService(string baseDirectory, string cacheDirectory) : base(baseDirectory, cacheDirectory)
+        {
         }
     }
 }

@@ -166,13 +166,13 @@ public sealed class KeybindingProcessorService(
     {
         try
         {
-            IReadOnlyDictionary<string, string>? localization = await _localizationService.LoadGlobalIniAsync(
+            IReadOnlyDictionary<string, string> localization = await _localizationService.LoadGlobalIniAsync(
                 installation.ChannelPath,
                 language,
                 installation.DataP4KPath,
                 cancellationToken).ConfigureAwait(false);
 
-            if (localization == null || localization.Count == 0)
+            if (localization.Count == 0)
             {
                 Log.Warn($"[{nameof(KeybindingProcessorService)}] No localization data loaded, using default labels");
                 return;
@@ -271,8 +271,8 @@ public sealed class KeybindingProcessorService(
 /// </summary>
 public sealed class KeybindingProcessResult
 {
-    public bool IsSuccess { get; init; }
-    public string? DetectedLanguage { get; init; }
+    public bool IsSuccess { get; private init; }
+    public string? DetectedLanguage { get; private init; }
     public string? ErrorMessage { get; private init; }
 
     public static KeybindingProcessResult Success(string detectedLanguage) =>
