@@ -1,9 +1,17 @@
 # Troubleshooting
 
+## Plugin is stuck on "Loading functions..."
+
+1. Make sure .NET 8 Desktop Runtime x64 is installed. [Requirements](install.md#requirements)
+2. Close Stream Deck completely then open it again.
+3. If the issue persists, go to `%APPDATA%\Elgato\StreamDeck\Plugins\com.jarex985.scstreamdeck.sdPlugin\`.
+4. Open the plugin log file (`pluginlog.log`) and check for errors.
+5. If there is no log file, this indicates that .NET 8 Desktop Runtime x64 is not installed correctly (x86 vs x64 issue). Reinstall the correct version.
+
 ## The plugin does not show up in Stream Deck
 
 1. Confirm the Stream Deck app is version 6.4+.
-2. Confirm .NET 8 Desktop Runtime is installed.
+2. Confirm .NET 8 Desktop Runtime is installed. [Requirements](install.md#requirements)
 3. Close Stream Deck completely then open it again.
 4. Go to `%APPDATA%\Elgato\StreamDeck\Plugins`. If you see a folder named `com.jarex985.scstreamdeck.sdPlugin`, delete it and try reinstalling after confirming steps 1 and 2.
 
@@ -31,3 +39,13 @@
     1. Restart Stream Deck app.
     2. Use `Control Panel` and click `FORCE REDETECTION`.
 
+## I can't see Adaptive Key / Toggle Key in the Multi Action list
+
+This has been disabled by default, if you want to enable it:
+
+1. Go to `%APPDATA%\Elgato\StreamDeck\Plugins\com.jarex985.scstreamdeck.sdPlugin\`.
+2. Open `manifest.json` in a text editor.
+3. Find the line with `"SupportedInMultiActions": false,` and change it to `"SupportedInMultiActions": true,`.
+
+!!! note
+    I would recommend not using Toggle Keys in Multi Actions, as their state management can lead to unexpected behavior. Adaptive Keys are generally safe to use in Multi Actions.

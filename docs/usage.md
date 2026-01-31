@@ -3,6 +3,7 @@
 ## Adaptive Key
 
 Use `Adaptive Key` for bindings you want to trigger in Star Citizen.
+This is the most common key type you will use.
 
 Basic flow:
 
@@ -16,6 +17,8 @@ Basic flow:
 ## Toggle Key
 
 Use `Toggle Key` for bindings that have two states (e.g., landing gear up/down).
+You can also set a Reset threshold to resync the key state if it gets out of sync with the game.
+While you can use all functions with Toggle Keys, they are best suited for functions that have a clear On/Off state.
 
 Basic flow:
 

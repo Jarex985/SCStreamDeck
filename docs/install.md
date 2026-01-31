@@ -1,5 +1,10 @@
 # Download & Installation
 
+!!! note "Important"
+    Make sure you install the **.NET 8.0 Desktop Runtime x64** - the plugin won’t work without it.
+    This is **not** included with Windows by default.
+
+
 ## Download the Plugin
 
 [Download Latest](https://github.com/Jarex985/SCStreamDeck/releases/latest/download/com.jarex985.scstreamdeck.streamDeckPlugin){ .md-button  }
@@ -17,10 +22,9 @@
 
 - Windows 10+
 - [Stream Deck App 6.4+](https://www.elgato.com/s/stream-deck-app)
-- [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)  
+- [.NET 8.0 Desktop Runtime x64](https://dotnet.microsoft.com/download/dotnet/8.0)  
 
-!!! note "Important"
-    Make sure you install the **Desktop Runtime** - the plugin won’t work without it.
+
 
 ## Installation
 

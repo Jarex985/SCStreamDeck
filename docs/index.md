@@ -11,9 +11,10 @@ This plugin lets you control various aspects of Star Citizen from your Elgato St
 
 ## Quick Start
 
-1. Click the `Download Latest` button above.
-2. Double-click the downloaded `.streamDeckPlugin` file.
-3. Open Stream Deck and drag the desired key from the right panel onto a key slot on the left.
+1. Please make sure you have **all** [requirements](install.md#requirements) installed.
+2. Click the `Download Latest` button above.
+3. Double-click the downloaded `.streamDeckPlugin` file.
+4. Open Stream Deck and drag the desired key from the right panel onto a key slot on the left.
 
 !!! tip "The plugin needs a moment to initialize."
     - Wait until the loading spinner on the keys disappears.  
