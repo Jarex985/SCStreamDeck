@@ -15,6 +15,12 @@ Notes:
 
 ---
 
+## v1.0.1.0 - Patch Release
+
+### Bug Fixes
+
+- Fixed an issue where Data.p4k was not closed properly after reading, which could lead to file locks (e.g. when verifying game files in the launcher).
+
 ## v1.0.0.0 - Major Release
 > [!NOTE]
 > No breaking changes from v0.3.0.0. This is the first stable, feature-complete release for the planned scope.

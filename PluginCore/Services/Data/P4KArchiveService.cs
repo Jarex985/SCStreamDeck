@@ -133,20 +133,32 @@ public sealed class P4KArchiveService(IFileSystem fileSystem) : IP4KArchiveServi
         {
             CloseArchiveInternal();
 
-            _fileStream = _fileSystem.OpenRead(validatedPath);
-            cancellationToken.ThrowIfCancellationRequested();
+            bool success = false;
 
-            _zipFile = new ZipFile(_fileStream);
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (!TrySetEncryptionKey(_zipFile))
+            try
             {
-                Log.Err($"[{nameof(P4KArchiveService)}] Failed to set encryption key");
-                CloseArchiveInternal();
-                return false;
-            }
+                _fileStream = _fileSystem.OpenRead(validatedPath);
+                cancellationToken.ThrowIfCancellationRequested();
 
-            return true;
+                _zipFile = new ZipFile(_fileStream);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!TrySetEncryptionKey(_zipFile))
+                {
+                    Log.Err($"[{nameof(P4KArchiveService)}] Failed to set encryption key");
+                    return false;
+                }
+
+                success = true;
+                return true;
+            }
+            finally
+            {
+                if (!success)
+                {
+                    CloseArchiveInternal();
+                }
+            }
         }
     }
 

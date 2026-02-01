@@ -3,6 +3,7 @@ using System.Text;
 using FluentAssertions;
 using ICSharpCode.SharpZipLib.Checksum;
 using ICSharpCode.SharpZipLib.Zip;
+using Moq;
 using SCStreamDeck.Common;
 using SCStreamDeck.Models;
 using SCStreamDeck.Services.Data;
@@ -32,6 +33,26 @@ public sealed class P4KArchiveServiceTests
 
         result.Should().BeFalse();
         service.IsArchiveOpen.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task OpenArchiveAsync_WhenZipOpenFails_DoesNotLeakStream()
+    {
+        string p4KPath = Path.Combine(Path.GetTempPath(), $"scstreamdeck-{Guid.NewGuid():N}.p4k");
+
+        TrackingMemoryStream trackingStream = new([0x00]);
+
+        Mock<IFileSystem> fileSystem = new(MockBehavior.Strict);
+        fileSystem.Setup(x => x.FileExists(It.IsAny<string>())).Returns(true);
+        fileSystem.Setup(x => x.OpenRead(It.IsAny<string>())).Returns(trackingStream);
+
+        P4KArchiveService service = new(fileSystem.Object);
+
+        bool opened = await service.OpenArchiveAsync(p4KPath, CancellationToken.None);
+
+        opened.Should().BeFalse();
+        service.IsArchiveOpen.Should().BeFalse();
+        trackingStream.IsDisposed.Should().BeTrue();
     }
 
     [Fact]
@@ -187,5 +208,16 @@ public sealed class P4KArchiveServiceTests
         zos.Finish();
 
         return filePath;
+    }
+
+    private sealed class TrackingMemoryStream(byte[] buffer) : MemoryStream(buffer)
+    {
+        public bool IsDisposed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            IsDisposed = true;
+            base.Dispose(disposing);
+        }
     }
 }

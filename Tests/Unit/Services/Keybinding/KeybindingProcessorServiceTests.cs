@@ -330,6 +330,7 @@ public sealed class KeybindingProcessorServiceTests
         Mock<IP4KArchiveService> mockP4KService = new();
         mockP4KService.Setup(x => x.OpenArchiveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
+        mockP4KService.Setup(x => x.CloseArchive());
 
         P4KFileEntry mockEntry = new()
         {
@@ -366,6 +367,8 @@ public sealed class KeybindingProcessorServiceTests
 
         result.Should().NotBeNull();
         result.Should().BeEquivalentTo(testBytes);
+
+        mockP4KService.Verify(x => x.CloseArchive(), Times.Once);
     }
 
     [Fact]
@@ -374,6 +377,7 @@ public sealed class KeybindingProcessorServiceTests
         Mock<IP4KArchiveService> mockP4KService = new();
         mockP4KService.Setup(x => x.OpenArchiveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
+        mockP4KService.Setup(x => x.CloseArchive());
 
         mockP4KService.Setup(x => x.ScanDirectoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<P4KFileEntry>());
@@ -396,6 +400,8 @@ public sealed class KeybindingProcessorServiceTests
         byte[]? result = await (Task<byte[]?>)methodInfo.Invoke(service, [tempPath, CancellationToken.None])!;
 
         result.Should().BeNull();
+
+        mockP4KService.Verify(x => x.CloseArchive(), Times.Once);
     }
 
     [Fact]
@@ -404,6 +410,7 @@ public sealed class KeybindingProcessorServiceTests
         Mock<IP4KArchiveService> mockP4KService = new();
         mockP4KService.Setup(x => x.OpenArchiveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
+        mockP4KService.Setup(x => x.CloseArchive());
 
         P4KFileEntry mockEntry = new()
         {
@@ -438,6 +445,8 @@ public sealed class KeybindingProcessorServiceTests
         byte[]? result = await (Task<byte[]?>)methodInfo.Invoke(service, [tempPath, CancellationToken.None])!;
 
         result.Should().BeNull();
+
+        mockP4KService.Verify(x => x.CloseArchive(), Times.Once);
     }
 
     [Fact]
@@ -446,6 +455,7 @@ public sealed class KeybindingProcessorServiceTests
         Mock<IP4KArchiveService> mockP4KService = new();
         mockP4KService.Setup(x => x.OpenArchiveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
+        mockP4KService.Setup(x => x.CloseArchive());
 
         P4KFileEntry mockEntry = new()
         {
@@ -480,6 +490,36 @@ public sealed class KeybindingProcessorServiceTests
         byte[]? result = await (Task<byte[]?>)methodInfo.Invoke(service, [tempPath, CancellationToken.None])!;
 
         result.Should().BeNull();
+
+        mockP4KService.Verify(x => x.CloseArchive(), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExtractDefaultProfileAsync_DoesNotCloseArchive_WhenOpenFails()
+    {
+        Mock<IP4KArchiveService> mockP4KService = new();
+        mockP4KService.Setup(x => x.OpenArchiveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        KeybindingProcessorService service = new(
+            mockP4KService.Object,
+            Mock.Of<ICryXmlParserService>(),
+            Mock.Of<ILocalizationService>(),
+            Mock.Of<IKeybindingXmlParserService>(),
+            Mock.Of<IKeybindingMetadataService>(),
+            Mock.Of<IKeybindingOutputService>(),
+            new SystemFileSystem()
+        );
+
+        string tempPath = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}", "Data.p4k");
+
+        MethodInfo methodInfo = typeof(KeybindingProcessorService)
+            .GetMethod("ExtractDefaultProfileAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        byte[]? result = await (Task<byte[]?>)methodInfo.Invoke(service, [tempPath, CancellationToken.None])!;
+
+        result.Should().BeNull();
+        mockP4KService.Verify(x => x.CloseArchive(), Times.Never);
     }
 
     #endregion

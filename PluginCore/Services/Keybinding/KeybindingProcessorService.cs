@@ -108,6 +108,8 @@ public sealed class KeybindingProcessorService(
 
     private async Task<byte[]?> ExtractDefaultProfileAsync(string dataP4KPath, CancellationToken cancellationToken)
     {
+        bool opened = false;
+
         try
         {
             if (!SecurePathValidator.TryNormalizePath(dataP4KPath, out string normalizedPath))
@@ -116,7 +118,7 @@ public sealed class KeybindingProcessorService(
                 return null;
             }
 
-            bool opened = await _p4KService.OpenArchiveAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
+            opened = await _p4KService.OpenArchiveAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
             if (!opened)
             {
                 return null;
@@ -145,6 +147,14 @@ public sealed class KeybindingProcessorService(
         {
             Log.Err($"[{nameof(KeybindingProcessorService)}] Failed to extract default profile", ex);
             return null;
+        }
+
+        finally
+        {
+            if (opened)
+            {
+                _p4KService.CloseArchive();
+            }
         }
     }
 

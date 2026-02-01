@@ -17,7 +17,8 @@ public sealed class SystemFileSystem : IFileSystem
     public Task WriteAllTextAsync(string path, string contents, CancellationToken cancellationToken = default) =>
         File.WriteAllTextAsync(path, contents, cancellationToken);
 
-    public Stream OpenRead(string path) => File.OpenRead(path);
+    public Stream OpenRead(string path) =>
+        new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
     public void DeleteFile(string path) => File.Delete(path);
 }
