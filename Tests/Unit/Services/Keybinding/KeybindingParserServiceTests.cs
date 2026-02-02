@@ -73,6 +73,38 @@ public sealed class KeybindingParserServiceTests
         keys.Should().ContainSingle().Which.Should().Be(DirectInputKeyCode.DikF1);
     }
 
+    [Theory]
+    [InlineData(SCConstants.Input.Keyboard.LCtrl, DirectInputKeyCode.DikLcontrol)]
+    [InlineData(SCConstants.Input.Keyboard.RCtrl, DirectInputKeyCode.DikRcontrol)]
+    [InlineData(SCConstants.Input.Keyboard.LShift, DirectInputKeyCode.DikLshift)]
+    [InlineData(SCConstants.Input.Keyboard.RShift, DirectInputKeyCode.DikRshift)]
+    [InlineData(SCConstants.Input.Keyboard.LAlt, DirectInputKeyCode.DikLalt)]
+    [InlineData(SCConstants.Input.Keyboard.RAlt, DirectInputKeyCode.DikRalt)]
+    public void ParseBinding_ParsesModifierOnly_AsSingleKey(string binding, DirectInputKeyCode expectedKey)
+    {
+        ParsedInputResult? result = KeybindingParserService.ParseBinding(binding);
+
+        result.Should().NotBeNull();
+        result.Type.Should().Be(InputType.Keyboard);
+
+        (DirectInputKeyCode[] modifiers, DirectInputKeyCode[] keys) = ((DirectInputKeyCode[], DirectInputKeyCode[]))result.Value;
+        modifiers.Should().BeEmpty();
+        keys.Should().ContainSingle().Which.Should().Be(expectedKey);
+    }
+
+    [Fact]
+    public void ParseBinding_ParsesMultipleModifiersOnly_ByTreatingLastModifierAsKey()
+    {
+        ParsedInputResult? result = KeybindingParserService.ParseBinding("lctrl+lalt");
+
+        result.Should().NotBeNull();
+        result.Type.Should().Be(InputType.Keyboard);
+
+        (DirectInputKeyCode[] modifiers, DirectInputKeyCode[] keys) = ((DirectInputKeyCode[], DirectInputKeyCode[]))result.Value;
+        modifiers.Should().ContainSingle().Which.Should().Be(DirectInputKeyCode.DikLcontrol);
+        keys.Should().ContainSingle().Which.Should().Be(DirectInputKeyCode.DikLalt);
+    }
+
     #region Function Keys Tests
 
     [Theory]

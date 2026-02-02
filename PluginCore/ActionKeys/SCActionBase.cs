@@ -51,6 +51,10 @@ public abstract class SCActionBase : KeyAndEncoderBase
         Connection.OnPropertyInspectorDidAppear += OnPropertyInspectorDidAppear;
         Connection.OnSendToPlugin += OnSendToPlugin;
 
+        // Attempt migration immediately for keys created after initialization.
+        // (Stream Deck may not call ReceivedSettings on startup.)
+        TryMigrateFunctionSettingIfPossible();
+
         if (CanExecuteBindings)
         {
             SendPropertyInspectorUpdate();
@@ -116,8 +120,6 @@ public abstract class SCActionBase : KeyAndEncoderBase
     {
         try
         {
-            // If the keybindings JSON is missing (e.g., cache invalidated) we must report "not loaded",
-            // even if the in-memory loader still contains data from a previous run.
             if (!InitializationService.KeybindingsJsonExists() || !KeybindingService.IsLoaded)
             {
                 Connection.SendToPropertyInspectorAsync(new JObject
@@ -147,7 +149,47 @@ public abstract class SCActionBase : KeyAndEncoderBase
         SDEventReceivedEventArgs<PropertyInspectorDidAppear> e) =>
         SendPropertyInspectorUpdate();
 
-    private void OnKeybindingsStateChanged() => SendPropertyInspectorUpdate();
+    private void OnKeybindingsStateChanged()
+    {
+        TryMigrateFunctionSettingIfPossible();
+        SendPropertyInspectorUpdate();
+    }
+
+    private void TryMigrateFunctionSettingIfPossible()
+    {
+        if (string.IsNullOrWhiteSpace(Settings.Function))
+        {
+            return;
+        }
+
+        if (!CanExecuteBindings)
+        {
+            return;
+        }
+
+        if (!KeybindingService.TryNormalizeActionId(Settings.Function, out string normalizedId) ||
+            string.IsNullOrWhiteSpace(normalizedId))
+        {
+            return;
+        }
+
+        if (string.Equals(Settings.Function, normalizedId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        Settings.Function = normalizedId;
+
+        try
+        {
+            // Persist migrated settings without requiring PI interaction.
+            _ = Connection.SetSettingsAsync(JObject.FromObject(Settings));
+        }
+        catch (Exception ex)
+        {
+            Log.Err($"[{GetType().Name}] Failed to persist migrated function id: {ex.Message}", ex);
+        }
+    }
 
     [ExcludeFromCodeCoverage]
     private void OnSendToPlugin(object? sender, SDEventReceivedEventArgs<SendToPlugin> e)
@@ -159,8 +201,6 @@ public abstract class SCActionBase : KeyAndEncoderBase
                 return;
             }
 
-            // sc-common.js sends: { event: "...", ... }
-            // Older PIs may send: { property_inspector: "..." }
             string? piEvent = null;
             if (e.Event.Payload.TryGetValue("event", out JToken? eventToken))
             {
@@ -213,6 +253,8 @@ public abstract class SCActionBase : KeyAndEncoderBase
         {
             Settings = payload.Settings.ToObject<FunctionSettings>() ?? Settings;
         }
+
+        TryMigrateFunctionSettingIfPossible();
     }
 
     /// <summary>

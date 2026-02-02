@@ -59,7 +59,7 @@
   "Description": "Plugin that provides bindable actions for Star Citizen via Stream Deck.\nThis Plugin is not endorsed by or affiliated with the Cloud Imperium or Roberts Space Industries group of companies. All game content and materials are copyright Cloud Imperium Rights LLC and Cloud Imperium Rights Ltd.. Star Citizen®,Squadron 42®, Roberts Space Industries®, and Cloud Imperium® are registered trademarks of Cloud Imperium Rights LLC. All rights reserved.",
   "Icon": "Images/pluginIcon",
   "URL": "https://github.com/Jarex985/SCStreamDeck",
-  "Version": "1.0.1.0",
+  "Version": "1.0.2.0",
   "CodePath": "com.jarex985.scstreamdeck.exe",
   "Category": "Star Citizen Stream Deck",
   "CategoryIcon": "Images/categoryIcon",

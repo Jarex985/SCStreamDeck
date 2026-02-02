@@ -230,7 +230,15 @@ public static class KeybindingParserService
 
         if (keyList.Count == 0)
         {
-            return false;
+            // Support modifier-only bindings (e.g., "lctrl" or "lctrl+lalt") by treating the last modifier as the key.
+            if (modifierList.Count == 0)
+            {
+                return false;
+            }
+
+            DirectInputKeyCode lastModifierAsKey = modifierList[^1];
+            modifierList.RemoveAt(modifierList.Count - 1);
+            keyList.Add(lastModifierAsKey);
         }
 
         modifiers = modifierList.ToArray();

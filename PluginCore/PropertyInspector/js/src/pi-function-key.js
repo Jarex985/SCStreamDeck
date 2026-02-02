@@ -142,22 +142,20 @@
         const options = group.options || [];
 
         options.forEach(opt => {
-          // Filter out Controller/Axis-only functions (not supported for static buttons)
-          const isControllerOnly = opt.disabledReason && (
-            opt.disabledReason.includes('Controller') ||
-            opt.disabledReason.includes('Axis')
-          );
+          const bindingType = String(opt.bindingType || '').toLowerCase();
 
-          if (isControllerOnly) {
-            return; // Skip controller-only and axis-only options
+          // Filter out unsupported options (not supported for static buttons)
+          // TODO: When implementing full axis support, stop hiding axis-only options in the PI.
+          const isUnsupported = bindingType === 'mouseaxis' || bindingType === 'joystick' || bindingType === 'gamepad';
+          if (isUnsupported) {
+            return;
           }
 
           // Keep the original category; unbound actions are shown with a warning indicator.
           const category = groupName;
 
-          const bindingType = String(opt.bindingType || '').toLowerCase();
           const disabledReason = String(opt.disabledReason || '');
-          const isUnbound = bindingType === 'unbound' || disabledReason === 'No supported binding';
+          const isUnbound = bindingType === 'unbound';
 
           // Unbound actions are selectable (so users can bind them later), but still visually flagged.
           const isDisabled = !!opt.disabled && !isUnbound;
@@ -165,6 +163,7 @@
           flat.push(
             {
               value: opt.value,
+              legacyValue: opt.legacyValue,
               text: opt.text,
               group: category,
               details: opt.details,
@@ -226,10 +225,16 @@
    * @param {string} value - The function value to select
    */
   function selectFunctionByValue(value) {
-    const opt = allOptions.find(o => o.value === value);
-    if (opt) {
-      selectOption(opt, {persist: false});
+    const opt = allOptions.find(o => o.value === value || o.legacyValue === value);
+    if (!opt) {
+      return;
     }
+
+    const isLegacyMatch = opt.legacyValue === value && opt.value !== value;
+
+    // Only persist when we are migrating a legacy id to a v2 id.
+    // Otherwise we just update the UI without re-writing the same value.
+    selectOption(opt, {persist: isLegacyMatch});
   }
 
   // #endregion

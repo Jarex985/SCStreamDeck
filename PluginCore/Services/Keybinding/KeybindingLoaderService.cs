@@ -13,7 +13,16 @@ namespace SCStreamDeck.Services.Keybinding;
 /// </summary>
 public sealed class KeybindingLoaderService(IFileSystem fileSystem)
 {
-    private readonly Dictionary<string, KeybindingAction> _actions = new(StringComparer.OrdinalIgnoreCase);
+    private const string FunctionIdV2Prefix = "v2|";
+
+    // Canonical storage (v2 ids only) so GetAllActions() never returns duplicates.
+    private readonly Dictionary<string, KeybindingAction> _actionsById = new(StringComparer.OrdinalIgnoreCase);
+
+    // Backward compatibility / migration: legacy ids and other aliases resolve to v2 ids.
+    private readonly Dictionary<string, string> _aliasToId = new(StringComparer.OrdinalIgnoreCase);
+
+    // Helps resolve legacy ids when the category suffix changed (e.g. localization/fallback changes).
+    private readonly Dictionary<string, List<string>> _actionNameToIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
     private readonly object _lock = new();
     private Dictionary<ActivationMode, ActivationModeMetadata> _activationModesByMode = [];
@@ -72,7 +81,35 @@ public sealed class KeybindingLoaderService(IFileSystem fileSystem)
 
         lock (_lock)
         {
-            return _actions.TryGetValue(actionName, out action);
+            if (TryResolveIdLocked(actionName, out string? resolvedId) &&
+                _actionsById.TryGetValue(resolvedId!, out action))
+            {
+                return true;
+            }
+
+            action = null;
+            return false;
+        }
+    }
+
+    public bool TryNormalizeActionId(string? actionId, out string normalizedId)
+    {
+        if (string.IsNullOrWhiteSpace(actionId))
+        {
+            normalizedId = string.Empty;
+            return false;
+        }
+
+        lock (_lock)
+        {
+            if (!TryResolveIdLocked(actionId, out string? resolvedId) || string.IsNullOrWhiteSpace(resolvedId))
+            {
+                normalizedId = string.Empty;
+                return false;
+            }
+
+            normalizedId = resolvedId;
+            return true;
         }
     }
 
@@ -81,7 +118,7 @@ public sealed class KeybindingLoaderService(IFileSystem fileSystem)
     {
         lock (_lock)
         {
-            return _actions.Values.ToList();
+            return _actionsById.Values.ToList();
         }
     }
 
@@ -110,7 +147,7 @@ public sealed class KeybindingLoaderService(IFileSystem fileSystem)
 
         lock (_lock)
         {
-            if (!_actions.TryGetValue(actionName, out KeybindingAction? action))
+            if (!TryGetAction(actionName, out KeybindingAction? action) || action == null)
             {
                 return null;
             }
@@ -134,7 +171,9 @@ public sealed class KeybindingLoaderService(IFileSystem fileSystem)
     {
         lock (_lock)
         {
-            _actions.Clear();
+            _actionsById.Clear();
+            _aliasToId.Clear();
+            _actionNameToIds.Clear();
 
             _activationModesByName = new Dictionary<string, ActivationModeMetadata>(StringComparer.OrdinalIgnoreCase);
             _activationModesByMode = [];
@@ -148,11 +187,25 @@ public sealed class KeybindingLoaderService(IFileSystem fileSystem)
 
         lock (_lock)
         {
-            _actions.Clear();
+            _actionsById.Clear();
+            _aliasToId.Clear();
+            _actionNameToIds.Clear();
 
             foreach (KeybindingAction keybindingAction in dataFile.Actions.Select(MapAction))
             {
-                _actions[$"{keybindingAction.ActionName}_{keybindingAction.UiCategory}"] = keybindingAction;
+                string v2Id = BuildV2Id(keybindingAction.ActionName, keybindingAction.MapName);
+                _actionsById[v2Id] = keybindingAction;
+
+                AddAliasLocked(v2Id, keybindingAction);
+            }
+
+            // Optional convenience alias: allow resolving by actionName only when unique.
+            foreach ((string actionName, List<string> ids) in _actionNameToIds)
+            {
+                if (ids.Count == 1)
+                {
+                    _aliasToId[actionName] = ids[0];
+                }
             }
 
             _activationModesByName = metadata.ActivationModes is { Count: > 0 }
@@ -164,6 +217,112 @@ public sealed class KeybindingLoaderService(IFileSystem fileSystem)
 
             _isLoaded = true;
         }
+    }
+
+    private static string BuildV2Id(string actionName, string mapName) =>
+        $"{FunctionIdV2Prefix}{actionName}|{mapName}";
+
+    private static string BuildLegacyId(string actionName, string category) =>
+        $"{actionName}_{category}";
+
+    private void AddAliasLocked(string v2Id, KeybindingAction action)
+    {
+        // Direct / canonical
+        _aliasToId[v2Id] = v2Id;
+
+        // Legacy v1 ids used by existing profiles: <actionName>_<category>
+        if (!string.IsNullOrWhiteSpace(action.UiCategory))
+        {
+            _aliasToId[BuildLegacyId(action.ActionName, action.UiCategory)] = v2Id;
+        }
+
+        if (!_actionNameToIds.TryGetValue(action.ActionName, out List<string>? ids))
+        {
+            ids = [];
+            _actionNameToIds[action.ActionName] = ids;
+        }
+
+        ids.Add(v2Id);
+    }
+
+    private bool TryResolveIdLocked(string input, out string? resolvedId)
+    {
+        resolvedId = null;
+
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return false;
+        }
+
+        // v2 ids are canonical
+        if (input.StartsWith(FunctionIdV2Prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            resolvedId = input;
+            return _actionsById.ContainsKey(resolvedId);
+        }
+
+        // Fast path: exact alias match (legacy ids, actionName-only unique, etc.)
+        if (_aliasToId.TryGetValue(input, out string? id))
+        {
+            resolvedId = id;
+            return true;
+        }
+
+        // Legacy fallback: try to extract the longest actionName prefix.
+        // This allows old saved ids to keep working even if the category suffix changed.
+        string? actionName = TryExtractLongestMatchingActionName(input);
+        if (string.IsNullOrWhiteSpace(actionName))
+        {
+            return false;
+        }
+
+        if (!_actionNameToIds.TryGetValue(actionName, out List<string>? candidates) || candidates.Count == 0)
+        {
+            return false;
+        }
+
+        if (candidates.Count == 1)
+        {
+            resolvedId = candidates[0];
+            return true;
+        }
+
+        // If ambiguous, try to match the category suffix against current UiCategory.
+        string suffix = input.Length > actionName.Length + 1
+            ? input[(actionName.Length + 1)..]
+            : string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(suffix))
+        {
+            foreach (string candidateId in candidates)
+            {
+                if (_actionsById.TryGetValue(candidateId, out KeybindingAction? action) &&
+                    string.Equals(action.UiCategory, suffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    resolvedId = candidateId;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private string? TryExtractLongestMatchingActionName(string input)
+    {
+        int underscoreIndex = input.LastIndexOf('_');
+        while (underscoreIndex > 0)
+        {
+            string candidate = input[..underscoreIndex];
+            if (_actionNameToIds.ContainsKey(candidate))
+            {
+                return candidate;
+            }
+
+            underscoreIndex = candidate.LastIndexOf('_');
+        }
+
+        return null;
     }
 
     private static Dictionary<ActivationMode, ActivationModeMetadata> MapActivationModesByMode(
@@ -188,6 +347,7 @@ public sealed class KeybindingLoaderService(IFileSystem fileSystem)
     {
         ActionName = action.Name ?? string.Empty,
         MapName = action.MapName ?? string.Empty,
+        MapLabel = action.MapLabel ?? string.Empty,
         UiLabel = action.Label ?? string.Empty,
         UiDescription = action.Description ?? string.Empty,
         UiCategory = action.Category ?? string.Empty,

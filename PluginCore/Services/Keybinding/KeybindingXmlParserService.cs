@@ -195,12 +195,22 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
         (string normalizedKeyboard, string normalizedMouse, string normalizedJoystick, string normalizedGamepad) =
             NormalizeBindings(keyboard, mouse, joystick, gamepad);
 
+        string category = mapUiCategory;
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            category = !string.IsNullOrWhiteSpace(mapUiLabel)
+                ? mapUiLabel
+                : !string.IsNullOrWhiteSpace(mapName)
+                    ? mapName
+                    : "Other";
+        }
+
         return new KeybindingActionData
         {
             Name = actionName,
             Label = uiLabel,
             Description = uiDescription,
-            Category = mapUiCategory,
+            Category = category,
             MapName = mapName,
             MapLabel = mapUiLabel,
             ActivationMode = activationMode,

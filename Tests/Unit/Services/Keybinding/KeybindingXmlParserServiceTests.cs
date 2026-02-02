@@ -67,6 +67,22 @@ public sealed class KeybindingXmlParserServiceTests
     }
 
     [Fact]
+    public void ParseXmlToActions_AppliesCategoryFallback_WhenActionMapHasNoCategory()
+    {
+        string xml = @"<root>
+  <ActivationMode name=""press"" onPress=""1"" />
+  <actionmap name=""vehicle_mfd"" UILabel=""@mfd_label"">
+    <action name=""v_mfd_power"" UILabel=""@label"" UIDescription=""@desc"" />
+  </actionmap>
+ </root>";
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].Category.Should().Be("@mfd_label");
+    }
+
+    [Fact]
     public void ParseXmlToActions_InfersActivationModeWhenMissing()
     {
         string xml = @"<root>

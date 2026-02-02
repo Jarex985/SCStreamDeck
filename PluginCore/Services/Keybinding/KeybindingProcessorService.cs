@@ -258,7 +258,22 @@ public sealed class KeybindingProcessorService(
 
 
     private static List<KeybindingActionData> FilterActionsWithBindings(List<KeybindingActionData> actions) =>
-        actions.Where(a => HasBindingsOrValidLabel(a) && !a.Bindings.Keyboard.IsModifierOnly()).ToList();
+        actions
+            .Where(a => !IsDebugAction(a))
+            .Where(HasBindingsOrValidLabel)
+            .ToList();
+
+    private static bool IsDebugAction(KeybindingActionData action)
+    {
+        if (!string.IsNullOrWhiteSpace(action.MapName) &&
+            string.Equals(action.MapName, "debug", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(action.Name) &&
+               action.Name.Contains("debug", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static bool HasBindingsOrValidLabel(KeybindingActionData action)
     {

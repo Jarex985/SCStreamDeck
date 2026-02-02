@@ -7,6 +7,7 @@ public sealed class KeybindingAction
 {
     public required string ActionName { get; init; }
     public required string MapName { get; init; }
+    public string MapLabel { get; init; } = string.Empty;
     public string UiLabel { get; init; } = string.Empty;
     public string UiDescription { get; init; } = string.Empty;
     public string UiCategory { get; init; } = string.Empty;

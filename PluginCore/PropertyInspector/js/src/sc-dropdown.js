@@ -222,7 +222,7 @@
         const badgeEl = document.createElement('span');
         badgeEl.className = 'pi-dropdown__option-badge pi-dropdown__option-badge--warn';
         badgeEl.textContent = '!';
-        badgeEl.title = 'No supported binding';
+        badgeEl.title = 'Unbound';
         optionEl.appendChild(badgeEl);
       }
 

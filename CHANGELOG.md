@@ -2,18 +2,28 @@
 
 **Version format:** `MAJOR.MINOR.PATCH.BUILD`
 
-| Position  | Meaning                                            | Example / Usage                                                                                                                        |
-| --------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **MAJOR** | Major version / breaking change in behavior        | `1.0.0.0` = First stable, feature-complete release for the planned scope.                                                              |
+| Position  | Meaning                                            | Example / Usage                                                                                                                          |
+| --------- | -------------------------------------------------- |------------------------------------------------------------------------------------------------------------------------------------------|
+| **MAJOR** | Major version / breaking change in behavior        | `1.0.0.0` = First stable, feature-complete release for the planned scope.                                                                |
 | **MINOR** | Big user-facing release / new feature line         | `0.1.0.0` = New features, UX overhauls, or major internal changes that affect users. Breaking changes will be called out with a warning. |
-| **PATCH** | Smaller compatible improvements + bug fixes        | `0.0.1.0` = Small UX improvements and bug fixes. No existing settings are affected.                                                    |
-| **BUILD** | Internal-only / no user-visible changes            | `0.0.0.1` = Code cleanup, refactors, tests without functional changes.                                                                 |
+| **PATCH** | Smaller compatible improvements + bug fixes        | `0.0.1.0` = Small UX improvements and bug fixes. Existing settings shouldn't be affected.                                                |
+| **BUILD** | Internal-only / no user-visible changes            | `0.0.0.1` = Code cleanup, refactors, tests without functional changes.                                                                   |
 
 Notes:
 - Versions below `1.0.0.0` are pre-release.
 - If a release resets settings or requires manual steps, it will be explicitly highlighted.
 
 ---
+
+## v1.0.2.0 - Patch Release
+> [!NOTE]
+> This update introduces a stable v2 identifier format for saved function bindings (v2|<actionName>|<mapName>).
+> Existing Stream Deck profiles using the legacy format remain supported and will auto-migrate when the key becomes active/visible.
+
+### Bug Fixes
+
+- Fixed an issue where some keybindings would not get parsed correctly if it just contained a modifier (e.g. `Left Ctrl`), 
+  or didn't have a UICategory assigned. 
 
 ## v1.0.1.0 - Patch Release
 

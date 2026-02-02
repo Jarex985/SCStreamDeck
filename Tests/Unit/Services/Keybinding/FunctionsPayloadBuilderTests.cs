@@ -9,6 +9,7 @@ public sealed class FunctionsPayloadBuilderTests
 {
     private const string DefaultCategory = "Flight";
     private const string DefaultLabel = "Boost";
+    private const string DefaultMapName = "Gameplay";
 
     private static KeybindingAction CreateAction(
         string actionName,
@@ -18,11 +19,14 @@ public sealed class FunctionsPayloadBuilderTests
         string? joystickBinding = null,
         string? gamepadBinding = null,
         string? uiLabel = null,
-        string? uiCategory = null) =>
+        string? uiCategory = null,
+        string? mapLabel = null,
+        string? mapName = null) =>
         new()
         {
             ActionName = actionName,
-            MapName = "Gameplay",
+            MapName = mapName ?? DefaultMapName,
+            MapLabel = mapLabel ?? string.Empty,
             UiLabel = uiLabel ?? DefaultLabel,
             UiCategory = uiCategory ?? DefaultCategory,
             KeyboardBinding = keyboardBinding ?? string.Empty,
@@ -40,6 +44,18 @@ public sealed class FunctionsPayloadBuilderTests
         JObject group = (JObject)payload[0];
         JArray options = (JArray)group["options"]!;
         return (JObject)options[0];
+    }
+
+    private static string GetOptionValue(JArray payload)
+    {
+        JObject option = GetFirstOption(payload);
+        return option["value"]!.Value<string>()!;
+    }
+
+    private static string GetOptionLegacyValue(JArray payload)
+    {
+        JObject option = GetFirstOption(payload);
+        return option["legacyValue"]!.Value<string>()!;
     }
 
     private static string GetOptionBindingType(JArray payload)
@@ -199,6 +215,55 @@ public sealed class FunctionsPayloadBuilderTests
     }
 
     [Fact]
+    public void BuildGroupedFunctionsPayload_UsesStableV2Value_AndIncludesLegacyValue()
+    {
+        KeybindingAction action = CreateAction(
+            "v_engineering_assignment_weapons_increase",
+            ActivationMode.press,
+            keyboardBinding: "f1",
+            uiCategory: "FLIGHT");
+
+        JArray payload = BuildPayload(action);
+
+        GetOptionValue(payload).Should().Be($"v2|{action.ActionName}|{DefaultMapName}");
+        GetOptionLegacyValue(payload).Should().Be($"{action.ActionName}_FLIGHT");
+    }
+
+    [Fact]
+    public void BuildGroupedFunctionsPayload_UsesMapLabelAsGroupLabel()
+    {
+        KeybindingAction action = CreateAction(
+            "ship_boost",
+            ActivationMode.press,
+            keyboardBinding: "f1",
+            uiCategory: "FLIGHT",
+            mapLabel: "Flight - Movement");
+
+        JArray payload = BuildPayload(action);
+
+        JObject group = (JObject)payload.Single();
+        group["label"]!.Value<string>().Should().Be("Flight - Movement");
+        GetOptionLegacyValue(payload).Should().Be("ship_boost_FLIGHT");
+    }
+
+    [Fact]
+    public void BuildGroupedFunctionsPayload_FallsBackToMapName_WhenMapLabelMissing()
+    {
+        KeybindingAction action = CreateAction(
+            "ship_boost",
+            ActivationMode.press,
+            keyboardBinding: "f1",
+            uiCategory: "FLIGHT",
+            mapLabel: "",
+            mapName: "Gameplay");
+
+        JArray payload = BuildPayload(action);
+
+        JObject group = (JObject)payload.Single();
+        group["label"]!.Value<string>().Should().Be("Gameplay");
+    }
+
+    [Fact]
     public void BuildGroupedFunctionsPayload_InferBindingType_FallsBackToMouseAxis()
     {
         KeybindingAction action = CreateAction(
@@ -267,7 +332,7 @@ public sealed class FunctionsPayloadBuilderTests
     }
 
     [Fact]
-    public void BuildGroupedFunctionsPayload_DisabledStatus_NoBindingsShowsNoSupportedReason()
+    public void BuildGroupedFunctionsPayload_DisabledStatus_NoBindingsHasEmptyReason()
     {
         KeybindingAction action = CreateAction("no_bindings_action", ActivationMode.press);
 
@@ -275,7 +340,7 @@ public sealed class FunctionsPayloadBuilderTests
         (bool disabled, string reason) = GetOptionDisabledStatus(payload);
 
         disabled.Should().BeTrue();
-        reason.Should().Be("No supported binding");
+        reason.Should().BeEmpty();
     }
 
     [Fact]
@@ -398,7 +463,7 @@ public sealed class FunctionsPayloadBuilderTests
 
         option.Properties().Select(p => p.Name)
             .Should()
-            .Equal("value", "text", "bindingType", "searchText", "details", "disabled", "disabledReason");
+            .Equal("value", "legacyValue", "text", "bindingType", "searchText", "details", "disabled", "disabledReason");
 
         JObject details = (JObject)option["details"]!;
         details.Properties().Select(p => p.Name)

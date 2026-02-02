@@ -677,6 +677,10 @@ public sealed class InitializationService : IDisposable
                 _initialized = true;
             }
 
+            // Notify actions now that keybindings are loaded so they can refresh PI state
+            // and perform best-effort migrations (e.g., legacy function ids -> v2 ids).
+            KeybindingsStateChanged?.Invoke();
+
             // First run: persist the actually selected channel so subsequent startups don't warn about
             // the default (Live) preference when only another channel exists.
             if (existingState == null)

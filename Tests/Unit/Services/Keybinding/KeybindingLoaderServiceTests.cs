@@ -92,9 +92,55 @@ public sealed class KeybindingLoaderServiceTests
             service.IsLoaded.Should().BeTrue();
             service.TryGetAction("action1_cat", out KeybindingAction? action).Should().BeTrue();
             action!.ActionName.Should().Be("action1");
+            service.TryGetAction("v2|action1|map", out KeybindingAction? v2Action).Should().BeTrue();
+            v2Action!.ActionName.Should().Be("action1");
             service.GetActivationModes().Should().ContainKey("press");
             service.GetActivationModesByMode().Should().ContainKey(ActivationMode.press);
             service.GetMetadata("action1_cat").Should().NotBeNull();
+            service.GetAllActions().Should().ContainSingle(a => a.ActionName == "action1");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task TryGetAction_ResolvesLegacyId_WhenCategorySuffixChanged()
+    {
+        KeybindingDataFile dataFile = new()
+        {
+            Metadata = new KeybindingMetadata
+            {
+                Language = "EN",
+                DataP4KPath = "C:/Data.p4k",
+                ActivationModes = new Dictionary<string, ActivationModeMetadata> { { "press", new ActivationModeMetadata() } }
+            },
+            Actions =
+            [
+                new KeybindingActionData
+                {
+                    Name = "v_engineering_assignment_weapons_increase",
+                    Category = "Vehicle Flight",
+                    MapName = "Gameplay",
+                    Label = "lbl",
+                    ActivationMode = ActivationMode.press
+                }
+            ]
+        };
+
+        string tempFile = Path.GetTempFileName();
+        await File.WriteAllTextAsync(tempFile, JsonConvert.SerializeObject(dataFile));
+
+        try
+        {
+            KeybindingLoaderService service = new(new SystemFileSystem());
+            bool result = await service.LoadKeybindingsAsync(tempFile);
+            result.Should().BeTrue();
+
+            // Old saved id had category "FLIGHT"; we can still resolve via longest actionName prefix.
+            service.TryGetAction("v_engineering_assignment_weapons_increase_FLIGHT", out KeybindingAction? action).Should().BeTrue();
+            action!.ActionName.Should().Be("v_engineering_assignment_weapons_increase");
         }
         finally
         {
@@ -128,6 +174,7 @@ public sealed class KeybindingLoaderServiceTests
 
         result.ActionName.Should().Be("test_action");
         result.MapName.Should().Be("test_map");
+        result.MapLabel.Should().Be("@map");
         result.UiLabel.Should().Be("@label");
         result.UiDescription.Should().Be("@description");
         result.UiCategory.Should().Be("@category");
@@ -157,6 +204,7 @@ public sealed class KeybindingLoaderServiceTests
 
         result.ActionName.Should().Be("test_action");
         result.MapName.Should().BeEmpty();
+        result.MapLabel.Should().BeEmpty();
         result.UiLabel.Should().BeEmpty();
         result.UiDescription.Should().BeEmpty();
         result.UiCategory.Should().BeEmpty();
@@ -185,6 +233,7 @@ public sealed class KeybindingLoaderServiceTests
 
         result.ActionName.Should().Be("test_action");
         result.MapName.Should().BeEmpty();
+        result.MapLabel.Should().BeEmpty();
         result.UiLabel.Should().BeEmpty();
         result.UiDescription.Should().BeEmpty();
         result.UiCategory.Should().BeEmpty();

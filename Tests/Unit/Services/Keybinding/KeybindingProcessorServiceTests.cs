@@ -12,6 +12,11 @@ namespace Tests.Unit.Services.Keybinding;
 
 public sealed class KeybindingProcessorServiceTests
 {
+    private static List<KeybindingActionData> FilterActionsWithBindings(List<KeybindingActionData> actions) =>
+        (List<KeybindingActionData>)typeof(KeybindingProcessorService)
+            .GetMethod("FilterActionsWithBindings", BindingFlags.NonPublic | BindingFlags.Static)!
+            .Invoke(null, [actions])!;
+
     #region HasBindingsOrValidLabel
 
     [Fact]
@@ -141,6 +146,65 @@ public sealed class KeybindingProcessorServiceTests
             .Invoke(null, [action]) as bool? ?? false;
 
         result.Should().BeTrue();
+    }
+
+    #endregion
+
+    #region FilterActionsWithBindings
+
+    [Fact]
+    public void FilterActionsWithBindings_DoesNotDropModifierOnlyKeyboardBinding()
+    {
+        List<KeybindingActionData> actions =
+        [
+            new()
+            {
+                Name = "v_strafe_down",
+                Label = "@label",
+                Category = "@category",
+                Bindings = new InputBindings { Keyboard = SCConstants.Input.Keyboard.LCtrl }
+            }
+        ];
+
+        List<KeybindingActionData> filtered = FilterActionsWithBindings(actions);
+
+        filtered.Should().ContainSingle();
+        filtered[0].Name.Should().Be("v_strafe_down");
+    }
+
+    [Fact]
+    public void FilterActionsWithBindings_ExcludesDebugActions()
+    {
+        List<KeybindingActionData> actions =
+        [
+            new()
+            {
+                Name = "spaceship_debug_toggle",
+                Label = "@label",
+                Category = "@category",
+                Bindings = new InputBindings { Keyboard = "F1" }
+            },
+            new()
+            {
+                Name = "godmode",
+                MapName = "debug",
+                Label = "@label",
+                Category = "@category",
+                Bindings = new InputBindings { Keyboard = "F9" }
+            },
+            new()
+            {
+                Name = "spaceship_normal_toggle",
+                Label = "@label",
+                Category = "@category",
+                Bindings = new InputBindings { Keyboard = "F2" }
+            }
+        ];
+
+        List<KeybindingActionData> filtered = FilterActionsWithBindings(actions);
+
+        filtered.Should().ContainSingle();
+        filtered[0].Name.Should().Be("spaceship_normal_toggle");
     }
 
     #endregion

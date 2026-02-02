@@ -11,6 +11,7 @@ namespace SCStreamDeck.Services.Keybinding;
 /// </summary>
 internal static class FunctionsPayloadBuilder
 {
+    private const string FunctionIdV2Prefix = "v2|";
     private const string MouseAxisToken = "maxis_";
 
     private const string BindingTypeKeyboard = "keyboard";
@@ -22,7 +23,6 @@ internal static class FunctionsPayloadBuilder
 
     private const string DisabledReasonAxisOnly = "Axis (Dial only)";
     private const string DisabledReasonControllerOnly = "Controller bind (not supported yet)";
-    private const string DisabledReasonNoSupportedBinding = "No supported binding";
 
     internal static JArray BuildGroupedFunctionsPayload(
         IEnumerable<KeybindingAction> actions,
@@ -30,26 +30,28 @@ internal static class FunctionsPayloadBuilder
     {
         ArgumentNullException.ThrowIfNull(actions);
 
-        // Use UILabel and UICategory directly from KeybindingAction
+        // Group in the PI by map label (more user-facing than internal category strings).
+        // Still preserve legacy ids based on UiCategory for backward compatibility.
         List<ResolvedAction> resolved = actions
             .Select(a => new ResolvedAction(
                 a,
+                ResolveMapGroupLabel(a),
                 a.UiCategory,
                 a.UiLabel,
                 a.UiDescription))
             .Where(x => !string.IsNullOrWhiteSpace(x.ActionLabel))
             .ToList();
 
-        // Group by (ActionName, Category) to handle duplicates across different maps
+        // Build one option per (ActionName, MapName) so v2 ids remain stable and unambiguous.
         List<GroupedActionEntry> groupedEntries = resolved
-            .GroupBy(x => (x.Action.ActionName, x.GroupLabel))
+            .GroupBy(x => (x.Action.ActionName, x.Action.MapName))
             .Select(g => ToGroupedEntry(g, hkl))
             .ToList();
 
         // Disambiguate duplicate labels within same category
         DisambiguateDuplicateLabels(groupedEntries);
 
-        // Group by category for optgroup structure
+        // Group by map label for optgroup structure
         IEnumerable<IGrouping<string, GroupedActionEntry>> grouped = groupedEntries
             .OrderBy(x => x.GroupLabelResolved)
             .ThenBy(x => x.ActionLabelResolved)
@@ -69,7 +71,11 @@ internal static class FunctionsPayloadBuilder
 
                 options.Add(new JObject
                 {
-                    ["value"] = $"{groupedEntry.ActionName}_{groupedEntry.GroupLabelResolved}",
+                    // v2 id (stable, non-localized): used for new profiles and internal migrations.
+                    ["value"] = BuildV2Id(groupedEntry.ActionName, groupedEntry.MapName),
+
+                    // Legacy id (v1): kept for backward compatible PI selection + migration.
+                    ["legacyValue"] = $"{groupedEntry.ActionName}_{groupedEntry.LegacyCategoryLabelResolved}",
                     ["text"] = text,
                     ["bindingType"] = InferBindingType(groupedEntry.Bindings),
                     ["searchText"] = searchText,
@@ -264,9 +270,29 @@ internal static class FunctionsPayloadBuilder
             first.ActionLabel,
             string.IsNullOrWhiteSpace(first.Description) ? null : first.Description,
             name,
+            first.Action.MapName,
+            first.LegacyCategoryLabel,
             bindings,
             first.Action.ActivationMode);
     }
+
+    private static string ResolveMapGroupLabel(KeybindingAction action)
+    {
+        if (!string.IsNullOrWhiteSpace(action.MapLabel))
+        {
+            return action.MapLabel;
+        }
+
+        if (!string.IsNullOrWhiteSpace(action.MapName))
+        {
+            return action.MapName;
+        }
+
+        return "Other";
+    }
+
+    private static string BuildV2Id(string actionName, string mapName) =>
+        $"{FunctionIdV2Prefix}{actionName}|{mapName}";
 
     private static List<BindingDisplay> CollectBindings(List<ResolvedAction> actions, nint hkl)
     {
@@ -447,6 +473,7 @@ internal static class FunctionsPayloadBuilder
         }
         else if (presence.HasMouseAxis)
         {
+            // TODO: When implementing full axis support, stop hiding axis-only options in the PI.
             disabledReason = DisabledReasonAxisOnly;
         }
         else if (presence.HasJoystick || presence.HasGamepad)
@@ -456,7 +483,8 @@ internal static class FunctionsPayloadBuilder
         }
         else
         {
-            disabledReason = DisabledReasonNoSupportedBinding;
+            // Unbound: keep selectable in PI so the user can bind it later.
+            disabledReason = string.Empty;
         }
 
         return (disabled, disabledReason);
@@ -550,6 +578,7 @@ internal static class FunctionsPayloadBuilder
 internal sealed record ResolvedAction(
     KeybindingAction Action,
     string GroupLabel,
+    string LegacyCategoryLabel,
     string ActionLabel,
     string Description);
 
@@ -564,5 +593,7 @@ internal sealed record GroupedActionEntry(
     string ActionLabelResolved,
     string? DescriptionResolved,
     string ActionName,
+    string MapName,
+    string LegacyCategoryLabelResolved,
     IReadOnlyList<BindingDisplay> Bindings,
     ActivationMode ActivationMode);

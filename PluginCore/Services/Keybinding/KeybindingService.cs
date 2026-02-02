@@ -48,5 +48,8 @@ public sealed class KeybindingService(
     public bool TryGetAction(string? actionName, out KeybindingAction? action) =>
         _loaderService.TryGetAction(actionName, out action);
 
+    public bool TryNormalizeActionId(string? actionId, out string normalizedId) =>
+        _loaderService.TryNormalizeActionId(actionId, out normalizedId);
+
     public IReadOnlyList<KeybindingAction> GetAllActions() => _loaderService.GetAllActions();
 }
