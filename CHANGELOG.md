@@ -15,7 +15,7 @@ Notes:
 
 ---
 
-## v1.1.2.0 - Patch Release
+## v1.1.2.0 - Minor Release
 
 ### Features / Improvements
 
@@ -35,7 +35,7 @@ Notes:
 ### Internal / Refactor
 
 - Introduced a keybindings JSON schema version to force-refresh cached keybindings when the data format changes.
-- 
+
 ## v1.0.2.0 - Patch Release
 > [!NOTE]
 > This update introduces a stable v2 identifier format for saved function bindings (v2|<actionName>|<mapName>).
