@@ -29,6 +29,16 @@ public static class SCConstants
 
     #endregion
 
+    #region Keybinding Cache
+
+    public static class Keybindings
+    {
+        // Bump when the shape/meaning of cached *-keybindings.json changes.
+        public const int JsonSchemaVersion = 2;
+    }
+
+    #endregion
+
     #region Path Constants
 
     public static class Paths

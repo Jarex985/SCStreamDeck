@@ -43,6 +43,15 @@ internal sealed class KeybindingInputExecutor(
                 }
 
                 return true;
+
+            case InputType.MouseButton:
+                VirtualKeyCode button = (VirtualKeyCode)input.Value;
+                ExecuteMouseButtonClick(button);
+                return true;
+
+            case InputType.MouseWheel:
+                ExecuteMouseWheelPress(input.Value);
+                return true;
         }
 
         return false;

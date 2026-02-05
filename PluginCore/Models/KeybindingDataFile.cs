@@ -18,6 +18,8 @@ public sealed class KeybindingDataFile
 /// </summary>
 public sealed class KeybindingMetadata
 {
+    [JsonProperty("schemaVersion")] public int SchemaVersion { get; set; }
+
     [JsonProperty("extractedAt")] public DateTime ExtractedAt { get; set; }
 
     [JsonProperty("language")] public string Language { get; set; } = "english";
@@ -61,6 +63,8 @@ public sealed class KeybindingActionData
     [JsonProperty("mapLabel")] public string MapLabel { get; set; } = "";
 
     [JsonProperty("activationMode")] public ActivationMode ActivationMode { get; set; } = ActivationMode.press;
+
+    [JsonProperty("isToggleCandidate")] public bool IsToggleCandidate { get; set; }
 
     [JsonProperty("bindings")] public InputBindings Bindings { get; set; } = new();
 }

@@ -14,6 +14,18 @@ public sealed class ToggleKeyCoreTests
     }
 
     [Fact]
+    public void SetVisualState_NormalizesAndStoresValue()
+    {
+        ToggleKeyCore core = new(TimeSpan.FromSeconds(1));
+
+        core.SetVisualState(1);
+        core.GetVisualState().Should().Be(1);
+
+        core.SetVisualState(123);
+        core.GetVisualState().Should().Be(1);
+    }
+
+    [Fact]
     public void ShortPress_KeyUp_BeforeThreshold_RequestsExecution()
     {
         ToggleKeyCore core = new(TimeSpan.FromSeconds(1));

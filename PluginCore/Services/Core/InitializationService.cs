@@ -14,6 +14,7 @@ public sealed class InitializationService : IDisposable
     private readonly ICachedInstallationsCleanupService _cachedInstallationsCleanupService;
     private readonly SemaphoreSlim _initSemaphore = new(1, 1);
     private readonly IInstallLocatorService _installLocator;
+    private readonly ActionMapsWatcherService _actionMapsWatcher;
     private readonly KeybindingProcessorService _keybindingProcessor;
     private readonly KeybindingService _keybindingService;
     private readonly IKeybindingsJsonCache _keybindingsJsonCache;
@@ -29,6 +30,7 @@ public sealed class InitializationService : IDisposable
         KeybindingService keybindingService,
         IInstallLocatorService installLocator,
         KeybindingProcessorService keybindingProcessor,
+        ActionMapsWatcherService actionMapsWatcher,
         PathProviderService pathProvider,
         StateService stateService,
         IKeybindingsJsonCache keybindingsJsonCache,
@@ -37,12 +39,15 @@ public sealed class InitializationService : IDisposable
         _keybindingService = keybindingService ?? throw new ArgumentNullException(nameof(keybindingService));
         _installLocator = installLocator ?? throw new ArgumentNullException(nameof(installLocator));
         _keybindingProcessor = keybindingProcessor ?? throw new ArgumentNullException(nameof(keybindingProcessor));
+        _actionMapsWatcher = actionMapsWatcher ?? throw new ArgumentNullException(nameof(actionMapsWatcher));
         _pathProvider = pathProvider ?? throw new ArgumentNullException(nameof(pathProvider));
         _stateService = stateService ?? throw new ArgumentNullException(nameof(stateService));
         _keybindingsJsonCache = keybindingsJsonCache ?? throw new ArgumentNullException(nameof(keybindingsJsonCache));
         _cachedInstallationsCleanupService = cachedInstallationsCleanupService ??
                                              throw new ArgumentNullException(nameof(cachedInstallationsCleanupService));
         _pathProvider.EnsureDirectoriesExist();
+
+        _actionMapsWatcher.ActionMapsChanged += OnActionMapsChangedAsync;
     }
 
     public SCChannel CurrentChannel
@@ -67,7 +72,12 @@ public sealed class InitializationService : IDisposable
         }
     }
 
-    public void Dispose() => _initSemaphore.Dispose();
+    public void Dispose()
+    {
+        _actionMapsWatcher.ActionMapsChanged -= OnActionMapsChangedAsync;
+        _actionMapsWatcher.Dispose();
+        _initSemaphore.Dispose();
+    }
 
     public event Action? KeybindingsStateChanged;
 
@@ -180,6 +190,145 @@ public sealed class InitializationService : IDisposable
         KeybindingsStateChanged?.Invoke();
 
         return result;
+    }
+
+    private async Task OnActionMapsChangedAsync(SCChannel channel)
+    {
+        try
+        {
+            await RefreshKeybindingsFromActionMapsAsync(channel).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Log.Err($"[{nameof(InitializationService)}] Auto-sync failed for {channel}", ex);
+        }
+    }
+
+    public async Task<bool> RefreshKeybindingsFromActionMapsAsync(SCChannel channel, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            PluginState? state = await _stateService.LoadStateAsync(cancellationToken).ConfigureAwait(false);
+            InstallationState? installation = state?.GetInstallation(channel);
+            if (installation == null || !installation.Validate())
+            {
+                Log.Debug($"[{nameof(InitializationService)}] Auto-sync skipped for {channel}: no valid cached installation");
+                return false;
+            }
+
+            SCInstallCandidate candidate = installation.ToCandidate();
+            string channelJsonPath = _pathProvider.GetKeybindingJsonPath(channel.ToString());
+
+            string? actionMapsPath = KeybindingProfilePathResolver.TryFindActionMapsXml(candidate.ChannelPath);
+            if (!string.IsNullOrWhiteSpace(actionMapsPath))
+            {
+                // Ensure actionmaps.xml is within the channel folder.
+                if (!SecurePathValidator.IsValidPath(actionMapsPath, candidate.ChannelPath, out _))
+                {
+                    Log.Warn($"[{nameof(InitializationService)}] Auto-sync skipped for {channel}: unsafe actionmaps.xml path");
+                    return false;
+                }
+
+                await WaitForActionMapsStabilityAsync(actionMapsPath, cancellationToken).ConfigureAwait(false);
+            }
+
+            Log.Info($"[{nameof(InitializationService)}] Auto-sync: regenerating keybindings for {channel}");
+            KeybindingProcessResult processResult = await _keybindingProcessor.ProcessKeybindingsAsync(
+                    candidate,
+                    actionMapsPath,
+                    channelJsonPath,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!processResult.IsSuccess)
+            {
+                Log.Warn($"[{nameof(InitializationService)}] Auto-sync failed for {channel}: {processResult.ErrorMessage}");
+                return false;
+            }
+
+            bool isActive;
+            lock (_lock)
+            {
+                isActive = _initialized && _currentChannel == channel;
+            }
+
+            if (isActive)
+            {
+                bool switched = await SwitchChannelAsync(channel, cancellationToken).ConfigureAwait(false);
+                if (!switched)
+                {
+                    Log.Warn($"[{nameof(InitializationService)}] Auto-sync regenerated JSON but reload failed for {channel}");
+                    return false;
+                }
+
+                return true;
+            }
+
+            // Not active: refresh open Property Inspectors so updated bindings/categories are shown.
+            KeybindingsStateChanged?.Invoke();
+            return true;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Log.Err($"[{nameof(InitializationService)}] Auto-sync exception for {channel}", ex);
+            return false;
+        }
+    }
+
+    private static async Task WaitForActionMapsStabilityAsync(string actionMapsPath, CancellationToken cancellationToken)
+    {
+        // Star Citizen may write actionmaps.xml in multiple passes. Best-effort wait for stable size/write time.
+        const int maxWaitMs = 5000;
+        const int pollMs = 200;
+        const int stableRequiredMs = 400;
+
+        DateTime start = DateTime.UtcNow;
+        DateTime lastObservedChange = DateTime.UtcNow;
+
+        long? lastSize = null;
+        DateTime? lastWrite = null;
+
+        while ((DateTime.UtcNow - start).TotalMilliseconds < maxWaitMs)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                if (!File.Exists(actionMapsPath))
+                {
+                    return;
+                }
+
+                FileInfo info = new(actionMapsPath);
+                long size = info.Length;
+                DateTime write = info.LastWriteTime;
+
+                if (lastSize == null || lastWrite == null || size != lastSize || write != lastWrite)
+                {
+                    lastSize = size;
+                    lastWrite = write;
+                    lastObservedChange = DateTime.UtcNow;
+                }
+                else
+                {
+                    if ((DateTime.UtcNow - lastObservedChange).TotalMilliseconds >= stableRequiredMs)
+                    {
+                        return;
+                    }
+                }
+            }
+            catch (IOException)
+            {
+                // File might be temporarily locked; keep waiting within maxWaitMs.
+                lastObservedChange = DateTime.UtcNow;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                lastObservedChange = DateTime.UtcNow;
+            }
+
+            await Task.Delay(pollMs, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -680,6 +829,9 @@ public sealed class InitializationService : IDisposable
             // Notify actions now that keybindings are loaded so they can refresh PI state
             // and perform best-effort migrations (e.g., legacy function ids -> v2 ids).
             KeybindingsStateChanged?.Invoke();
+
+            // Start actionmaps.xml watchers (auto-sync user override changes).
+            _actionMapsWatcher.StartOrUpdate(candidates);
 
             // First run: persist the actually selected channel so subsequent startups don't warn about
             // the default (Live) preference when only another channel exists.

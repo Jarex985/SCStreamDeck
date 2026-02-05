@@ -272,6 +272,7 @@ internal static class FunctionsPayloadBuilder
             name,
             first.Action.MapName,
             first.LegacyCategoryLabel,
+            first.Action.IsToggleCandidate,
             bindings,
             first.Action.ActivationMode);
     }
@@ -359,7 +360,8 @@ internal static class FunctionsPayloadBuilder
             ["label"] = entry.ActionLabelResolved,
             ["description"] = entry.DescriptionResolved ?? string.Empty,
             ["actionName"] = entry.ActionName,
-            ["activationMode"] = entry.ActivationMode.ToString()
+            ["activationMode"] = entry.ActivationMode.ToString(),
+            ["isToggleCandidate"] = entry.IsToggleCandidate
         };
 
 
@@ -595,5 +597,6 @@ internal sealed record GroupedActionEntry(
     string ActionName,
     string MapName,
     string LegacyCategoryLabelResolved,
+    bool IsToggleCandidate,
     IReadOnlyList<BindingDisplay> Bindings,
     ActivationMode ActivationMode);

@@ -45,6 +45,7 @@ public static class ServiceConfiguration
 
         services.AddSingleton<KeybindingProcessorService>();
         services.AddSingleton<KeybindingService>();
+        services.AddSingleton<ActionMapsWatcherService>();
         services.AddSingleton<InitializationService>();
     }
 

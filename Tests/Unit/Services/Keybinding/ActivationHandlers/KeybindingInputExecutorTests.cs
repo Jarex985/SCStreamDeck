@@ -65,6 +65,20 @@ public sealed class KeybindingInputExecutorTests
     }
 
     [Fact]
+    public void ExecutePress_MouseButton_MiddleButton_InvokesMouseClick()
+    {
+        (KeybindingInputExecutor executor, Mock<IMouseSimulator> mouse, _) = CreateExecutor();
+
+        ParsedInput input = new() { Type = InputType.MouseButton, Value = VirtualKeyCode.MBUTTON };
+
+        mouse.Setup(m => m.MiddleButtonClick()).Returns(mouse.Object);
+
+        executor.ExecutePress(input).Should().BeTrue();
+
+        mouse.Verify(m => m.MiddleButtonClick(), Times.Once);
+    }
+
+    [Fact]
     public void ExecuteDownUp_MouseButton_IsIdempotent_PerActionKey()
     {
         (KeybindingInputExecutor executor, Mock<IMouseSimulator> mouse, _) = CreateExecutor();

@@ -16,4 +16,5 @@ public sealed class KeybindingAction
     public string JoystickBinding { get; init; } = string.Empty;
     public string GamepadBinding { get; init; } = string.Empty;
     public ActivationMode ActivationMode { get; init; } = ActivationMode.press;
+    public bool IsToggleCandidate { get; init; }
 }

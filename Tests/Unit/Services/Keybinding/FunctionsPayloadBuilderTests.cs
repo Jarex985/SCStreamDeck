@@ -468,7 +468,7 @@ public sealed class FunctionsPayloadBuilderTests
         JObject details = (JObject)option["details"]!;
         details.Properties().Select(p => p.Name)
             .Should()
-            .Equal("label", "description", "actionName", "activationMode", "devices", "isBound", "hasAxis", "hasButton");
+            .Equal("label", "description", "actionName", "activationMode", "isToggleCandidate", "devices", "isBound", "hasAxis", "hasButton");
 
         details["actionName"]!.Value<string>().Should().Be("kb_action");
         details["activationMode"]!.Value<string>().Should().Be("press");

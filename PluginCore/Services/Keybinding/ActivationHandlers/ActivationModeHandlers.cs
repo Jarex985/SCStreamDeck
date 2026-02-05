@@ -8,13 +8,20 @@ namespace SCStreamDeck.Services.Keybinding.ActivationHandlers;
 ///     Triggers based on activation mode metadata (OnPress, OnRelease, Retriggerable, MultiTapBlock).
 ///     Implements KeyDown/KeyUp behavior using metadata flags.
 /// </summary>
-internal sealed class ImmediatePressHandler : IActivationModeHandler
+internal sealed class ImmediatePressHandler(Func<DateTime>? utcNow = null) : IActivationModeHandler
 {
+    private readonly Func<DateTime> _utcNow = utcNow ?? (() => DateTime.UtcNow);
+
     /// <summary>
     ///     Tracks which actions have been activated during the current key press cycle.
     ///     Used for MultiTapBlock logic to prevent OnRelease from firing after OnPress.
     /// </summary>
     private readonly ConcurrentDictionary<string, bool> _activationBlocks = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    ///     Tracks key down timestamps for release-threshold based modes (e.g., tap).
+    /// </summary>
+    private readonly ConcurrentDictionary<string, DateTime> _keyDownTimes = new(StringComparer.OrdinalIgnoreCase);
 
     public IReadOnlyCollection<ActivationMode> SupportedModes =>
     [
@@ -35,6 +42,9 @@ internal sealed class ImmediatePressHandler : IActivationModeHandler
     {
         // Clear any previous activation block for this action (new key press cycle)
         _activationBlocks.TryRemove(context.ActionName, out _);
+
+        // Record KeyDown time for release-threshold logic (tap modes).
+        _keyDownTimes[context.ActionName] = _utcNow();
 
         if (!context.Metadata.OnPress)
         {
@@ -59,6 +69,8 @@ internal sealed class ImmediatePressHandler : IActivationModeHandler
         // Check if OnPress was executed with MultiTapBlock
         bool wasBlocked = _activationBlocks.TryRemove(context.ActionName, out _);
 
+        _keyDownTimes.TryRemove(context.ActionName, out DateTime keyDownTime);
+
         // If OnRelease is true AND not blocked by MultiTapBlock, execute additional release press
         if (context.Metadata.OnRelease && !wasBlocked)
         {
@@ -71,7 +83,17 @@ internal sealed class ImmediatePressHandler : IActivationModeHandler
             // Then check ReleaseTriggerThreshold (used by tap modes)
             if (context.Metadata.ReleaseTriggerThreshold > 0)
             {
-                return executor.ScheduleDelayedPress(context.Input, context.ActionName, context.Metadata.ReleaseTriggerThreshold);
+                if (keyDownTime != default)
+                {
+                    TimeSpan heldDuration = _utcNow() - keyDownTime;
+                    if (heldDuration.TotalSeconds > context.Metadata.ReleaseTriggerThreshold)
+                    {
+                        return true;
+                    }
+                }
+
+                // Within threshold (or missing KeyDown timestamp) -> execute on release.
+                return executor.ExecutePressNoRepeat(context.Input);
             }
 
             // No delay - execute immediately

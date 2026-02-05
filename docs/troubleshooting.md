@@ -37,7 +37,13 @@
 - If you changed any keybinding in-game while using the Plugin, you can either:
 
     1. Restart Stream Deck app.
-    2. Use `Control Panel` and click `FORCE REDETECTION`.
+    2. Use `Control Panel` and click `FORCE REDETECTION`.  
+  
+
+- Mouse button binds don't work while moving (mouse1 - mouse5)
+If an in-game action is bound to `mouse1`…`mouse5`, Stream Deck-triggered input may only register when the mouse is not moving. 
+This is a Star Citizen (EAC) limitation with synthetic mouse events (`SendInput`) during relative mouse handling.
+Use a keyboard bind for Stream Deck actions for best reliability.
 
 ## I can't see Adaptive Key / Toggle Key in the Multi Action list
 

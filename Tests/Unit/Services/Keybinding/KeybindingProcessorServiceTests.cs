@@ -1081,7 +1081,7 @@ public sealed class KeybindingProcessorServiceTests
 
         string actionMapsPath = Path.Combine(tempDir, SCConstants.Files.ActionMapsFileName);
         File.WriteAllText(actionMapsPath,
-            "<?xml version=\"1.0\"?><root><action name=\"test_action\"><rebind input=\"kb_A\"/><rebind input=\"mo_MOUSE1\"/></action></root>");
+            "<?xml version=\"1.0\"?><root><action name=\"test_action\"><rebind input=\"kb_A\"/></action></root>");
 
         try
         {
@@ -1111,7 +1111,61 @@ public sealed class KeybindingProcessorServiceTests
             methodInfo.Invoke(service, [actions, actionMapsPath]);
 
             actions[0].Bindings.Keyboard.Should().Be("A");
+            actions[0].Bindings.Mouse.Should().BeNull();
+        }
+        finally
+        {
+            if (File.Exists(actionMapsPath))
+            {
+                File.Delete(actionMapsPath);
+            }
+
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void ApplyOverridesIfPresent_AppliesMouseOverride_WhenOverridesPresent()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), $"scstreamdeck_tests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        string actionMapsPath = Path.Combine(tempDir, SCConstants.Files.ActionMapsFileName);
+        File.WriteAllText(actionMapsPath,
+            "<?xml version=\"1.0\"?><root><action name=\"test_action\"><rebind input=\"mo_MOUSE1\"/></action></root>");
+
+        try
+        {
+            KeybindingProcessorService service = new(
+                Mock.Of<IP4KArchiveService>(),
+                Mock.Of<ICryXmlParserService>(),
+                Mock.Of<ILocalizationService>(),
+                Mock.Of<IKeybindingXmlParserService>(),
+                Mock.Of<IKeybindingMetadataService>(),
+                Mock.Of<IKeybindingOutputService>(),
+                new SystemFileSystem());
+
+            List<KeybindingActionData> actions =
+            [
+                new()
+                {
+                    Name = "test_action",
+                    Label = "@label",
+                    Category = "@category",
+                    Bindings = new InputBindings { Keyboard = "W", Mouse = "MOUSE2" }
+                }
+            ];
+
+            MethodInfo methodInfo = typeof(KeybindingProcessorService)
+                .GetMethod("ApplyOverridesIfPresent", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+            methodInfo.Invoke(service, [actions, actionMapsPath]);
+
             actions[0].Bindings.Mouse.Should().Be("MOUSE1");
+            actions[0].Bindings.Keyboard.Should().BeNull();
         }
         finally
         {

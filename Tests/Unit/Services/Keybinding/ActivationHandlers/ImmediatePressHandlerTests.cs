@@ -72,8 +72,8 @@ public sealed class ImmediatePressHandlerTests
         handler.Execute(Ctx(true, metadata), exec).Should().BeTrue();
         handler.Execute(Ctx(false, metadata), exec).Should().BeTrue();
 
-        exec.ScheduledPresses.Should().HaveCount(1);
-        exec.ScheduledPresses[0].DelaySeconds.Should().Be(0.15f);
+        exec.PressNoRepeatCount.Should().Be(1);
+        exec.ScheduledPresses.Should().BeEmpty();
     }
 
     [Fact]
@@ -97,6 +97,58 @@ public sealed class ImmediatePressHandlerTests
 
         exec.DownCount.Should().Be(1);
         exec.UpCount.Should().Be(1);
+        exec.PressNoRepeatCount.Should().Be(0);
+        exec.ScheduledPresses.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Execute_OnRelease_WithReleaseTriggerThreshold_ExecutesImmediately_WhenHeldWithinThreshold()
+    {
+        DateTime now = new(2026, 01, 01, 0, 0, 0, DateTimeKind.Utc);
+        ImmediatePressHandler handler = new(() => now);
+        RecordingInputExecutor exec = new();
+
+        ActivationModeMetadata metadata = new()
+        {
+            OnPress = false,
+            OnRelease = true,
+            Retriggerable = false,
+            MultiTapBlock = 0,
+            ReleaseTriggerDelay = 0,
+            ReleaseTriggerThreshold = 0.25f
+        };
+
+        handler.Execute(Ctx(true, metadata), exec).Should().BeTrue();
+
+        now = now.AddMilliseconds(100);
+        handler.Execute(Ctx(false, metadata), exec).Should().BeTrue();
+
+        exec.PressNoRepeatCount.Should().Be(1);
+        exec.ScheduledPresses.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Execute_OnRelease_WithReleaseTriggerThreshold_DoesNotExecute_WhenHeldBeyondThreshold()
+    {
+        DateTime now = new(2026, 01, 01, 0, 0, 0, DateTimeKind.Utc);
+        ImmediatePressHandler handler = new(() => now);
+        RecordingInputExecutor exec = new();
+
+        ActivationModeMetadata metadata = new()
+        {
+            OnPress = false,
+            OnRelease = true,
+            Retriggerable = false,
+            MultiTapBlock = 0,
+            ReleaseTriggerDelay = 0,
+            ReleaseTriggerThreshold = 0.25f
+        };
+
+        handler.Execute(Ctx(true, metadata), exec).Should().BeTrue();
+
+        now = now.AddMilliseconds(300);
+        handler.Execute(Ctx(false, metadata), exec).Should().BeTrue();
+
         exec.PressNoRepeatCount.Should().Be(0);
         exec.ScheduledPresses.Should().BeEmpty();
     }

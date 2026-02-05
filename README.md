@@ -63,6 +63,20 @@ Report bugs / feature requests: https://github.com/Jarex985/SCStreamDeck/issues
 
 See the full installation guide: https://jarex985.github.io/SCStreamDeck/install/
 
+## Known Limitations
+
+**Mouse buttons (mouse1 - mouse5) don't work while moving the mouse in Star Citizen**  
+
+Star Citizen can ignore synthetic mouse button events sent by Windows user-mode injection (the plugin uses `SendInput`) while the game is actively reading mouse movement for aiming/flying (relative mouse input).   
+This can make Stream Deck-triggered mouse clicks (mouse1–mouse5, including MMB/mouse3) unreliable unless the mouse is perfectly still.
+
+Workarounds:
+
+- Prefer binding Stream Deck actions to **keyboard keys** in Star Citizen.
+
+Why not “fix” it in the plugin?
+
+- The "reliable" approach is HID-level injection (virtual mouse / driver). This plugin intentionally avoids driver-based input injection due to potential anti-cheat / ToS risk.
 
 ## Credits
 

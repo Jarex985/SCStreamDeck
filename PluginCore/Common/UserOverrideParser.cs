@@ -45,44 +45,141 @@ internal static class UserOverrideParser
         ArgumentNullException.ThrowIfNull(actions);
         ArgumentNullException.ThrowIfNull(overrides);
 
-        Dictionary<string, KeybindingActionData> actionLookup = BuildActionLookup(actions);
+        Dictionary<string, Dictionary<string, KeybindingActionData>> actionsByMapAndName = BuildActionsByMapAndName(actions);
+        Dictionary<string, List<KeybindingActionData>> actionsByName = BuildActionsByName(actions);
 
-        ApplyBindingOverrides(actionLookup, overrides.Keyboard,
-            (action, binding) => action.Bindings.Keyboard = binding);
+        ApplyDeviceOverrides(actionsByMapAndName, actionsByName, overrides.KeyboardByMap, overrides.Keyboard,
+            (action, binding) =>
+            {
+                string normalized = binding?.Trim() ?? string.Empty;
 
-        ApplyBindingOverrides(actionLookup, overrides.Mouse,
-            (action, binding) => action.Bindings.Mouse = binding);
+                // Star Citizen inconsistently stores mouse buttons in the keyboard field.
+                // Treat keyboard+mouse as a single primary slot: applying one clears the other.
+                if (string.IsNullOrWhiteSpace(normalized))
+                {
+                    action.Bindings.Keyboard = null;
+                    action.Bindings.Mouse = null;
+                    return;
+                }
 
-        ApplyBindingOverrides(actionLookup, overrides.Joystick,
+                if (normalized.IsMouseWheel() || normalized.IsMouseButton())
+                {
+                    action.Bindings.Mouse = normalized;
+                    action.Bindings.Keyboard = null;
+                    return;
+                }
+
+                action.Bindings.Keyboard = normalized;
+                action.Bindings.Mouse = null;
+            });
+
+        ApplyDeviceOverrides(actionsByMapAndName, actionsByName, overrides.MouseByMap, overrides.Mouse,
+            (action, binding) =>
+            {
+                string normalized = binding?.Trim() ?? string.Empty;
+
+                // Primary slot: applying mouse overrides clears keyboard.
+                if (string.IsNullOrWhiteSpace(normalized))
+                {
+                    action.Bindings.Mouse = null;
+                    action.Bindings.Keyboard = null;
+                    return;
+                }
+
+                action.Bindings.Mouse = normalized;
+                action.Bindings.Keyboard = null;
+            });
+
+        ApplyDeviceOverrides(actionsByMapAndName, actionsByName, overrides.JoystickByMap, overrides.Joystick,
             (action, binding) => action.Bindings.Joystick = binding);
 
-        ApplyBindingOverrides(actionLookup, overrides.Gamepad,
+        ApplyDeviceOverrides(actionsByMapAndName, actionsByName, overrides.GamepadByMap, overrides.Gamepad,
             (action, binding) => action.Bindings.Gamepad = binding);
     }
 
-    private static Dictionary<string, KeybindingActionData> BuildActionLookup(List<KeybindingActionData> actions)
+    private static Dictionary<string, Dictionary<string, KeybindingActionData>> BuildActionsByMapAndName(List<KeybindingActionData> actions)
     {
-        Dictionary<string, KeybindingActionData> actionLookup = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, Dictionary<string, KeybindingActionData>> actionLookup = new(StringComparer.OrdinalIgnoreCase);
         foreach (KeybindingActionData action in actions)
         {
-            actionLookup[action.Name] = action;
+            string mapName = action.MapName ?? string.Empty;
+            if (!actionLookup.TryGetValue(mapName, out Dictionary<string, KeybindingActionData>? actionsForMap))
+            {
+                actionsForMap = new Dictionary<string, KeybindingActionData>(StringComparer.OrdinalIgnoreCase);
+                actionLookup[mapName] = actionsForMap;
+            }
+
+            actionsForMap[action.Name] = action;
         }
 
         return actionLookup;
     }
 
-    private static void ApplyBindingOverrides(Dictionary<string, KeybindingActionData> actionLookup,
-        IReadOnlyDictionary<string, string?> overrides,
+    private static Dictionary<string, List<KeybindingActionData>> BuildActionsByName(List<KeybindingActionData> actions)
+    {
+        Dictionary<string, List<KeybindingActionData>> actionsByName = new(StringComparer.OrdinalIgnoreCase);
+        foreach (KeybindingActionData action in actions)
+        {
+            if (!actionsByName.TryGetValue(action.Name, out List<KeybindingActionData>? list))
+            {
+                list = [];
+                actionsByName[action.Name] = list;
+            }
+
+            list.Add(action);
+        }
+
+        return actionsByName;
+    }
+
+    private static void ApplyDeviceOverrides(
+        Dictionary<string, Dictionary<string, KeybindingActionData>> actionsByMapAndName,
+        Dictionary<string, List<KeybindingActionData>> actionsByName,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string?>> overridesByMap,
+        IReadOnlyDictionary<string, string?> globalOverrides,
         Action<KeybindingActionData, string?> applyBinding)
     {
-        foreach ((string actionName, string? binding) in overrides)
+        HashSet<string> updatedActionKeys = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach ((string mapName, IReadOnlyDictionary<string, string?> mapOverrides) in overridesByMap)
         {
-            if (actionLookup.TryGetValue(actionName, out KeybindingActionData? action))
+            if (!actionsByMapAndName.TryGetValue(mapName, out Dictionary<string, KeybindingActionData>? actionsForMap))
             {
+                continue;
+            }
+
+            foreach ((string actionName, string? binding) in mapOverrides)
+            {
+                if (actionsForMap.TryGetValue(actionName, out KeybindingActionData? action))
+                {
+                applyBinding(action, binding);
+                updatedActionKeys.Add(BuildMapActionKey(action.MapName, action.Name));
+            }
+        }
+        }
+
+        foreach ((string actionName, string? binding) in globalOverrides)
+        {
+            if (!actionsByName.TryGetValue(actionName, out List<KeybindingActionData>? matchingActions))
+            {
+                continue;
+            }
+
+            foreach (KeybindingActionData action in matchingActions)
+            {
+                string key = BuildMapActionKey(action.MapName, action.Name);
+                if (updatedActionKeys.Contains(key))
+                {
+                    continue;
+                }
+
                 applyBinding(action, binding);
             }
         }
     }
+
+    private static string BuildMapActionKey(string? mapName, string actionName) =>
+        $"{mapName ?? string.Empty}|{actionName}";
 
 
     private static UserOverrides ParseXml(string xmlText)
@@ -92,6 +189,11 @@ internal static class UserOverrideParser
         Dictionary<string, string?> joystick = new(StringComparer.OrdinalIgnoreCase);
         Dictionary<string, string?> gamepad = new(StringComparer.OrdinalIgnoreCase);
 
+        Dictionary<string, Dictionary<string, string?>> keyboardByMap = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, Dictionary<string, string?>> mouseByMap = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, Dictionary<string, string?>> joystickByMap = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, Dictionary<string, string?>> gamepadByMap = new(StringComparer.OrdinalIgnoreCase);
+
         using StringReader sr = new(xmlText);
         using XmlReader xmlReader = XmlReader.Create(sr,
             new XmlReaderSettings
@@ -99,8 +201,25 @@ internal static class UserOverrideParser
                 IgnoreComments = true, IgnoreWhitespace = true, DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null
             });
 
+        string currentMapName = string.Empty;
+        int currentActionMapDepth = -1;
+
         while (xmlReader.Read())
         {
+            if (IsActionMapStartElement(xmlReader))
+            {
+                currentMapName = xmlReader.GetAttribute("name") ?? string.Empty;
+                currentActionMapDepth = xmlReader.Depth;
+                continue;
+            }
+
+            if (IsActionMapEndElement(xmlReader, currentActionMapDepth))
+            {
+                currentMapName = string.Empty;
+                currentActionMapDepth = -1;
+                continue;
+            }
+
             if (!IsActionElement(xmlReader))
             {
                 continue;
@@ -112,20 +231,36 @@ internal static class UserOverrideParser
                 continue;
             }
 
-            ParseActionRebinds(xmlReader, actionName, keyboard, mouse, joystick, gamepad);
+            ParseActionRebinds(xmlReader, currentMapName, actionName, keyboard, mouse, joystick, gamepad,
+                keyboardByMap, mouseByMap, joystickByMap, gamepadByMap);
         }
 
+        DeriveGlobalOverrides(keyboard, keyboardByMap);
+        DeriveGlobalOverrides(mouse, mouseByMap);
+        DeriveGlobalOverrides(joystick, joystickByMap);
+        DeriveGlobalOverrides(gamepad, gamepadByMap);
 
-        return new UserOverrides(keyboard, mouse, joystick, gamepad);
+        Dictionary<string, IReadOnlyDictionary<string, string?>> keyboardByMapReadOnly = ToReadOnlyByMap(keyboardByMap);
+        Dictionary<string, IReadOnlyDictionary<string, string?>> mouseByMapReadOnly = ToReadOnlyByMap(mouseByMap);
+        Dictionary<string, IReadOnlyDictionary<string, string?>> joystickByMapReadOnly = ToReadOnlyByMap(joystickByMap);
+        Dictionary<string, IReadOnlyDictionary<string, string?>> gamepadByMapReadOnly = ToReadOnlyByMap(gamepadByMap);
+
+        return new UserOverrides(keyboard, mouse, joystick, gamepad,
+            keyboardByMapReadOnly, mouseByMapReadOnly, joystickByMapReadOnly, gamepadByMapReadOnly);
     }
 
     private static void ParseActionRebinds(
         XmlReader xmlReader,
+        string mapName,
         string actionName,
         Dictionary<string, string?> keyboard,
         Dictionary<string, string?> mouse,
         Dictionary<string, string?> joystick,
-        Dictionary<string, string?> gamepad)
+        Dictionary<string, string?> gamepad,
+        Dictionary<string, Dictionary<string, string?>> keyboardByMap,
+        Dictionary<string, Dictionary<string, string?>> mouseByMap,
+        Dictionary<string, Dictionary<string, string?>> joystickByMap,
+        Dictionary<string, Dictionary<string, string?>> gamepadByMap)
     {
         int depth = xmlReader.Depth;
 
@@ -155,7 +290,8 @@ internal static class UserOverrideParser
                 continue;
             }
 
-            ApplyOverride(prefix, actionName, normalized, keyboard, mouse, joystick, gamepad);
+            ApplyOverride(prefix, mapName, actionName, normalized, keyboard, mouse, joystick, gamepad,
+                keyboardByMap, mouseByMap, joystickByMap, gamepadByMap);
         }
     }
 
@@ -185,29 +321,118 @@ internal static class UserOverrideParser
 
     private static void ApplyOverride(
         string prefix,
+        string mapName,
         string actionName,
         string normalized,
         Dictionary<string, string?> keyboard,
         Dictionary<string, string?> mouse,
         Dictionary<string, string?> joystick,
-        Dictionary<string, string?> gamepad)
+        Dictionary<string, string?> gamepad,
+        Dictionary<string, Dictionary<string, string?>> keyboardByMap,
+        Dictionary<string, Dictionary<string, string?>> mouseByMap,
+        Dictionary<string, Dictionary<string, string?>> joystickByMap,
+        Dictionary<string, Dictionary<string, string?>> gamepadByMap)
     {
         switch (prefix)
         {
             case "kb":
-                keyboard[actionName] = normalized;
+                ApplyOverrideToTarget(mapName, actionName, normalized, keyboard, keyboardByMap);
                 break;
             case "mo":
-                mouse[actionName] = normalized;
+                ApplyOverrideToTarget(mapName, actionName, normalized, mouse, mouseByMap);
                 break;
             case "js":
-                joystick[actionName] = normalized;
+                ApplyOverrideToTarget(mapName, actionName, normalized, joystick, joystickByMap);
                 break;
             case "gp":
-                gamepad[actionName] = normalized;
+                ApplyOverrideToTarget(mapName, actionName, normalized, gamepad, gamepadByMap);
                 break;
         }
     }
+
+    private static void ApplyOverrideToTarget(
+        string mapName,
+        string actionName,
+        string normalized,
+        Dictionary<string, string?> global,
+        Dictionary<string, Dictionary<string, string?>> byMap)
+    {
+        if (string.IsNullOrWhiteSpace(mapName))
+        {
+            global[actionName] = normalized;
+            return;
+        }
+
+        if (!byMap.TryGetValue(mapName, out Dictionary<string, string?>? mapOverrides))
+        {
+            mapOverrides = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+            byMap[mapName] = mapOverrides;
+        }
+
+        mapOverrides[actionName] = normalized;
+    }
+
+    private static void DeriveGlobalOverrides(
+        Dictionary<string, string?> global,
+        Dictionary<string, Dictionary<string, string?>> byMap)
+    {
+        Dictionary<string, string?> firstValue = new(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> mismatched = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach ((string _mapName, Dictionary<string, string?> mapOverrides) in byMap)
+        {
+            foreach ((string actionName, string? binding) in mapOverrides)
+            {
+                if (global.ContainsKey(actionName))
+                {
+                    continue;
+                }
+
+                if (!firstValue.TryGetValue(actionName, out string? existing))
+                {
+                    firstValue[actionName] = binding;
+                    continue;
+                }
+
+                if (!string.Equals(existing, binding, StringComparison.OrdinalIgnoreCase))
+                {
+                    mismatched.Add(actionName);
+                }
+            }
+        }
+
+        foreach ((string actionName, string? binding) in firstValue)
+        {
+            if (mismatched.Contains(actionName))
+            {
+                continue;
+            }
+
+            global[actionName] = binding;
+        }
+    }
+
+    private static Dictionary<string, IReadOnlyDictionary<string, string?>> ToReadOnlyByMap(
+        Dictionary<string, Dictionary<string, string?>> byMap)
+    {
+        Dictionary<string, IReadOnlyDictionary<string, string?>> result = new(StringComparer.OrdinalIgnoreCase);
+        foreach ((string mapName, Dictionary<string, string?> actionOverrides) in byMap)
+        {
+            result[mapName] = actionOverrides;
+        }
+
+        return result;
+    }
+
+    private static bool IsActionMapStartElement(XmlReader reader) =>
+        reader.NodeType == XmlNodeType.Element &&
+        reader.Name.Equals("actionmap", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsActionMapEndElement(XmlReader reader, int actionMapDepth) =>
+        actionMapDepth >= 0 &&
+        reader.NodeType == XmlNodeType.EndElement &&
+        reader.Depth == actionMapDepth &&
+        reader.Name.Equals("actionmap", StringComparison.OrdinalIgnoreCase);
 
     private static bool TryValidatePath(string actionMapsPath, out string validPath)
     {
@@ -232,12 +457,20 @@ internal sealed record UserOverrides(
     IReadOnlyDictionary<string, string?> Keyboard,
     IReadOnlyDictionary<string, string?> Mouse,
     IReadOnlyDictionary<string, string?> Joystick,
-    IReadOnlyDictionary<string, string?> Gamepad)
+    IReadOnlyDictionary<string, string?> Gamepad,
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, string?>> KeyboardByMap,
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, string?>> MouseByMap,
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, string?>> JoystickByMap,
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, string?>> GamepadByMap)
 {
     /// <summary>
     ///     Gets the total number of overrides across all input types.
     /// </summary>
-    private int TotalCount => Keyboard.Count + Mouse.Count + Joystick.Count + Gamepad.Count;
+    private int TotalCount => Keyboard.Count + Mouse.Count + Joystick.Count + Gamepad.Count +
+                              CountByMap(KeyboardByMap) + CountByMap(MouseByMap) + CountByMap(JoystickByMap) + CountByMap(GamepadByMap);
+
+    private static int CountByMap(IReadOnlyDictionary<string, IReadOnlyDictionary<string, string?>> byMap) =>
+        byMap.Values.Sum(v => v.Count);
 
     /// <summary>
     ///     Returns true if there are any overrides.

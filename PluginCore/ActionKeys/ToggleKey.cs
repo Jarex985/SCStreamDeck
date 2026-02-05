@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Collections.Concurrent;
 using BarRaider.SdTools;
 using SCStreamDeck.Common;
 using SCStreamDeck.Logging;
@@ -18,11 +19,17 @@ public sealed class ToggleKey : SCActionBase
     private const double MaxResetHoldSeconds = 10.0;
 
     private readonly ToggleKeyCore _core;
+
+    // Persist visual state across action recreation (e.g., Stream Deck page switches).
+    // Reset on plugin/app restart by design.
+    private static readonly ConcurrentDictionary<string, uint> s_visualStatesByKey = new(StringComparer.OrdinalIgnoreCase);
+
     private int _activePressId;
     private CancellationTokenSource? _holdCts;
     private double _holdThresholdSeconds;
     private CancellationTokenSource? _lifetimeCts = new();
     private int _resetAlertPressId;
+    private string _stateKey = string.Empty;
 
     [ExcludeFromCodeCoverage]
     public ToggleKey(SDConnection connection, InitialPayload payload) : base(connection, payload)
@@ -37,10 +44,14 @@ public sealed class ToggleKey : SCActionBase
         Volatile.Write(ref _holdThresholdSeconds, thresholdSeconds);
         _core = new ToggleKeyCore(TimeSpan.FromSeconds(thresholdSeconds));
 
-        // Best-effort: default to Off on construction.
+        InitializeStateKey();
+
+        uint restoredState = RestoreVisualState();
+        _core.SetVisualState(restoredState);
+
         _ = RunSafeAsync(async () =>
         {
-            await Connection.SetStateAsync(0).ConfigureAwait(false);
+            await Connection.SetStateAsync(restoredState).ConfigureAwait(false);
             await Connection.SetDefaultImageAsync().ConfigureAwait(false);
         });
     }
@@ -139,7 +150,9 @@ public sealed class ToggleKey : SCActionBase
                 case ToggleKeyEffectKind.SetVisualState:
                     if (effect.State is { } state)
                     {
-                        await Connection.SetStateAsync(state).ConfigureAwait(false);
+                        uint normalized = state == 0 ? 0u : 1u;
+                        PersistVisualState(normalized);
+                        await Connection.SetStateAsync(normalized).ConfigureAwait(false);
                     }
 
                     continue;
@@ -268,6 +281,33 @@ public sealed class ToggleKey : SCActionBase
             }
         });
 
+    private void InitializeStateKey()
+    {
+        // ContextId is the Stream Deck action instance identity.
+        // This stays stable across action recreation during page switches, but resets on app restart.
+        _stateKey = Connection.ContextId ?? string.Empty;
+    }
+
+    private uint RestoreVisualState()
+    {
+        if (!string.IsNullOrWhiteSpace(_stateKey) && s_visualStatesByKey.TryGetValue(_stateKey, out uint state))
+        {
+            return state == 0 ? 0u : 1u;
+        }
+
+        return 0;
+    }
+
+    private void PersistVisualState(uint state)
+    {
+        if (string.IsNullOrWhiteSpace(_stateKey))
+        {
+            return;
+        }
+
+        s_visualStatesByKey[_stateKey] = state == 0 ? 0u : 1u;
+    }
+
     /// <summary>
     ///     Validates and resolves keybinding action.
     ///     Marked as [ExcludeFromCodeCoverage] because:
@@ -357,6 +397,14 @@ internal sealed class ToggleKeyCore(TimeSpan holdThreshold)
         lock (_gate)
         {
             return _visualState;
+        }
+    }
+
+    public void SetVisualState(uint state)
+    {
+        lock (_gate)
+        {
+            _visualState = state == 0 ? 0u : 1u;
         }
     }
 

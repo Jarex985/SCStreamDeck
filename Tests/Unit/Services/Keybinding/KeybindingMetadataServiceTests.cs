@@ -214,6 +214,7 @@ public sealed class KeybindingMetadataServiceTests
             {
                 Metadata = new KeybindingMetadata
                 {
+                    SchemaVersion = SCConstants.Keybindings.JsonSchemaVersion,
                     ExtractedAt = DateTime.UtcNow,
                     Language = "english",
                     DataP4KPath = dataP4K,

@@ -63,6 +63,7 @@ public sealed class KeybindingOutputService(IFileSystem fileSystem) : IKeybindin
         FileInfo p4KInfo = new(installation.DataP4KPath);
         KeybindingMetadata metadata = new()
         {
+            SchemaVersion = SCConstants.Keybindings.JsonSchemaVersion,
             ExtractedAt = DateTime.UtcNow,
             Language = language,
             DataP4KPath = NormalizePath(installation.DataP4KPath),

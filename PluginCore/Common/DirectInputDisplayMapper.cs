@@ -77,7 +77,8 @@ internal static class DirectInputDisplayMapper
         [DirectInputKeyCode.DikSubtract] = "Num-",
         [DirectInputKeyCode.DikDivide] = "Num/",
         [DirectInputKeyCode.DikDecimal] = "Num.",
-        [DirectInputKeyCode.DikNumpadenter] = "NumEnter"
+        [DirectInputKeyCode.DikNumpadenter] = "NumEnter",
+        [DirectInputKeyCode.DikReturn] = "Return"
     };
 
     private static bool TryGetFixedDisplay(DirectInputKeyCode dik, out string display)

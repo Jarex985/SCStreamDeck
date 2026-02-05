@@ -191,6 +191,38 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
         string joystick = (xmlReader.GetAttribute("joystick") ?? string.Empty).Trim();
         string gamepad = (xmlReader.GetAttribute("gamepad") ?? string.Empty).Trim();
 
+        bool hasStates = false;
+
+        // Some actions store bindings as nested nodes rather than attributes (e.g., <keyboard><inputdata input="enter" /></keyboard>).
+        // Only fall back to nested bindings when the attribute binding is empty/whitespace.
+        if (!xmlReader.IsEmptyElement)
+        {
+            (string nestedKeyboard, string nestedMouse, string nestedJoystick, string nestedGamepad, bool nestedHasStates) =
+                ReadNestedActionMetadata(xmlReader);
+
+            hasStates = nestedHasStates;
+
+            if (string.IsNullOrWhiteSpace(keyboard))
+            {
+                keyboard = nestedKeyboard;
+            }
+
+            if (string.IsNullOrWhiteSpace(mouse))
+            {
+                mouse = nestedMouse;
+            }
+
+            if (string.IsNullOrWhiteSpace(joystick))
+            {
+                joystick = nestedJoystick;
+            }
+
+            if (string.IsNullOrWhiteSpace(gamepad))
+            {
+                gamepad = nestedGamepad;
+            }
+        }
+
         // Apply business logic normalization
         (string normalizedKeyboard, string normalizedMouse, string normalizedJoystick, string normalizedGamepad) =
             NormalizeBindings(keyboard, mouse, joystick, gamepad);
@@ -205,6 +237,12 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
                     : "Other";
         }
 
+        bool isToggleCandidate = hasStates ||
+                                 actionName.Contains("toggle", StringComparison.OrdinalIgnoreCase) ||
+                                 uiLabel.Contains("toggle", StringComparison.OrdinalIgnoreCase) ||
+                                 uiDescription.Contains("toggle", StringComparison.OrdinalIgnoreCase) ||
+                                 activationMode is ActivationMode.hold_toggle or ActivationMode.smart_toggle;
+
         return new KeybindingActionData
         {
             Name = actionName,
@@ -214,6 +252,7 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
             MapName = mapName,
             MapLabel = mapUiLabel,
             ActivationMode = activationMode,
+            IsToggleCandidate = isToggleCandidate,
             Bindings = new InputBindings
             {
                 Keyboard = string.IsNullOrWhiteSpace(normalizedKeyboard) ? null : normalizedKeyboard,
@@ -222,6 +261,131 @@ public sealed class KeybindingXmlParserService : IKeybindingXmlParserService
                 Gamepad = string.IsNullOrWhiteSpace(normalizedGamepad) ? null : normalizedGamepad
             }
         };
+    }
+
+    private static (string Keyboard, string Mouse, string Joystick, string Gamepad, bool HasStates) ReadNestedActionMetadata(
+        XmlReader actionReader)
+    {
+        string keyboard = string.Empty;
+        string mouse = string.Empty;
+        string joystick = string.Empty;
+        string gamepad = string.Empty;
+        bool hasStates = false;
+
+        // ReadSubtree advances the parent reader to the end of the current element when disposed.
+        using XmlReader subtree = actionReader.ReadSubtree();
+
+        string currentDevice = string.Empty;
+        int currentDeviceDepth = -1;
+
+        while (subtree.Read())
+        {
+            if (subtree.NodeType == XmlNodeType.EndElement && currentDeviceDepth == subtree.Depth &&
+                subtree.Name.Equals(currentDevice, StringComparison.OrdinalIgnoreCase))
+            {
+                currentDevice = string.Empty;
+                currentDeviceDepth = -1;
+                continue;
+            }
+
+            if (subtree.NodeType != XmlNodeType.Element)
+            {
+                continue;
+            }
+
+            string elementName = subtree.Name;
+
+            if (elementName.Equals("states", StringComparison.OrdinalIgnoreCase))
+            {
+                hasStates = true;
+                continue;
+            }
+
+            if (elementName.Equals("keyboard", StringComparison.OrdinalIgnoreCase) ||
+                elementName.Equals("mouse", StringComparison.OrdinalIgnoreCase) ||
+                elementName.Equals("joystick", StringComparison.OrdinalIgnoreCase) ||
+                elementName.Equals("gamepad", StringComparison.OrdinalIgnoreCase))
+            {
+                currentDevice = elementName;
+                currentDeviceDepth = subtree.Depth;
+
+                // Some device elements provide an input attribute directly (e.g., <gamepad input="a" />)
+                string input = (subtree.GetAttribute("input") ?? string.Empty).Trim();
+                if (!string.IsNullOrWhiteSpace(input))
+                {
+                    TryAssignIfEmpty(currentDevice, input, ref keyboard, ref mouse, ref joystick, ref gamepad);
+                }
+
+                continue;
+            }
+
+            if (!elementName.Equals("inputdata", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(currentDevice))
+            {
+                continue;
+            }
+
+            string nestedInput = (subtree.GetAttribute("input") ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(nestedInput))
+            {
+                continue;
+            }
+
+            TryAssignIfEmpty(currentDevice, nestedInput, ref keyboard, ref mouse, ref joystick, ref gamepad);
+        }
+
+        return (keyboard, mouse, joystick, gamepad, hasStates);
+    }
+
+    private static void TryAssignIfEmpty(
+        string device,
+        string value,
+        ref string keyboard,
+        ref string mouse,
+        ref string joystick,
+        ref string gamepad)
+    {
+        if (device.Equals("keyboard", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(keyboard))
+            {
+                keyboard = value;
+            }
+
+            return;
+        }
+
+        if (device.Equals("mouse", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(mouse))
+            {
+                mouse = value;
+            }
+
+            return;
+        }
+
+        if (device.Equals("joystick", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(joystick))
+            {
+                joystick = value;
+            }
+
+            return;
+        }
+
+        if (device.Equals("gamepad", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(gamepad))
+            {
+                gamepad = value;
+            }
+        }
     }
 
     /// <summary>

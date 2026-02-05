@@ -78,6 +78,13 @@ public sealed class KeybindingMetadataService(IFileSystem fileSystem) : IKeybind
                 return true;
             }
 
+            // Force regeneration when the JSON schema changes.
+            // (E.g., adding metadata that the Property Inspector relies on.)
+            if (data.Metadata.SchemaVersion != SCConstants.Keybindings.JsonSchemaVersion)
+            {
+                return true;
+            }
+
             FileInfo p4KInfo = new(installation.DataP4KPath);
             if (HasFileChanged(data.Metadata.DataP4KSize, data.Metadata.DataP4KLastWrite, p4KInfo))
             {

@@ -207,7 +207,7 @@ public sealed class InitializationServiceComponentTests : IDisposable
         string liveJson = ctx.PathProvider.GetKeybindingJsonPath(SCChannel.Live.ToString());
         KeybindingDataFile dataFile = new()
         {
-            Metadata = new KeybindingMetadata { ExtractedAt = DateTime.UtcNow },
+            Metadata = new KeybindingMetadata { SchemaVersion = SCConstants.Keybindings.JsonSchemaVersion, ExtractedAt = DateTime.UtcNow },
             Actions =
             [
                 new KeybindingActionData
@@ -342,8 +342,10 @@ public sealed class InitializationServiceComponentTests : IDisposable
         IKeybindingsJsonCache keybindingsJsonCache = new KeybindingsJsonCache(pathProvider, fileSystem);
         ICachedInstallationsCleanupService cachedCleanup =
             new CachedInstallationsCleanupService(stateService, keybindingsJsonCache, fileSystem);
+
+        ActionMapsWatcherService watcher = new();
         InitializationService initService =
-            new(keybindingService, locator, processor, pathProvider, stateService, keybindingsJsonCache, cachedCleanup);
+            new(keybindingService, locator, processor, watcher, pathProvider, stateService, keybindingsJsonCache, cachedCleanup);
 
         return new SutContext
         {

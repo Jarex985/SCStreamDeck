@@ -355,6 +355,7 @@ public sealed class KeybindingLoaderService(IFileSystem fileSystem)
         MouseBinding = action.Bindings?.Mouse ?? string.Empty,
         JoystickBinding = action.Bindings?.Joystick ?? string.Empty,
         GamepadBinding = action.Bindings?.Gamepad ?? string.Empty,
-        ActivationMode = action.ActivationMode
+        ActivationMode = action.ActivationMode,
+        IsToggleCandidate = action.IsToggleCandidate
     };
 }

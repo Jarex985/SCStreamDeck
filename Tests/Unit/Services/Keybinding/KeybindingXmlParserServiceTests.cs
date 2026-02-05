@@ -67,6 +67,68 @@ public sealed class KeybindingXmlParserServiceTests
     }
 
     [Fact]
+    public void ParseXmlToActions_UsesNestedKeyboardInputdata_WhenKeyboardAttributeIsMissing()
+    {
+        const string xml = """
+                           <root>
+                             <ActivationMode name="press" onPress="1" />
+                             <actionmap name="ui" UILabel="@map" UICategory="@category">
+                               <action name="focus_on_chat_textinput" activationMode="press" UILabel="@ui_CIUIChatFocus" UIDescription="@ui_CIUIChatFocusDesc">
+                                 <keyboard>
+                                   <inputdata input="enter" />
+                                   <inputdata input="np_enter" />
+                                 </keyboard>
+                               </action>
+                             </actionmap>
+                           </root>
+                           """;
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].Name.Should().Be("focus_on_chat_textinput");
+        actions[0].Bindings.Keyboard.Should().Be("enter");
+    }
+
+    [Fact]
+    public void ParseXmlToActions_MarksIsToggleCandidate_WhenActionNameContainsToggle()
+    {
+        const string xml = """
+                           <root>
+                             <ActivationMode name="press" onPress="1" />
+                             <actionmap name="seat_general" UILabel="@map" UICategory="@category">
+                               <action name="v_light_amplification_toggle" activationMode="press" UILabel="@label" UIDescription="@desc" keyboard="ralt+l" />
+                             </actionmap>
+                           </root>
+                           """;
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].Name.Should().Be("v_light_amplification_toggle");
+        actions[0].IsToggleCandidate.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseXmlToActions_MarksIsToggleCandidate_WhenDescriptionContainsToggle()
+    {
+        const string xml = """
+                           <root>
+                             <ActivationMode name="press" onPress="1" />
+                             <actionmap name="lights_controller" UILabel="@map" UICategory="@category">
+                               <action name="v_lights" activationMode="press" UILabel="Headlights" UIDescription="@ui_CIToggleLightsDesc" keyboard="l" />
+                             </actionmap>
+                           </root>
+                           """;
+
+        List<KeybindingActionData> actions = _service.ParseXmlToActions(xml);
+
+        actions.Should().ContainSingle();
+        actions[0].Name.Should().Be("v_lights");
+        actions[0].IsToggleCandidate.Should().BeTrue();
+    }
+
+    [Fact]
     public void ParseXmlToActions_AppliesCategoryFallback_WhenActionMapHasNoCategory()
     {
         string xml = @"<root>

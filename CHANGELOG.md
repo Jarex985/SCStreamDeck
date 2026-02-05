@@ -15,6 +15,27 @@ Notes:
 
 ---
 
+## v1.1.2.0 - Patch Release
+
+### Features / Improvements
+
+- Added `ActionMapsWatcherService` to monitor changes in `actionmaps.xml` and auto-sync keybindings in Stream Deck profiles when changes are detected (e.g., after in-game rebinding).
+- Toggle Key now only shows Actions that are considered to be a `Toggle` based on their metadata, improving usability and reducing confusion.
+
+### Bug Fixes
+
+- Fixed an issue where actions with the same name/binding but different category/map would not be parsed correctly, which could lead to one action incorrectly shown as `Unbound`.
+- Fixed an issue where Toggle Key would not maintain its state when switching between different pages on the Stream Deck, leading to inconsistent behavior. Now only resets the state when the user explicitly triggers the reset, or the application restarts.
+- Fixed an issue where some action bindings would not get parsed and show up as `Unbound` (e.g., `focus_on_chat_textinput` with `return` key).
+
+### Documentation
+
+- Added a note about mouse button bindings not working when moving the mouse. This is a Star Citizen (EAC) limitation which i can't do anything about.
+
+### Internal / Refactor
+
+- Introduced a keybindings JSON schema version to force-refresh cached keybindings when the data format changes.
+- 
 ## v1.0.2.0 - Patch Release
 > [!NOTE]
 > This update introduces a stable v2 identifier format for saved function bindings (v2|<actionName>|<mapName>).

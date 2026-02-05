@@ -136,6 +136,8 @@
   function flattenFunctionsData(groups) {
     const flat = [];
 
+    const requireToggleCandidates = globalThis.SCPI_REQUIRE_TOGGLE_CANDIDATES === true;
+
     if (Array.isArray(groups)) {
       groups.forEach(group => {
         const groupName = group.label || 'Other';
@@ -144,7 +146,14 @@
         options.forEach(opt => {
           const bindingType = String(opt.bindingType || '').toLowerCase();
 
-          // Filter out unsupported options (not supported for static buttons)
+          if (requireToggleCandidates) {
+            const isToggleCandidate = opt && opt.details && opt.details.isToggleCandidate === true;
+            if (!isToggleCandidate) {
+              return;
+            }
+          }
+
+          // Filter out unsupported options
           // TODO: When implementing full axis support, stop hiding axis-only options in the PI.
           const isUnsupported = bindingType === 'mouseaxis' || bindingType === 'joystick' || bindingType === 'gamepad';
           if (isUnsupported) {
