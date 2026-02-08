@@ -45,8 +45,7 @@ internal sealed class KeybindingInputExecutor(
                 return true;
 
             case InputType.MouseButton:
-                VirtualKeyCode button = (VirtualKeyCode)input.Value;
-                ExecuteMouseButtonClick(button);
+                ExecuteMouseButtonClick(input.Value);
                 return true;
 
             case InputType.MouseWheel:
@@ -69,7 +68,7 @@ internal sealed class KeybindingInputExecutor(
                 {
                     if (modifiers.Length > 0)
                     {
-                        ExecuteModifiedKeyPress(key, modifiers);
+                        _inputSimulator.Keyboard.DelayedModifiedKeyStroke(modifiers, key, 50);
                     }
                     else
                     {
@@ -80,8 +79,7 @@ internal sealed class KeybindingInputExecutor(
                 return true;
 
             case InputType.MouseButton:
-                VirtualKeyCode button = (VirtualKeyCode)input.Value;
-                ExecuteMouseButtonClick(button);
+                ExecuteMouseButtonClick(input.Value);
                 return true;
 
             case InputType.MouseWheel:
@@ -106,8 +104,7 @@ internal sealed class KeybindingInputExecutor(
                 return ExecuteKeyboardDown(input.Value, actionKey);
 
             case InputType.MouseButton:
-                VirtualKeyCode button = (VirtualKeyCode)input.Value;
-                ExecuteMouseButtonDown(button);
+                ExecuteMouseButtonDown(input.Value);
                 return true;
 
             case InputType.MouseWheel:
@@ -137,8 +134,7 @@ internal sealed class KeybindingInputExecutor(
                 return ExecuteKeyboardUp(input.Value);
 
             case InputType.MouseButton:
-                VirtualKeyCode button = (VirtualKeyCode)input.Value;
-                ExecuteMouseButtonUp(button);
+                ExecuteMouseButtonUp(input.Value);
                 return true;
 
             case InputType.MouseWheel:
@@ -192,16 +188,6 @@ internal sealed class KeybindingInputExecutor(
         }
     }
 
-    private void ExecuteModifiedKeyPress(DirectInputKeyCode key, DirectInputKeyCode[] modifiers)
-    {
-        PressModifiers(modifiers);
-        Thread.Sleep(20);
-        _inputSimulator.Keyboard.KeyDown(key);
-        Thread.Sleep(30);
-        _inputSimulator.Keyboard.KeyUp(key);
-        ReleaseModifiers(modifiers);
-    }
-
     private void PressModifiers(DirectInputKeyCode[] modifiers)
     {
         foreach (DirectInputKeyCode modifier in modifiers)
@@ -244,14 +230,11 @@ internal sealed class KeybindingInputExecutor(
         if (modifiers.Length > 0)
         {
             PressModifiers(modifiers);
-            Timer repeatTimer = new(_ =>
+
+            foreach (DirectInputKeyCode key in keys)
             {
-                foreach (DirectInputKeyCode key in keys)
-                {
-                    _inputSimulator.Keyboard.DelayedKeyPress(key, 50);
-                }
-            }, null, 0, 200);
-            _activationTimers[actionKey] = repeatTimer;
+                _inputSimulator.Keyboard.KeyDown(key);
+            }
         }
         else
         {
@@ -287,14 +270,12 @@ internal sealed class KeybindingInputExecutor(
         (DirectInputKeyCode[] modifiers, DirectInputKeyCode[] keys) =
             ((DirectInputKeyCode[], DirectInputKeyCode[]))keyboardValue;
 
-        if (modifiers.Length == 0)
+        foreach (DirectInputKeyCode key in keys)
         {
-            foreach (DirectInputKeyCode key in keys)
-            {
-                _inputSimulator.Keyboard.KeyUp(key);
-            }
+            _inputSimulator.Keyboard.KeyUp(key);
         }
-        else
+
+        if (modifiers.Length > 0)
         {
             ReleaseModifiers(modifiers);
         }
@@ -323,6 +304,22 @@ internal sealed class KeybindingInputExecutor(
 
     #region Mouse Button Helpers
 
+    private void ExecuteMouseButtonClick(object mouseValue)
+    {
+        if (mouseValue is ValueTuple<DirectInputKeyCode[], VirtualKeyCode> mouseWithModifiers)
+        {
+            (DirectInputKeyCode[] modifiers, VirtualKeyCode btn) = mouseWithModifiers;
+            PressModifiers(modifiers);
+            Thread.Sleep(20);
+            ExecuteMouseButtonClick(btn);
+            Thread.Sleep(50);
+            ReleaseModifiers(modifiers);
+            return;
+        }
+
+        ExecuteMouseButtonClick((VirtualKeyCode)mouseValue);
+    }
+
     private void ExecuteMouseButtonClick(VirtualKeyCode button)
     {
         switch (button)
@@ -345,6 +342,20 @@ internal sealed class KeybindingInputExecutor(
         }
     }
 
+    private void ExecuteMouseButtonDown(object mouseValue)
+    {
+        if (mouseValue is ValueTuple<DirectInputKeyCode[], VirtualKeyCode> mouseWithModifiers)
+        {
+            (DirectInputKeyCode[] modifiers, VirtualKeyCode btn) = mouseWithModifiers;
+            PressModifiers(modifiers);
+            Thread.Sleep(20);
+            ExecuteMouseButtonDown(btn);
+            return;
+        }
+
+        ExecuteMouseButtonDown((VirtualKeyCode)mouseValue);
+    }
+
     private void ExecuteMouseButtonDown(VirtualKeyCode button)
     {
         switch (button)
@@ -365,6 +376,20 @@ internal sealed class KeybindingInputExecutor(
                 _inputSimulator.Mouse.XButtonDown(2);
                 break;
         }
+    }
+
+    private void ExecuteMouseButtonUp(object mouseValue)
+    {
+        if (mouseValue is ValueTuple<DirectInputKeyCode[], VirtualKeyCode> mouseWithModifiers)
+        {
+            (DirectInputKeyCode[] modifiers, VirtualKeyCode btn) = mouseWithModifiers;
+            ExecuteMouseButtonUp(btn);
+            Thread.Sleep(20);
+            ReleaseModifiers(modifiers);
+            return;
+        }
+
+        ExecuteMouseButtonUp((VirtualKeyCode)mouseValue);
     }
 
     private void ExecuteMouseButtonUp(VirtualKeyCode button)

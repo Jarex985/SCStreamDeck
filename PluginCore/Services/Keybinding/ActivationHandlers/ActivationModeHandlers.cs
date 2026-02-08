@@ -23,6 +23,12 @@ internal sealed class ImmediatePressHandler(Func<DateTime>? utcNow = null) : IAc
     /// </summary>
     private readonly ConcurrentDictionary<string, DateTime> _keyDownTimes = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Mouse wheel inputs are special: some Star Citizen actions are configured as ActivationMode.press but should
+    /// still repeat while the Stream Deck key is physically held.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, bool> _mouseWheelHoldActions = new(StringComparer.OrdinalIgnoreCase);
+
     public IReadOnlyCollection<ActivationMode> SupportedModes =>
     [
         ActivationMode.press,
@@ -40,8 +46,9 @@ internal sealed class ImmediatePressHandler(Func<DateTime>? utcNow = null) : IAc
 
     private bool HandleKeyDown(ActivationExecutionContext context, IInputExecutor executor)
     {
-        // Clear any previous activation block for this action (new key press cycle)
+        // Clear any previous activation block for this action
         _activationBlocks.TryRemove(context.ActionName, out _);
+        _mouseWheelHoldActions.TryRemove(context.ActionName, out _);
 
         // Record KeyDown time for release-threshold logic (tap modes).
         _keyDownTimes[context.ActionName] = _utcNow();
@@ -51,9 +58,22 @@ internal sealed class ImmediatePressHandler(Func<DateTime>? utcNow = null) : IAc
             return true; // Ignore KeyDown, wait for KeyUp
         }
 
-        bool result = context.Metadata.Retriggerable
-            ? executor.ExecuteDown(context.Input, context.ActionName)
-            : executor.ExecutePressNoRepeat(context.Input);
+        bool shouldRepeatMouseWheel =
+            context.Input.Type == InputType.MouseWheel &&
+            (context.Mode == ActivationMode.press || context.Mode == ActivationMode.press_quicker);
+
+        bool result;
+        if (shouldRepeatMouseWheel)
+        {
+            _mouseWheelHoldActions[context.ActionName] = true;
+            result = executor.ExecuteDown(context.Input, context.ActionName);
+        }
+        else
+        {
+            result = context.Metadata.Retriggerable
+                ? executor.ExecuteDown(context.Input, context.ActionName)
+                : executor.ExecutePressNoRepeat(context.Input);
+        }
 
         // If MultiTapBlock is set, block subsequent OnRelease execution
         if (context.Metadata.MultiTapBlock > 0)
@@ -70,6 +90,11 @@ internal sealed class ImmediatePressHandler(Func<DateTime>? utcNow = null) : IAc
         bool wasBlocked = _activationBlocks.TryRemove(context.ActionName, out _);
 
         _keyDownTimes.TryRemove(context.ActionName, out DateTime keyDownTime);
+
+        if (_mouseWheelHoldActions.TryRemove(context.ActionName, out _))
+        {
+            return executor.ExecuteUp(context.Input, context.ActionName);
+        }
 
         // If OnRelease is true AND not blocked by MultiTapBlock, execute additional release press
         if (context.Metadata.OnRelease && !wasBlocked)

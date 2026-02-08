@@ -7,6 +7,61 @@ namespace Tests.Unit.Services.Keybinding.ActivationHandlers;
 public sealed class ImmediatePressHandlerTests
 {
     [Fact]
+    public void Execute_MouseWheel_Press_RepeatsWhileHeld_UsingDownUp()
+    {
+        ImmediatePressHandler handler = new();
+        RecordingInputExecutor exec = new();
+
+        ActivationModeMetadata metadata = new()
+        {
+            OnPress = true,
+            OnRelease = false,
+            Retriggerable = false,
+            MultiTapBlock = 0,
+            ReleaseTriggerDelay = 0,
+            ReleaseTriggerThreshold = 0
+        };
+
+        ActivationExecutionContext downCtx = Ctx(true, ActivationMode.press, InputType.MouseWheel, metadata);
+        ActivationExecutionContext upCtx = Ctx(false, ActivationMode.press, InputType.MouseWheel, metadata);
+
+        handler.Execute(downCtx, exec).Should().BeTrue();
+        handler.Execute(upCtx, exec).Should().BeTrue();
+
+        exec.DownCount.Should().Be(1);
+        exec.UpCount.Should().Be(1);
+        exec.PressNoRepeatCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void Execute_MouseWheel_PressQuicker_RepeatsWhileHeld_UsingDownUp_AndDoesNotPressOnRelease()
+    {
+        ImmediatePressHandler handler = new();
+        RecordingInputExecutor exec = new();
+
+        ActivationModeMetadata metadata = new()
+        {
+            OnPress = true,
+            OnRelease = true,
+            Retriggerable = false,
+            MultiTapBlock = 0,
+            ReleaseTriggerDelay = 0,
+            ReleaseTriggerThreshold = 0.15f
+        };
+
+        ActivationExecutionContext downCtx = Ctx(true, ActivationMode.press_quicker, InputType.MouseWheel, metadata);
+        ActivationExecutionContext upCtx = Ctx(false, ActivationMode.press_quicker, InputType.MouseWheel, metadata);
+
+        handler.Execute(downCtx, exec).Should().BeTrue();
+        handler.Execute(upCtx, exec).Should().BeTrue();
+
+        exec.DownCount.Should().Be(1);
+        exec.UpCount.Should().Be(1);
+        exec.PressNoRepeatCount.Should().Be(0);
+        exec.ScheduledPresses.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Execute_OnRelease_IsBlocked_WhenMultiTapBlockWasSetOnPress()
     {
         ImmediatePressHandler handler = new();
@@ -153,12 +208,15 @@ public sealed class ImmediatePressHandlerTests
         exec.ScheduledPresses.Should().BeEmpty();
     }
 
-    private static ActivationExecutionContext Ctx(bool isKeyDown, ActivationModeMetadata metadata) => new()
+    private static ActivationExecutionContext Ctx(bool isKeyDown, ActivationModeMetadata metadata) =>
+        Ctx(isKeyDown, ActivationMode.press, InputType.Keyboard, metadata);
+
+    private static ActivationExecutionContext Ctx(bool isKeyDown, ActivationMode mode, InputType inputType, ActivationModeMetadata metadata) => new()
     {
         ActionName = "TestAction",
-        Input = new ParsedInput { Type = InputType.Keyboard, Value = new object() },
+        Input = new ParsedInput { Type = inputType, Value = new object() },
         IsKeyDown = isKeyDown,
-        Mode = ActivationMode.press,
+        Mode = mode,
         Metadata = metadata
     };
 

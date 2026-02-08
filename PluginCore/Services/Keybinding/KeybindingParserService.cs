@@ -68,6 +68,11 @@ public static class KeybindingParserService
             return mouseWheelResult;
         }
 
+        if (TryParseMouseButtonWithModifiers(normalized, out ParsedInputResult? mouseButtonWithModifiersResult))
+        {
+            return mouseButtonWithModifiersResult;
+        }
+
         if (TryParseMouseButton(normalized, out VirtualKeyCode mouseButton))
         {
             return new ParsedInputResult(InputType.MouseButton, mouseButton);
@@ -204,6 +209,41 @@ public static class KeybindingParserService
         }
 
         return false;
+    }
+
+    private static bool TryParseMouseButtonWithModifiers(string normalized, out ParsedInputResult? result)
+    {
+        result = null;
+
+        if (!normalized.Contains('+', StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        List<DirectInputKeyCode> modifierList = [];
+        VirtualKeyCode? button = null;
+
+        foreach (string token in SplitTokens(normalized))
+        {
+            if (TryParseModifier(token, out DirectInputKeyCode modifier))
+            {
+                modifierList.Add(modifier);
+                continue;
+            }
+
+            if (TryParseMouseButton(token, out VirtualKeyCode mouseButton))
+            {
+                button = mouseButton;
+            }
+        }
+
+        if (modifierList.Count == 0 || button == null)
+        {
+            return false;
+        }
+
+        result = new ParsedInputResult(InputType.MouseButton, (modifierList.ToArray(), button.Value));
+        return true;
     }
 
     private static bool TryParseKeyboard(string scBinding, out DirectInputKeyCode[] modifiers, out DirectInputKeyCode[] keys)

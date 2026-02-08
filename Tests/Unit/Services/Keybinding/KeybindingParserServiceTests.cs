@@ -61,6 +61,20 @@ public sealed class KeybindingParserServiceTests
     }
 
     [Fact]
+    public void ParseBinding_ParsesMouseButtonWithModifiers()
+    {
+        ParsedInputResult? result = KeybindingParserService.ParseBinding("lshift+mouse3");
+
+        result.Should().NotBeNull();
+        result.Type.Should().Be(InputType.MouseButton);
+        result.Value.Should().BeOfType<ValueTuple<DirectInputKeyCode[], VirtualKeyCode>>();
+
+        (DirectInputKeyCode[] modifiers, VirtualKeyCode button) = ((DirectInputKeyCode[], VirtualKeyCode))result.Value;
+        modifiers.Should().ContainSingle().Which.Should().Be(DirectInputKeyCode.DikLshift);
+        button.Should().Be(VirtualKeyCode.MBUTTON);
+    }
+
+    [Fact]
     public void ParseBinding_ParsesKeyboardWithModifiers()
     {
         ParsedInputResult? result = KeybindingParserService.ParseBinding("lshift+f1");
