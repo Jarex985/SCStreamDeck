@@ -51,6 +51,29 @@ public sealed class KeybindingInputExecutorTests
     }
 
     [Fact]
+    public void ExecutePressNoRepeat_Keyboard_WithModifiers_UsesDelayedModifiedKeyStroke()
+    {
+        (KeybindingInputExecutor executor, _, Mock<IKeyboardSimulator> keyboard) = CreateExecutor();
+
+        DirectInputKeyCode[] modifiers = [DirectInputKeyCode.DikLalt];
+        ParsedInput input = new() { Type = InputType.Keyboard, Value = (modifiers, new[] { DirectInputKeyCode.DikO }) };
+
+        keyboard
+            .Setup(k => k.DelayedModifiedKeyStroke(
+                It.Is<IEnumerable<DirectInputKeyCode>>(m => m.SequenceEqual(modifiers)),
+                DirectInputKeyCode.DikO,
+                50))
+            .Returns(keyboard.Object);
+
+        executor.ExecutePressNoRepeat(input).Should().BeTrue();
+
+        keyboard.Verify(k => k.DelayedModifiedKeyStroke(
+            It.Is<IEnumerable<DirectInputKeyCode>>(m => m.SequenceEqual(modifiers)),
+            DirectInputKeyCode.DikO,
+            50), Times.Once);
+    }
+
+    [Fact]
     public void ExecutePressNoRepeat_MouseButton_LeftButton_InvokesMouseClick()
     {
         (KeybindingInputExecutor executor, Mock<IMouseSimulator> mouse, _) = CreateExecutor();
@@ -76,6 +99,29 @@ public sealed class KeybindingInputExecutorTests
         executor.ExecutePress(input).Should().BeTrue();
 
         mouse.Verify(m => m.MiddleButtonClick(), Times.Once);
+    }
+
+    [Fact]
+    public void ExecutePressNoRepeat_MouseButton_WithModifiers_PressesAndReleasesModifiersAroundClick()
+    {
+        (KeybindingInputExecutor executor, Mock<IMouseSimulator> mouse, Mock<IKeyboardSimulator> keyboard) = CreateExecutor();
+
+        DirectInputKeyCode[] modifiers = [DirectInputKeyCode.DikLshift];
+        ParsedInput input = new()
+        {
+            Type = InputType.MouseButton,
+            Value = (modifiers, VirtualKeyCode.MBUTTON)
+        };
+
+        keyboard.Setup(k => k.KeyDown(DirectInputKeyCode.DikLshift)).Returns(keyboard.Object);
+        keyboard.Setup(k => k.KeyUp(DirectInputKeyCode.DikLshift)).Returns(keyboard.Object);
+        mouse.Setup(m => m.MiddleButtonClick()).Returns(mouse.Object);
+
+        executor.ExecutePressNoRepeat(input).Should().BeTrue();
+
+        keyboard.Verify(k => k.KeyDown(DirectInputKeyCode.DikLshift), Times.Once);
+        mouse.Verify(m => m.MiddleButtonClick(), Times.Once);
+        keyboard.Verify(k => k.KeyUp(DirectInputKeyCode.DikLshift), Times.Once);
     }
 
     [Fact]
@@ -119,6 +165,36 @@ public sealed class KeybindingInputExecutorTests
         keyboard.Verify(k => k.KeyDown(DirectInputKeyCode.DikF1), Times.Once);
         keyboard.Verify(k => k.KeyUp(DirectInputKeyCode.DikF1), Times.Once);
     }
+
+    [Fact]
+    public void ExecuteDownUp_Keyboard_WithModifiers_HoldsKeyDown_NoRepeat_AndReleasesKeysThenModifiers()
+    {
+        (KeybindingInputExecutor executor, _, Mock<IKeyboardSimulator> keyboard) = CreateExecutor();
+
+        DirectInputKeyCode[] modifiers = [DirectInputKeyCode.DikLalt];
+        DirectInputKeyCode[] keys = [DirectInputKeyCode.DikAdd];
+        ParsedInput input = new()
+        {
+            Type = InputType.Keyboard,
+            Value = (modifiers, keys)
+        };
+
+        MockSequence seq = new();
+        keyboard.InSequence(seq).Setup(k => k.KeyDown(DirectInputKeyCode.DikLalt)).Returns(keyboard.Object);
+        keyboard.InSequence(seq).Setup(k => k.KeyDown(DirectInputKeyCode.DikAdd)).Returns(keyboard.Object);
+        keyboard.InSequence(seq).Setup(k => k.KeyUp(DirectInputKeyCode.DikAdd)).Returns(keyboard.Object);
+        keyboard.InSequence(seq).Setup(k => k.KeyUp(DirectInputKeyCode.DikLalt)).Returns(keyboard.Object);
+
+        executor.ExecuteDown(input, "Action").Should().BeTrue();
+        executor.ExecuteUp(input, "Action").Should().BeTrue();
+
+        keyboard.Verify(k => k.DelayedKeyPress(It.IsAny<DirectInputKeyCode>(), It.IsAny<int>()), Times.Never);
+        keyboard.Verify(k => k.KeyDown(DirectInputKeyCode.DikLalt), Times.Once);
+        keyboard.Verify(k => k.KeyDown(DirectInputKeyCode.DikAdd), Times.Once);
+        keyboard.Verify(k => k.KeyUp(DirectInputKeyCode.DikAdd), Times.Once);
+        keyboard.Verify(k => k.KeyUp(DirectInputKeyCode.DikLalt), Times.Once);
+    }
+
 
     private static (KeybindingInputExecutor Executor, Mock<IMouseSimulator> Mouse, Mock<IKeyboardSimulator> Keyboard)
         CreateExecutor()

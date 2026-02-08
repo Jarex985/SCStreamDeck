@@ -15,6 +15,17 @@ Notes:
 
 ---
 
+## v1.1.3.0 - Patch Release
+
+### Features / Improvements
+
+- Bindings that use mwheel_up/mwheel_down will be retriggered while key is held down.
+
+### Bug Fixes
+
+- Fixed an Issue where some modifier keys didn't properly execute when combined with a mouse button.
+- Fixed an Issue where `Hold` ActivationModes triggered multiple times when a binding had a modifier key
+
 ## v1.1.2.0 - Minor Release
 
 ### Features / Improvements
