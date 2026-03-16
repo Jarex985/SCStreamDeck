@@ -902,3 +902,26 @@ body {
   transform: none;
   box-shadow: none;
 }
+
+/* === DIAL INPUTS === */
+
+.pi-dial-inputs {
+  display: grid;
+  gap: 12px;
+}
+
+.pi-dial-input {
+  display: grid;
+  gap: 6px;
+}
+
+.pi-dial-input__hint {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.pi-dial-input .pi-details {
+  display: none;
+}

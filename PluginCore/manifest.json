@@ -3,6 +3,9 @@
     {
       "Icon": "Images/icon",
       "Name": "Adaptive Key",
+      "Controllers": [
+        "Keypad"
+      ],
       "States": [
         {
           "Image": "PropertyInspector/svg/key",
@@ -17,7 +20,35 @@
     },
     {
       "Icon": "Images/icon",
+      "Name": "Adaptive Dial",
+      "Controllers": [
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Execute left or right function",
+          "Push": "Execute push function"
+        }
+      },
+      "States": [
+        {
+          "Image": "PropertyInspector/svg/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "Star Citizen Adaptive Dial",
+      "UUID": "com.jarex985.scstreamdeck.adaptivedial",
+      "PropertyInspectorPath": "PropertyInspector/Dials/AdaptiveDial.html"
+    },
+    {
+      "Icon": "Images/icon",
       "Name": "Toggle Key",
+      "Controllers": [
+        "Keypad"
+      ],
       "States": [
         {
           "Image": "PropertyInspector/svg/key",
@@ -39,6 +70,9 @@
     {
       "Icon": "Images/icon",
       "Name": "Control Panel",
+      "Controllers": [
+        "Keypad"
+      ],
       "States": [
         {
           "Image": "PropertyInspector/svg/key",
@@ -59,7 +93,7 @@
   "Description": "Plugin that provides bindable actions for Star Citizen via Stream Deck.\nThis Plugin is not endorsed by or affiliated with the Cloud Imperium or Roberts Space Industries group of companies. All game content and materials are copyright Cloud Imperium Rights LLC and Cloud Imperium Rights Ltd.. Star Citizen®,Squadron 42®, Roberts Space Industries®, and Cloud Imperium® are registered trademarks of Cloud Imperium Rights LLC. All rights reserved.",
   "Icon": "Images/pluginIcon",
   "URL": "https://github.com/Jarex985/SCStreamDeck",
-  "Version": "1.1.3.0",
+  "Version": "1.2.0.0",
   "CodePath": "com.jarex985.scstreamdeck.exe",
   "Category": "Star Citizen Stream Deck",
   "CategoryIcon": "Images/categoryIcon",

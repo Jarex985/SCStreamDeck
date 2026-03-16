@@ -134,58 +134,17 @@
    * @returns {Array} - Flattened array of options
    */
   function flattenFunctionsData(groups) {
-    const flat = [];
-
     const requireToggleCandidates = globalThis.SCPI_REQUIRE_TOGGLE_CANDIDATES === true;
 
-    if (Array.isArray(groups)) {
-      groups.forEach(group => {
-        const groupName = group.label || 'Other';
-        const options = group.options || [];
-
-        options.forEach(opt => {
-          const bindingType = String(opt.bindingType || '').toLowerCase();
-
-          if (requireToggleCandidates) {
-            const isToggleCandidate = opt && opt.details && opt.details.isToggleCandidate === true;
-            if (!isToggleCandidate) {
-              return;
-            }
-          }
-
-          // Filter out unsupported options
-          // TODO: When implementing full axis support, stop hiding axis-only options in the PI.
-          const isUnsupported = bindingType === 'mouseaxis' || bindingType === 'joystick' || bindingType === 'gamepad';
-          if (isUnsupported) {
-            return;
-          }
-
-          // Keep the original category; unbound actions are shown with a warning indicator.
-          const category = groupName;
-
-          const disabledReason = String(opt.disabledReason || '');
-          const isUnbound = bindingType === 'unbound';
-
-          // Unbound actions are selectable (so users can bind them later), but still visually flagged.
-          const isDisabled = !!opt.disabled && !isUnbound;
-
-          flat.push(
-            {
-              value: opt.value,
-              legacyValue: opt.legacyValue,
-              text: opt.text,
-              group: category,
-              details: opt.details,
-              bindingType,
-              disabledReason,
-              unbound: isUnbound,
-              disabled: isDisabled
-            });
-        });
+    const flatten = SCPI?.functionPicker?.flattenFunctionsData;
+    if (typeof flatten === 'function') {
+      return flatten(groups, {
+        requireToggleCandidates,
+        excludeBindingTypes: ['mouseaxis', 'joystick', 'gamepad']
       });
     }
 
-    return flat;
+    return [];
   }
 
   /**
@@ -260,72 +219,25 @@
       return;
     }
 
-    // Show empty state if no option selected
-    if (!opt || !opt.details) {
-      const titleEl = detailsEl.querySelector('.pi-details__title');
-      if (titleEl) {
-        titleEl.textContent = '';
-      }
-
-      const scContentEl = document.querySelector('.pi-description__content');
-      if (scContentEl) {
-        scContentEl.textContent = '';
-      }
-
-      // Clear all binding values
-      const kbEl = document.getElementById('pi-details__binding-keyboard');
-      const mouseEl = document.getElementById('pi-details__binding-mouse');
-      const gpEl = document.getElementById('pi-details__binding-gamepad');
-      const jsEl = document.getElementById('pi-details__binding-joystick');
-
-      [kbEl, mouseEl, gpEl, jsEl].forEach((el) => {
-        if (!el) {
-          return;
-        }
-        el.textContent = '';
-      });
+    const updateDetails = SCPI?.functionPicker?.updateFunctionDetails;
+    if (typeof updateDetails !== 'function') {
       return;
     }
 
-    const details = opt.details;
-    const title = String(details.label || opt.text || '');
-    const desc = String(details.description || '');
-    const devices = Array.isArray(details.devices) ? details.devices : [];
-
-    const titleEl = detailsEl.querySelector('.pi-details__title');
-    if (titleEl) {
-      titleEl.textContent = title;
-    }
-
-    // Update binding values for all four device types
-    const allDeviceTypes = ['keyboard', 'mouse', 'gamepad', 'joystick'];
-
-    allDeviceTypes.forEach(deviceType => {
-      const deviceData = devices.find(d => d.device && d.device.toLowerCase() === deviceType.toLowerCase());
-      const bindingEl = document.getElementById(`pi-details__binding-${deviceType}`);
-
-      let bindingValue = 'Unbound';
-
-      if (deviceData && Array.isArray(deviceData.bindings) && deviceData.bindings.length > 0) {
-        const bindingLines = deviceData.bindings
-          .map(b => String(b.display || b.raw || ''))
-          .filter(x => x);
-
-        if (bindingLines.length > 0) {
-          bindingValue = bindingLines.join(', ');
-        }
-      }
-
-      if (bindingEl) {
-        bindingEl.textContent = bindingValue;
-      }
+    updateDetails({
+      containerEl: detailsEl,
+      titleEl: detailsEl.querySelector('.pi-details__title'),
+      descriptionEl: document.querySelector('.pi-description__content'),
+      bindingElements: {
+        keyboard: document.getElementById('pi-details__binding-keyboard'),
+        mouse: document.getElementById('pi-details__binding-mouse'),
+        gamepad: document.getElementById('pi-details__binding-gamepad'),
+        joystick: document.getElementById('pi-details__binding-joystick')
+      },
+      hideContainerWhenEmpty: false,
+      showContainerWhenFilled: false,
+      selectedOption: opt
     });
-
-    // Update Description content
-    const scContentEl = document.querySelector('.pi-description__content');
-    if (scContentEl) {
-      scContentEl.textContent = desc || 'No description available.';
-    }
   }
 
   // #endregion

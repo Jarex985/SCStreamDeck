@@ -16,9 +16,9 @@ using SCStreamDeck.Services.Keybinding;
 namespace SCStreamDeck.ActionKeys;
 
 /// <summary>
-///     Base class for Star Citizen Stream Deck Keys and Dials.
+///     Base class for Star Citizen Stream Deck key actions.
 /// </summary>
-public abstract class SCActionBase : KeyAndEncoderBase
+public abstract class SCActionBase : KeypadBase
 {
     #region Constructor and Initialization
 
@@ -265,38 +265,6 @@ public abstract class SCActionBase : KeyAndEncoderBase
     }
 
     public override void OnTick()
-    {
-    }
-
-    #endregion
-
-    #region Dial and Touchpad Methods
-
-    /// <summary>
-    ///     Called when the dial is rotated. Not used for keys.
-    /// </summary>
-    public override void DialRotate(DialRotatePayload payload)
-    {
-    }
-
-    /// <summary>
-    ///     Called when the dial is pressed down. Not used for keys.
-    /// </summary>
-    public override void DialDown(DialPayload payload)
-    {
-    }
-
-    /// <summary>
-    ///     Called when the dial is released. Not used for keys.
-    /// </summary>
-    public override void DialUp(DialPayload payload)
-    {
-    }
-
-    /// <summary>
-    ///     Called when the touchpad is pressed. Not used for keys.
-    /// </summary>
-    public override void TouchPress(TouchpadPressPayload payload)
     {
     }
 

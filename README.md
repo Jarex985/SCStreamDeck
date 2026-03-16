@@ -49,6 +49,7 @@ Report bugs / feature requests: https://github.com/Jarex985/SCStreamDeck/issues
 
 - **Adaptive Key**: A key that executes keybindings based on the activation mode for a given binding.
     - *Example:* Two in-game bindings (Tap vs Hold) on `Num-` executes only the Tap function when this is the assigned function.
+- **Adaptive Dial** *(Stream Deck+)*: A dial that maps separate Star Citizen functions to rotate left, rotate right, and dial push. Rotation fires the assigned function once per tick; push respects the action's activation mode.
 - **Toggle Key**: A key that toggles between two states (e.g., landing gear up/down). Can be reset to match the current in-game state on de-sync.
 - **Control Panel Key**: A dedicated key for managing global plugin settings such as themes, channel selection, and installation paths.
 - **Auto-Detection of Star Citizen Installation Path**: Automatically detects the installation path of Star Citizen.

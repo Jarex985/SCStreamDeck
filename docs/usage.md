@@ -14,6 +14,30 @@ Basic flow:
 
 ![Adaptive Key](assets/images/adaptive-key.png){ style="width:50%; height:auto;" }
 
+## Adaptive Dial *(Stream Deck+)*
+
+Use `Adaptive Dial` on a **Stream Deck+** device to map Star Citizen functions to the physical dial.
+
+Each dial slot is independent:
+
+| Slot | Trigger | Behaviour |
+|---|---|---|
+| **Rotate Left** | Turn dial counter-clockwise | Executes the assigned function once per tick |
+| **Rotate Right** | Turn dial clockwise | Executes the assigned function once per tick |
+| **Push** | Press the dial down / release | Executes the assigned function using its activation mode (e.g., Tap vs Hold) |
+
+Basic flow:
+
+1. Drag `Adaptive Dial` onto a dial slot on your Stream Deck+.
+2. Click on it to open the Property Inspector.
+3. Select a Star Citizen function for each slot you want to use (slots left empty are ignored).
+4. (Optional) Select a sound file (.wav/.mp3) to play on dial press.
+
+![Adaptive Dial](assets/images/adaptive-dial.png){ style="width:50%; height:auto;" }
+
+!!! tip "Rotation step size"
+    Each physical tick of the dial fires the function exactly once, so fast spins will queue multiple executions automatically.
+
 ## Toggle Key
 
 Use `Toggle Key` for bindings that have two states (e.g., landing gear up/down).
