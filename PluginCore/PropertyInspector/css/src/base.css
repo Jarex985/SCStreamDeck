@@ -916,7 +916,7 @@ body {
 }
 
 .pi-dial-input__hint {
-  color: var(--color-text-secondary);
+  color: var(--sdpi-color-secondary);
   font-size: 11px;
   line-height: 1.4;
   margin: 0;

@@ -53,31 +53,6 @@ public sealed class AdaptiveDial(SDConnection connection, InitialPayload payload
         }
     }
 
-    public override async void TouchPress(TouchpadPressPayload payload)
-    {
-        try
-        {
-            // SDK versions may differ on TouchpadPressPayload shape; read pressed-state defensively.
-            bool isKeyDown = true;
-            object? pressedValue = payload.GetType().GetProperty("Pressed")?.GetValue(payload);
-            if (pressedValue is bool pressed)
-            {
-                isKeyDown = pressed;
-            }
-
-            if (isKeyDown)
-            {
-                PlayClickSoundIfConfigured();
-            }
-
-            await ProcessPressEventAsync(isKeyDown).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            Log.Err($"{GetType().Name}: {ex.Message}", ex);
-        }
-    }
-
     private async Task ProcessDialRotateAsync(int ticks)
     {
         if (ticks == 0)
