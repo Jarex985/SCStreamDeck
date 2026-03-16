@@ -15,6 +15,20 @@ Notes:
 
 ---
 
+## v1.2.0.0 - Minor Release
+
+### Features / Improvements
+
+- Added `Adaptive Dial` action for Stream Deck+ devices. Supports assigning separate Star Citizen functions to rotate left, rotate right, and dial push. Rotation executes the assigned function once per tick. Push respects the action's activation mode (e.g., Tap vs Hold).
+- Click sound support for the `Adaptive Dial` (same `.wav`/`.mp3` configuration as `Adaptive Key`).
+
+### Internal / Refactor
+
+- `SCActionBase` and `ControlPanelKey` now inherit from `KeypadBase` instead of `KeyAndEncoderBase`, removing stub dial/touchpad overrides that were never used for key actions.
+- Added explicit `Controllers` declarations (`Keypad` / `Encoder`) to all actions in `manifest.json`.
+- Added unit tests for `AdaptiveDial` covering rotation resolution and executable binding resolution.
+- Refactored Property Inspector function picker logic into shared helpers (`SCPI.functionPicker`) used by both key and dial scripts, reducing duplicated code.
+
 ## v1.1.3.0 - Patch Release
 
 ### Features / Improvements

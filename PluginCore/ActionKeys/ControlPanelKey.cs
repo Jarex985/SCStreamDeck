@@ -18,7 +18,7 @@ namespace SCStreamDeck.ActionKeys;
 /// </summary>
 [SuppressMessage("ReSharper", "UnusedType.Global", Justification = "Stream Deck action instantiated via SDK reflection")]
 [PluginActionId("com.jarex985.scstreamdeck.controlpanel")]
-public sealed class ControlPanelKey : KeyAndEncoderBase
+public sealed class ControlPanelKey : KeypadBase
 {
     private const string PiEventConnected = "propertyInspectorConnected";
     private const string PiEventSetTheme = "setTheme";
@@ -64,22 +64,6 @@ public sealed class ControlPanelKey : KeyAndEncoderBase
     }
 
     public override void OnTick()
-    {
-    }
-
-    public override void DialRotate(DialRotatePayload payload)
-    {
-    }
-
-    public override void DialDown(DialPayload payload)
-    {
-    }
-
-    public override void DialUp(DialPayload payload)
-    {
-    }
-
-    public override void TouchPress(TouchpadPressPayload payload)
     {
     }
 

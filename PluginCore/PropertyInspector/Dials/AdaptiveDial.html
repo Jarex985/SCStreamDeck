@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Star Citizen Stream Deck Plugin PI - Adaptive Dial</title>
+  <link href="../css/base.css" rel="stylesheet">
+  <link id="pi-theme-styles" rel="stylesheet">
+  <script src="../js/sc-preload.js"></script>
+  <script defer src="../js/sdpi-components.js"></script>
+  <script defer src="../js/sc-components.js"></script>
+  <script defer src="../js/pi-dial-action.js"></script>
+</head>
+<body>
+<div class="pi-container">
+  <div class="pi-panel">
+    <div class="pi-section pi-dial-inputs">
+      <div class="pi-dial-input">
+        <div class="pi-picker-label">Rotate Left</div>
+        <div class="pi-dropdown" data-placeholder="Select rotate-left function..." id="rotateLeftDropdown"></div>
+        <p class="pi-dial-input__hint">Executed once for each tick when the dial rotates left.</p>
+        <div class="pi-details" id="rotateLeft-details-container">
+          <div class="pi-details__title pi-content-box" id="rotateLeft-details-title"></div>
+          <div class="pi-details__binding">
+            <span class="pi-details__binding-label">KEYBOARD</span>
+            <span class="pi-details__binding-value" id="rotateLeft-binding-keyboard"></span>
+          </div>
+          <div class="pi-details__binding">
+            <span class="pi-details__binding-label">MOUSE</span>
+            <span class="pi-details__binding-value" id="rotateLeft-binding-mouse"></span>
+          </div>
+          <div class="pi-details__binding">
+            <span class="pi-details__binding-label">GAMEPAD</span>
+            <span class="pi-details__binding-value" id="rotateLeft-binding-gamepad"></span>
+          </div>
+          <div class="pi-details__binding">
+            <span class="pi-details__binding-label">JOYSTICK</span>
+            <span class="pi-details__binding-value" id="rotateLeft-binding-joystick"></span>
+          </div>
+          <div class="pi-description__content pi-content-box" id="rotateLeft-description"></div>
+        </div>
+      </div>
+
+      <div class="pi-dial-input">
+        <div class="pi-picker-label">Rotate Right</div>
+        <div class="pi-dropdown" data-placeholder="Select rotate-right function..." id="rotateRightDropdown"></div>
+        <p class="pi-dial-input__hint">Executed once for each tick when the dial rotates right.</p>
+        <div class="pi-details" id="rotateRight-details-container">
+          <div class="pi-details__title pi-content-box" id="rotateRight-details-title"></div>
+          <div class="pi-details__binding">
+            <span class="pi-details__binding-label">KEYBOARD</span>
+            <span class="pi-details__binding-value" id="rotateRight-binding-keyboard"></span>
+          </div>
+          <div class="pi-details__binding">
+            <span class="pi-details__binding-label">MOUSE</span>
+            <span class="pi-details__binding-value" id="rotateRight-binding-mouse"></span>
+          </div>
+          <div class="pi-details__binding">
+            <span class="pi-details__binding-label">GAMEPAD</span>
+            <span class="pi-details__binding-value" id="rotateRight-binding-gamepad"></span>
+          </div>
+          <div class="pi-details__binding">
+            <span class="pi-details__binding-label">JOYSTICK</span>
+            <span class="pi-details__binding-value" id="rotateRight-binding-joystick"></span>
+          </div>
+          <div class="pi-description__content pi-content-box" id="rotateRight-description"></div>
+        </div>
+      </div>
+
+      <div class="pi-dial-input">
+        <div class="pi-picker-label">Push</div>
+        <div class="pi-dropdown" data-placeholder="Select push function..." id="pressDropdown"></div>
+        <p class="pi-dial-input__hint">Uses the action activation mode while the dial is pressed and released.</p>
+        <div class="pi-details" id="press-details-container">
+          <div class="pi-details__title pi-content-box" id="press-details-title"></div>
+          <div class="pi-details__binding">
+            <span class="pi-details__binding-label">KEYBOARD</span>
+            <span class="pi-details__binding-value" id="press-binding-keyboard"></span>
+          </div>
+          <div class="pi-details__binding">
+            <span class="pi-details__binding-label">MOUSE</span>
+            <span class="pi-details__binding-value" id="press-binding-mouse"></span>
+          </div>
+          <div class="pi-details__binding">
+            <span class="pi-details__binding-label">GAMEPAD</span>
+            <span class="pi-details__binding-value" id="press-binding-gamepad"></span>
+          </div>
+          <div class="pi-details__binding">
+            <span class="pi-details__binding-label">JOYSTICK</span>
+            <span class="pi-details__binding-value" id="press-binding-joystick"></span>
+          </div>
+          <div class="pi-description__content pi-content-box" id="press-description"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pi-section audio-file-section">
+      <div class="pi-picker-row">
+        <div class="pi-picker-label">Sound</div>
+        <div class="pi-file-picker"
+             data-accept=".wav,.mp3"
+             data-clear-title="Clear audio file"
+             data-placeholder="No file selected"
+             data-select-title="Select audio file"
+             id="audioFilePicker"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
