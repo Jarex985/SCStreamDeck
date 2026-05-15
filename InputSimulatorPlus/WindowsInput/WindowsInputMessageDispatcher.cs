@@ -29,6 +29,16 @@ namespace WindowsInput
                 throw new ArgumentException("The input array was empty", "inputs");
             }
 
+            // When running under Wine, Win32 SendInput cannot reach native
+            // Linux applications (e.g. Star Citizen via Proton). Route through
+            // ydotool instead. The check is cached so the overhead is one
+            // boolean read on every subsequent call.
+            if (WineDetector.IsWine)
+            {
+                LinuxInputBridge.DispatchInput(inputs);
+                return;
+            }
+
             uint successful = NativeMethods.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
             if (successful != inputs.Length)
             {

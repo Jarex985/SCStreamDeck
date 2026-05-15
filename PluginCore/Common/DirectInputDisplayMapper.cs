@@ -8,6 +8,8 @@ namespace SCStreamDeck.Common;
 /// </summary>
 internal static class DirectInputDisplayMapper
 {
+    private static readonly char[] PartSeparators = { '+' };
+
     #region Public Interface
 
     /// <summary>
@@ -125,7 +127,7 @@ internal static class DirectInputDisplayMapper
     ///     Parses binding into token parts.
     /// </summary>
     private static string[] ParseBindingParts(string scKeyboardBind) =>
-        scKeyboardBind.Split(['+'], StringSplitOptions.TrimEntries);
+        scKeyboardBind.Split(PartSeparators, StringSplitOptions.TrimEntries);
 
     /// <summary>
     ///     Formats display by converting tokens and joining.

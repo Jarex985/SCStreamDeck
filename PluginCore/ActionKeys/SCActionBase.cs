@@ -215,11 +215,40 @@ public abstract class SCActionBase : KeyAndEncoderBase
             {
                 SendPropertyInspectorUpdate();
             }
+            else if (piEvent == "requestFilePicker")
+            {
+                HandleRequestFilePicker(e.Event.Payload);
+            }
         }
         catch (Exception ex)
         {
             Log.Err($"[{GetType().Name}] PI message handling error: {ex.Message}", ex);
         }
+    }
+
+    private void HandleRequestFilePicker(JObject payload)
+    {
+        string? pickerId = payload.Value<string>("pickerId");
+        string title = payload.Value<string>("title") ?? "Select file";
+        string filter = payload.Value<string>("filter") ?? "All files|*.*";
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                string? path = await Common.WineFileDialog.ShowOpenFileDialogAsync(title, filter).ConfigureAwait(false);
+                await Connection.SendToPropertyInspectorAsync(new JObject
+                {
+                    ["event"] = "filePickerResult",
+                    ["pickerId"] = pickerId,
+                    ["path"] = path,
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.Err($"[{GetType().Name}] filePicker failed: {ex.Message}", ex);
+            }
+        });
     }
 
     #endregion

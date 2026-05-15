@@ -3,6 +3,9 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- Building from Linux for win-x64: pull the Windows Desktop reference
+         pack from NuGet rather than expecting a host-installed targeting pack. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>12</LangVersion>
     <AssemblyName>com.jarex985.scstreamdeck</AssemblyName>
@@ -72,7 +75,7 @@
   </ItemGroup>
 
   <Target Name="BuildPropertyInspectorAssets" BeforeTargets="CopyFilesToOutputDirectory">
-    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\Tools\PiAssetsBuilder\PiAssetsBuilder.csproj&quot; --configuration $(Configuration) -- &quot;$(MSBuildProjectDirectory)\PropertyInspector&quot;"/>
+    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)/../Tools/PiAssetsBuilder/PiAssetsBuilder.csproj&quot; --configuration $(Configuration) -- &quot;$(MSBuildProjectDirectory)/PropertyInspector&quot;"/>
   </Target>
 
   <!-- Plugin Images -->
