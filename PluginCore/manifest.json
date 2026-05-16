@@ -67,6 +67,10 @@
     {
       "Platform": "windows",
       "MinimumVersion": "10"
+    },
+    {
+      "Platform": "linux",
+      "MinimumVersion": "5.0"
     }
   ],
   "SDKVersion": 2,

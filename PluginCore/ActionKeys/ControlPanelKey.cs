@@ -26,6 +26,7 @@ public sealed class ControlPanelKey : KeyAndEncoderBase
     private const string PiEventForceRedetection = "forceRedetection";
     private const string PiEventFactoryReset = "factoryReset";
     private const string PiEventSetDataP4KOverride = "setDataP4KOverride";
+    private const string PiEventRequestFilePicker = "requestFilePicker";
 
     [ExcludeFromCodeCoverage]
     public ControlPanelKey(SDConnection connection, InitialPayload payload) : base(connection, payload)
@@ -132,6 +133,9 @@ public sealed class ControlPanelKey : KeyAndEncoderBase
                 case PiEventSetDataP4KOverride:
                     HandleSetDataP4KOverride(e.Event.Payload);
                     return;
+                case PiEventRequestFilePicker:
+                    HandleRequestFilePicker(e.Event.Payload);
+                    return;
                 default:
                     return;
             }
@@ -194,9 +198,25 @@ public sealed class ControlPanelKey : KeyAndEncoderBase
         }
 
         RunBackground(async () =>
-        {
             await InitializationService.ApplyCustomDataP4KOverrideAsync(channel, dataP4KPath)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false));
+    }
+
+    private void HandleRequestFilePicker(JObject payload)
+    {
+        string? pickerId = payload.Value<string>("pickerId");
+        string title = payload.Value<string>("title") ?? "Select file";
+        string filter = payload.Value<string>("filter") ?? "All files|*.*";
+
+        RunBackground(async () =>
+        {
+            string? path = await Common.WineFileDialog.ShowOpenFileDialogAsync(title, filter).ConfigureAwait(false);
+            await Connection.SendToPropertyInspectorAsync(new JObject
+            {
+                ["event"] = "filePickerResult",
+                ["pickerId"] = pickerId,
+                ["path"] = path,
+            }).ConfigureAwait(false);
         });
     }
 

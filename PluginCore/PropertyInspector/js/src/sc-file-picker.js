@@ -168,8 +168,65 @@
       setValue('', {persist: true});
     }
 
+    // Build a Win32-style filter string from an HTML `accept` attribute.
+    // ".p4k" → "Data files (*.p4k)|*.p4k|All files|*.*"
+    // ".mp3,.wav,.ogg" → "Audio (*.mp3;*.wav;*.ogg)|*.mp3;*.wav;*.ogg|All files|*.*"
+    function buildWinFilter(acceptValue) {
+      if (typeof acceptValue !== 'string' || acceptValue.length === 0) {
+        return 'All files|*.*';
+      }
+      const exts = [];
+      acceptValue.split(',').forEach(tok => {
+        const t = tok.trim();
+        if (t.startsWith('.')) {
+          exts.push('*' + t.toLowerCase());
+        }
+      });
+      if (exts.length === 0) {
+        return 'All files|*.*';
+      }
+      const list = exts.join(';');
+      return 'Allowed (' + list + ')|' + list + '|All files|*.*';
+    }
+
+    // The PI runs inside OpenDeck's Tauri WebView which doesn't grant the
+    // dialog plugin permission to plugin-served pages, AND <input type=file>
+    // only exposes the filename. To get a real full path on Linux/Wine we
+    // ask the plugin (running under Wine) to spawn a Win32 file dialog via
+    // GetOpenFileNameW — Wine renders it as a native GTK chooser and the
+    // returned path is Wine-resolvable.
+    const send = () =>
+      globalThis.SCPI?.bus?.send
+      || globalThis.SCPI?.util?.sendToPlugin
+      || globalThis.sendToPlugin;
+
+    // Subscribe once to filePickerResult messages from the plugin and
+    // dispatch to whichever picker owns the result (matched by rootId).
+    if (globalThis.SCPI?.bus) {
+      globalThis.SCPI.bus.start?.();
+      globalThis.SCPI.bus.on?.((payload) => {
+        if (payload?.event !== 'filePickerResult') return;
+        if (payload.pickerId !== rootId) return;
+        const path = typeof payload.path === 'string' ? payload.path : '';
+        if (path.length === 0) {
+          // Cancelled — no-op so the previous value stays visible.
+          return;
+        }
+        setValue(path, {persist: true});
+      });
+    }
+
     buttonEl.addEventListener('click', () => {
-      inputEl.click();
+      const accept = inputEl.getAttribute('accept') || '';
+      const filter = buildWinFilter(accept);
+      const title = rootEl.getAttribute('data-select-title') || 'Select file';
+      const s = send();
+      if (s) {
+        s('requestFilePicker', {pickerId: rootId, filter, title});
+      } else {
+        // Last-resort fallback if the bus isn't ready.
+        inputEl.click();
+      }
     });
 
     inputEl.addEventListener('change', (event) => {

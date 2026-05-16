@@ -75,6 +75,9 @@
     <Compile Include="Properties\AssemblyInfo.cs"/>
     <Compile Include="Native\VirtualKeyCode.cs"/>
     <Compile Include="Native\XButton.cs"/>
+    <Compile Include="Native\Vk2Evdev.cs"/>
+    <Compile Include="WineDetector.cs"/>
+    <Compile Include="LinuxInputBridge.cs"/>
   </ItemGroup>
   <ItemGroup>
     <None Include="WindowsInput.snk"/>

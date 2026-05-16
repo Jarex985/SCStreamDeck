@@ -44,6 +44,8 @@ nav:
           - Themes:
                 - About Themes: themes.md
                 - Theme Gallery: themegallery.md
+    - Platforms:
+          - Linux (Wine): linux-wine.md
     - Help:
           - Troubleshooting: troubleshooting.md
           - FAQ: faq.md
