@@ -130,8 +130,19 @@ sudo pacman -S wine
 ```
 
 Wine 9.0 or newer is recommended for the .NET 8 desktop runtime that
-SCStreamDeck targets. Wine-Mono is bundled with current Wine builds and
-provides the desktop runtime out of the box.
+SCStreamDeck targets.
+
+Inside the Wine prefix that OpenDeck uses to spawn the plugin, install
+the .NET 8 runtime via [winetricks](https://github.com/Winetricks/winetricks):
+
+```bash
+winetricks -q dotnet8
+winetricks -q dotnetdesktop8
+```
+
+The first verb installs the .NET 8 base runtime; the second adds the
+Windows Desktop runtime (WinForms/WPF surface) which the plugin
+references transitively. Both are non-interactive (`-q`).
 
 ### 3. .NET 8 SDK (only if building from source)
 
@@ -142,7 +153,26 @@ sudo pacman -S dotnet-sdk-8.0
 A pre-built artefact ships with each release on GitHub; this is only
 required if you build the plugin yourself.
 
-### 4. `ydotool` + `ydotoold`
+### 4. GStreamer plugins (for audio click sounds)
+
+Click sounds attached to Adaptive Key / Toggle Key buttons are played
+by NAudio's `AudioFileReader`, which under Wine ultimately delegates
+to Media Foundation. Wine's `winegstreamer` then routes the actual
+decode through the host's GStreamer plugins. To cover the most common
+audio formats (WAV, MP3, M4A, OGG, FLAC) install the full set of
+GStreamer plugins:
+
+```bash
+sudo pacman -S gst-plugins-base gst-plugins-good gst-plugins-bad \
+               gst-plugins-ugly gst-libav
+```
+
+WAV-only setups can skip this. MP3 specifically needs `gst-plugins-good`
+(which provides `id3demux` — without it Wine logs
+`Missing decoder: ID3 tag (application/x-id3)` and the sound never
+plays).
+
+### 5. `ydotool` + `ydotoold`
 
 ```bash
 sudo pacman -S ydotool
@@ -159,7 +189,7 @@ ls -la "$XDG_RUNTIME_DIR/.ydotool_socket"
 If you see `/tmp/.ydotool_socket` instead, that also works — the bridge
 auto-detects.
 
-### 5. `/dev/uinput` permission
+### 6. `/dev/uinput` permission
 
 `ydotoold` runs unprivileged and needs write access to `/dev/uinput`. By
 default that device is owned `root:root mode 0600`. Three ways to grant
@@ -284,48 +314,90 @@ If nothing happens, in order:
 
 ## File picker paths (audio, Data.p4k)
 
-OpenDeck's Property Inspector runs in the host's WebView, not under Wine.
-When you click the "FILE" button to pick an audio click sound (Adaptive
-Key / Toggle Key) or a `Data.p4k` install override (Control Panel), the
-dialog that appears is the host's **native Linux** file picker. It hands
-back paths like `/home/user/Music/foo.mp3` rather than the `C:\…` or
-`Z:\…` form Wine would normally expose.
+OpenDeck's Property Inspector runs inside a Tauri 2 WebView that
+**does not grant the `dialog:*` capability to plugin-served pages**,
+and the WebView's HTML `<input type="file">` only exposes the
+filename to JavaScript — not the full path. Both restrictions
+prevented the picker from returning a usable absolute path under
+Wine.
 
-The plugin compensates server-side: `WinePath.Translate` rewrites any
-incoming Unix-style absolute path to `Z:\…` when running under Wine,
-before the path is passed to `File.Exists`, `NAudio.AudioFileReader`,
-or the P4K opener. Existing Windows-style paths (e.g. saved from a
-prior Windows install of SCStreamDeck) are left untouched.
+The plugin works around this by opening the file dialog from the
+Wine side itself. Clicking the "FILE" button no longer triggers a
+hidden `<input>`; it sends a `requestFilePicker` event to the
+plugin over the SCPI bus. The plugin spawns an STA thread, calls
+`CoCreateInstance(CLSID_FileOpenDialog)` and shows the dialog via
+the modern Common Item Dialog COM API
+(`IFileOpenDialog` — recommended by Microsoft since Vista, and
+implemented by Wine's `comdlg32` since the same era). When the
+user confirms, the plugin sends a `filePickerResult` event back to
+the PI with the absolute path (typically `Z:\home\…` or
+`C:\users\…`), which the PI persists via `setSettings` or
+`sendToPlugin`-back-to-its-handler depending on the action.
 
-The UI still displays the Linux-style path it captured — only the
-behind-the-scenes I/O is rewritten. A future improvement would be a
-custom Wine-aware file dialog rendered by the plugin itself; not in
-scope here.
+Round-trip recap:
+
+```
+PI buttonEl.click
+  → SCPI.bus.send('requestFilePicker', {pickerId, filter, title})
+  →  WindowsInput.SDConnection.OnSendToPlugin
+  →   ControlPanelKey.HandleRequestFilePicker / SCActionBase.HandleRequestFilePicker
+  →    WineFileDialog.ShowOpenFileDialogAsync (STA thread)
+  →     CLSID_FileOpenDialog → IFileOpenDialog.Show()
+  ←     IShellItem.GetDisplayName(SIGDN_FILESYSPATH) → full Wine path
+  ←   Connection.SendToPropertyInspectorAsync(filePickerResult)
+  ← SCPI.bus listener → picker.setValue(path)
+```
+
+On Windows native the same flow runs and the user sees the
+standard shell file picker. Under Wine on Linux the same COM
+class is rendered by Wine's own dialog backend, so users see a
+native-looking file chooser without any GTK shim.
 
 ## Internals for contributors
 
 The Wine-aware path is contained in five files; everything else in the
-codebase is untouched.
+codebase is left as upstream.
 
 | File | Purpose |
 |---|---|
-| [`InputSimulatorPlus/WindowsInput/WineDetector.cs`](https://github.com/Jarex985/SCStreamDeck/blob/main/InputSimulatorPlus/WindowsInput/WineDetector.cs) | One-shot Wine probe via `wine_get_version` |
-| [`InputSimulatorPlus/WindowsInput/LinuxInputBridge.cs`](https://github.com/Jarex985/SCStreamDeck/blob/main/InputSimulatorPlus/WindowsInput/LinuxInputBridge.cs) | INPUT[] → ydotool command translation |
-| [`InputSimulatorPlus/WindowsInput/Native/Vk2Evdev.cs`](https://github.com/Jarex985/SCStreamDeck/blob/main/InputSimulatorPlus/WindowsInput/Native/Vk2Evdev.cs) | VK + PS/2 scan code → evdev keycode tables |
-| [`InputSimulatorPlus/WindowsInput/WindowsInputMessageDispatcher.cs`](https://github.com/Jarex985/SCStreamDeck/blob/main/InputSimulatorPlus/WindowsInput/WindowsInputMessageDispatcher.cs) | 4-line patch that delegates to `LinuxInputBridge` when `WineDetector.IsWine` |
-| [`PluginCore/Infrastructure/WinePath.cs`](https://github.com/Jarex985/SCStreamDeck/blob/main/PluginCore/Infrastructure/WinePath.cs) | Rewrites Linux paths from the native file picker to `Z:\` form for NAudio / `File.*` consumers |
+| [`InputSimulatorPlus/WindowsInput/WineDetector.cs`](https://github.com/Jarex985/SCStreamDeck/blob/main/InputSimulatorPlus/WindowsInput/WineDetector.cs) | One-shot Wine probe via `ntdll!wine_get_version`, cached in `Lazy<bool>` |
+| [`InputSimulatorPlus/WindowsInput/LinuxInputBridge.cs`](https://github.com/Jarex985/SCStreamDeck/blob/main/InputSimulatorPlus/WindowsInput/LinuxInputBridge.cs) | `INPUT[]` → `ydotool` command translation |
+| [`InputSimulatorPlus/WindowsInput/Native/Vk2Evdev.cs`](https://github.com/Jarex985/SCStreamDeck/blob/main/InputSimulatorPlus/WindowsInput/Native/Vk2Evdev.cs) | VK_* + PS/2 Set 1 scan code → Linux evdev keycode tables |
+| [`InputSimulatorPlus/WindowsInput/WindowsInputMessageDispatcher.cs`](https://github.com/Jarex985/SCStreamDeck/blob/main/InputSimulatorPlus/WindowsInput/WindowsInputMessageDispatcher.cs) | 3-line branch that delegates to `LinuxInputBridge` when `WineDetector.IsWine` |
+| [`PluginCore/Common/WineFileDialog.cs`](https://github.com/Jarex985/SCStreamDeck/blob/main/PluginCore/Common/WineFileDialog.cs) | COM wrapper around `IFileOpenDialog` (`CLSID_FileOpenDialog`) on an STA thread. Backs the new `requestFilePicker` PI ↔ plugin event so the Property Inspector receives real absolute paths |
 
-Two ancillary build adjustments make the project cross-build cleanly
-from Linux to win-x64:
+Plus three small touches at the integration boundaries:
 
-- `InputSimulatorPlus/WindowsInput/WindowsInput.csproj` was converted
-  from the legacy MSBuild format to the SDK-style format targeting
-  `net8.0-windows`. The legacy project required a .NET Framework 4.8
-  targeting pack that isn't shipped on Linux.
-- `PluginCore/PluginCore.csproj` adds `<EnableWindowsTargeting>true</EnableWindowsTargeting>`
-  so the Windows Desktop reference pack is pulled from NuGet when
-  building on Linux. The setting is a no-op on Windows.
+- `PluginCore/ActionKeys/ControlPanelKey.cs` and
+  `PluginCore/ActionKeys/SCActionBase.cs` each route the new
+  `requestFilePicker` PI event to `WineFileDialog.ShowOpenFileDialogAsync`
+  and post the result back via
+  `Connection.SendToPropertyInspectorAsync({event:"filePickerResult", …})`.
+- `PluginCore/PropertyInspector/js/src/sc-file-picker.js` swaps the
+  hidden-input click for a `SCPI.bus.send('requestFilePicker', …)` and
+  installs a one-time listener that calls `setValue(path)` when the
+  matching `filePickerResult` arrives.
+- `PluginCore/manifest.json` appends
+  `{"Platform":"linux","MinimumVersion":"5.0"}` to the `OS` array so
+  OpenDeck spawns the plugin via Wine on Linux hosts.
 
-Manifest change: `"linux"` is appended to the `OS` array in
-`PluginCore/manifest.json` so OpenDeck spawns the plugin via Wine on
-Linux hosts.
+Three ancillary build adjustments make the project cross-build cleanly
+from Linux to win-x64 (each is a no-op on Windows hosts):
+
+- `PluginCore/PluginCore.csproj` adds
+  `<EnableWindowsTargeting>true</EnableWindowsTargeting>` so the
+  Windows Desktop reference pack is pulled from NuGet when building on
+  Linux; the inline `<Exec>` command for `PiAssetsBuilder` also has
+  its hard-coded `\` separators replaced with `/` (tolerated by
+  Windows MSBuild as well).
+- `Tests/Tests.csproj` carries the same `EnableWindowsTargeting`
+  setting.
+- `PluginCore/Common/DirectInputDisplayMapper.cs` substitutes the
+  `['+']` collection-expression argument to `string.Split` with a
+  `static readonly char[]` field, sidestepping a CS0121 ambiguity
+  that triggers on some .NET 8 SDK builds and also satisfying
+  CA1861.
+
+`InputSimulatorPlus/WindowsInput/WindowsInput.csproj` is unchanged
+except for three new `<Compile Include>` entries pointing at the
+files added above — its legacy MSBuild format is preserved.
