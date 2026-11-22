@@ -29,15 +29,22 @@ public sealed class TelemetryDisplayKey : SCActionBase
 
     private TelemetryDisplaySettings _display;
     private string? _renderedKey;
+    private bool _renderedHidden;
     private DateTime _lastRenderUtc = DateTime.MinValue;
     private bool _dirty;
+    private bool _disposed;
     private string? _pressedFunction;
+    private TelemetryRule? _flashRule;
+    private int _flashMs;
+    private DateTime _flashStartUtc;
+    private readonly Timer _flashTimer;
 
     [ExcludeFromCodeCoverage]
     public TelemetryDisplayKey(SDConnection connection, InitialPayload payload) : base(connection, payload)
     {
         _telemetry = ActionDependencies.ForTelemetryDisplayKey();
         _display = ParseSettings(payload.Settings);
+        _flashTimer = new Timer(_ => Refresh(false), null, Timeout.Infinite, Timeout.Infinite);
 
         Connection.OnPropertyInspectorDidAppear += OnPropertyInspectorDidAppear;
         Connection.OnSendToPlugin += OnSendToPlugin;
@@ -112,6 +119,8 @@ public sealed class TelemetryDisplayKey : SCActionBase
 
         lock (_gate)
         {
+            _disposed = true;
+            _flashTimer.Dispose();
             _renderer.Dispose();
         }
 
@@ -174,25 +183,57 @@ public sealed class TelemetryDisplayKey : SCActionBase
     {
         try
         {
-            (TelemetryRuleMatch _, TelemetryRenderModel model) = EvaluateCurrent();
-            string key = $"{model.Text}|{model.ImagePath}|{model.TextColor}|{model.BackgroundColor}";
+            (TelemetryRuleMatch match, TelemetryRenderModel model) = EvaluateCurrent();
 
             lock (_gate)
             {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                DateTime now = DateTime.UtcNow;
+                TimeSpan? untilSwitch = null;
+                int flashMs = TelemetryFlash.Normalize(match.Rule.FlashMs);
+
+                if (flashMs > 0)
+                {
+                    // Restart in the "shown" phase whenever another rule (or interval) takes over.
+                    if (!ReferenceEquals(_flashRule, match.Rule) || _flashMs != flashMs)
+                    {
+                        _flashRule = match.Rule;
+                        _flashMs = flashMs;
+                        _flashStartUtc = now;
+                    }
+
+                    bool hidden = TelemetryFlash.IsHidden(now - _flashStartUtc, flashMs, out TimeSpan remaining);
+                    untilSwitch = remaining;
+                    model = model with { Hidden = hidden };
+                }
+                else
+                {
+                    _flashRule = null;
+                }
+
+                ArmFlashTimer(untilSwitch);
+
+                string key = $"{model.Text}|{model.ImagePath}|{model.TextColor}|{model.BackgroundColor}|{model.Hidden}";
                 if (!force && key == _renderedKey)
                 {
                     _dirty = false;
                     return;
                 }
 
-                DateTime now = DateTime.UtcNow;
-                if (!force && now - _lastRenderUtc < s_minRenderInterval)
+                // A flash switch must not be delayed by the update throttle.
+                bool flashSwitch = model.Hidden != _renderedHidden;
+                if (!force && !flashSwitch && now - _lastRenderUtc < s_minRenderInterval)
                 {
                     _dirty = true;
                     return;
                 }
 
                 _renderedKey = key;
+                _renderedHidden = model.Hidden;
                 _lastRenderUtc = now;
                 _dirty = false;
 
@@ -205,6 +246,11 @@ public sealed class TelemetryDisplayKey : SCActionBase
             Log.Err($"[{nameof(TelemetryDisplayKey)}] Render failed: {ex.Message}", ex);
         }
     }
+
+    private void ArmFlashTimer(TimeSpan? untilSwitch) =>
+        // +1 ms so the timer fires just after the boundary and sees the new phase.
+        _flashTimer.Change(untilSwitch is { } due ? due + TimeSpan.FromMilliseconds(1) : Timeout.InfiniteTimeSpan,
+            Timeout.InfiniteTimeSpan);
 
     private async Task SendImageAsync(string base64)
     {

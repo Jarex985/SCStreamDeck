@@ -262,6 +262,11 @@
     })));
 
     card.appendChild(row('Colors', renderColors(rule)));
+    card.appendChild(row('Flash', textInput(rule.flashMs, 'off (ms)', (v) => {
+      const parsed = parseInt(v, 10);
+      rule.flashMs = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+      saveRules();
+    }, 'number'), 'Show the text/image for this many ms, then hide it for the same time, repeating. Minimum 250. Empty = no flashing.'));
     card.appendChild(row('Press', renderPressAction(rule, idPrefix),
       'Action run when the key is pressed while this rule is active.'));
 

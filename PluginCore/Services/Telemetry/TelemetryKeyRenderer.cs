@@ -13,7 +13,8 @@ public sealed record TelemetryRenderModel(
     string Text,
     string? ImagePath,
     string? TextColor,
-    string? BackgroundColor);
+    string? BackgroundColor,
+    bool Hidden = false);
 
 /// <summary>
 ///     Draws a telemetry key: optional background image (cover-fit) with outlined, auto-fitted text on top.
@@ -46,6 +47,11 @@ public sealed class TelemetryKeyRenderer : IDisposable
         g.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
         g.Clear(ParseColor(model.BackgroundColor) ?? s_defaultBackground);
+
+        if (model.Hidden)
+        {
+            return canvas;
+        }
 
         bool hasImage = false;
         Bitmap? image = LoadImage(model.ImagePath);

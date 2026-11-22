@@ -54,6 +54,37 @@ public sealed class TelemetryKeyRendererTests
         }
     }
 
+    [Fact]
+    public void Render_Hidden_DrawsOnlyBackground()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"telemetry-test-{Guid.NewGuid():N}.png");
+        try
+        {
+            using (Bitmap source = new(10, 10))
+            {
+                using Graphics g = Graphics.FromImage(source);
+                g.Clear(Color.Lime);
+                source.Save(path, System.Drawing.Imaging.ImageFormat.Png);
+            }
+
+            using TelemetryKeyRenderer renderer = new();
+
+            using Bitmap hidden = renderer.Render(new TelemetryRenderModel("Text", path, "#FFFFFF", "#FF0000", true));
+
+            for (int y = 0; y < hidden.Height; y += 8)
+            {
+                for (int x = 0; x < hidden.Width; x += 8)
+                {
+                    hidden.GetPixel(x, y).ToArgb().Should().Be(Color.FromArgb(255, 255, 0, 0).ToArgb());
+                }
+            }
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Theory]
     [InlineData("#00FF00", true)]
     [InlineData("nonsense-color", false)]

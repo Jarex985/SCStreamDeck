@@ -48,7 +48,8 @@ Basic flow:
 4. Add Rules. The first rule whose condition matches wins:
     - Numbers: is less than / at most / greater than / at least / between / equals / does not equal
     - On/Off values and enums (for example `Locomotion`): is / is not
-    - Per rule: Text (`{value}` and `{label}` are replaced, `\n` is a new line), Image (.png/.jpg/.bmp/.gif), Text and Back colors, and an optional Press action
+    - Per rule: Text (`{value}` and `{label}` are replaced, `\n` is a new line), Image (.png/.jpg/.bmp/.gif), Text and Back colors, an optional Flash, and an optional Press action
+    - Flash: enter a time in ms (minimum 250). While that rule is active the text and image are shown for that long, then hidden (only the background color remains) for the same time, repeating. Empty = no flashing
 5. The Default section is used when no rule matches or there is no data.
 6. (Optional) Select a Sound file (.wav/.mp3), played when a press action runs.
 

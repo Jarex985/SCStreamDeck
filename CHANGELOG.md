@@ -19,7 +19,7 @@ Notes:
 
 ### Features / Improvements
 
-- New `Telemetry Display` key: shows any value from Star Citizen's local gRPC telemetry API and changes text, image and colors through ordered rules; each rule can optionally run a keybinding when the key is pressed.
+- New `Telemetry Display` key: shows any value from Star Citizen's local gRPC telemetry API and changes text, image and colors through ordered rules; each rule can optionally flash its text/image and run a keybinding when the key is pressed.
 
 ---
 

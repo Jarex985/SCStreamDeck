@@ -34,6 +34,12 @@ public sealed class TelemetryRule
 
     /// <summary>Star Citizen action name executed on key press while this rule is active.</summary>
     [JsonProperty("function")] public string? Function { get; set; }
+
+    /// <summary>
+    ///     When set, text and image alternate between shown and hidden, each for this many milliseconds,
+    ///     while this rule is active. Empty or 0 disables flashing.
+    /// </summary>
+    [JsonProperty("flashMs")] public int? FlashMs { get; set; }
 }
 
 public sealed class TelemetryDisplaySettings
