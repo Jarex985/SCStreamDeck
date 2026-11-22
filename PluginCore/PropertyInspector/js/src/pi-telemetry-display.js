@@ -261,6 +261,13 @@
       'data-placeholder': 'No image', 'data-select-title': 'Select image', 'data-clear-title': 'Clear image'
     })));
 
+    if (!isDefault) {
+      card.appendChild(row('Sound', el('div', {
+        class: 'pi-file-picker', id: `${idPrefix}-sound`, 'data-accept': '.wav,.mp3',
+        'data-placeholder': 'No sound', 'data-select-title': 'Select audio file', 'data-clear-title': 'Clear audio file'
+      }), 'Played once when this rule becomes active.'));
+    }
+
     card.appendChild(row('Colors', renderColors(rule)));
     card.appendChild(row('Flash', textInput(rule.flashMs, 'off (ms)', (v) => {
       const parsed = parseInt(v, 10);
@@ -271,6 +278,18 @@
       'Action run when the key is pressed while this rule is active.'));
 
     queueMicrotask(() => {
+      if (!isDefault) {
+        SCPI?.ui?.filePicker?.createFilePicker?.({
+          rootId: `${idPrefix}-sound`,
+          placeholderText: 'No sound',
+          initialValue: rule.soundPath || '',
+          onValueChanged: (path) => {
+            rule.soundPath = path || null;
+            saveRules();
+          }
+        });
+      }
+
       SCPI?.ui?.filePicker?.createFilePicker?.({
         rootId: `${idPrefix}-image`,
         placeholderText: 'No image',

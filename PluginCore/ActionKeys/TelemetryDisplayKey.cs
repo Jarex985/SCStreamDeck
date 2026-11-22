@@ -38,6 +38,7 @@ public sealed class TelemetryDisplayKey : SCActionBase
     private int _flashMs;
     private DateTime _flashStartUtc;
     private readonly Timer _flashTimer;
+    private readonly TelemetryRuleTransitionTracker _transitions = new();
 
     [ExcludeFromCodeCoverage]
     public TelemetryDisplayKey(SDConnection connection, InitialPayload payload) : base(connection, payload)
@@ -63,6 +64,7 @@ public sealed class TelemetryDisplayKey : SCActionBase
             _display = ParseSettings(payload.Settings);
         }
 
+        _transitions.Reset();
         Refresh(true);
     }
 
@@ -184,6 +186,12 @@ public sealed class TelemetryDisplayKey : SCActionBase
         try
         {
             (TelemetryRuleMatch match, TelemetryRenderModel model) = EvaluateCurrent();
+
+            string? sound = _transitions.OnEvaluated(match);
+            if (sound != null)
+            {
+                _ = Task.Run(() => PlaySoundFile(sound));
+            }
 
             lock (_gate)
             {

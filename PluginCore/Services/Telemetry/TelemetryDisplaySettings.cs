@@ -35,6 +35,9 @@ public sealed class TelemetryRule
     /// <summary>Star Citizen action name executed on key press while this rule is active.</summary>
     [JsonProperty("function")] public string? Function { get; set; }
 
+    /// <summary>Optional sound file (.wav/.mp3) played once when this rule becomes the active one.</summary>
+    [JsonProperty("soundPath")] public string? SoundPath { get; set; }
+
     /// <summary>
     ///     When set, text and image alternate between shown and hidden, each for this many milliseconds,
     ///     while this rule is active. Empty or 0 disables flashing.
