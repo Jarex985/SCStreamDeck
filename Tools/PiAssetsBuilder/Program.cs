@@ -49,6 +49,7 @@ internal static class Program
         BuildPageScript(jsSrc, jsOut, "sc-preload.js");
         BuildPageScript(jsSrc, jsOut, "pi-control-panel.js");
         BuildPageScript(jsSrc, jsOut, "pi-function-key.js");
+        BuildPageScript(jsSrc, jsOut, "pi-telemetry-display.js");
         BuildCss(cssSrc, cssOut);
     }
 

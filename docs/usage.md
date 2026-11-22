@@ -30,6 +30,30 @@ Basic flow:
 
 ![Toggle Key](assets/images/toggle-key.png){ style="width:50%; height:auto;" }
 
+## Telemetry Display Key
+
+Use `Telemetry Display` to show a live value from Star Citizen's local telemetry API (vitals, environment, ship state and more) and change the key's text, image and colors based on that value.
+For example, show `Pressure` and switch to a "low pressure" image below a threshold.
+
+Requirements:
+
+- The game's telemetry server must be enabled (it is off by default). See the [telemetry setup guide](https://github.com/Jarex985/SCStreamDeck/blob/main/PluginCore/Protos/README.md).
+- Your character must have spawned. Until then the key shows the default appearance with `—`.
+
+Basic flow:
+
+1. Drag `Telemetry Display` onto a Stream Deck key and open the Property Inspector.
+2. Search and select the attribute to show (for example `Actor Vitals › Pressure`). Gauges (health, oxygen, ...) also offer a `percent` value.
+3. (Optional) Set a Label (used for `{label}`) and the number of Decimals.
+4. Add Rules. The first rule whose condition matches wins:
+    - Numbers: is less than / at most / greater than / at least / between / equals / does not equal
+    - On/Off values and enums (for example `Locomotion`): is / is not
+    - Per rule: Text (`{value}` and `{label}` are replaced, `\n` is a new line), Image (.png/.jpg/.bmp/.gif), Text and Back colors, and an optional Press action
+5. The Default section is used when no rule matches or there is no data.
+6. (Optional) Select a Sound file (.wav/.mp3), played when a press action runs.
+
+Press actions use the same keybindings as `Adaptive Key`, run for the rule that is active when you press the key, and only run while telemetry data is available.
+
 ## Control Panel Key
 
 Use `Control Panel` for global plugin settings:

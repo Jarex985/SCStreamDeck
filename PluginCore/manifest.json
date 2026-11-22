@@ -38,6 +38,21 @@
     },
     {
       "Icon": "Images/icon",
+      "Name": "Telemetry Display",
+      "States": [
+        {
+          "Image": "PropertyInspector/svg/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "Shows a live Star Citizen telemetry value with rule-based text, images and press actions",
+      "UUID": "com.jarex985.scstreamdeck.telemetrydisplay",
+      "PropertyInspectorPath": "PropertyInspector/Keys/TelemetryDisplay.html"
+    },
+    {
+      "Icon": "Images/icon",
       "Name": "Control Panel",
       "States": [
         {

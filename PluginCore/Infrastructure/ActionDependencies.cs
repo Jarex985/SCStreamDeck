@@ -1,6 +1,7 @@
 using SCStreamDeck.Services.Audio;
 using SCStreamDeck.Services.Core;
 using SCStreamDeck.Services.Keybinding;
+using SCStreamDeck.Services.Telemetry;
 using SCStreamDeck.Services.UI;
 
 namespace SCStreamDeck.Infrastructure;
@@ -22,6 +23,8 @@ internal static class ActionDependencies
         ServiceLocator.GetService<StateService>(),
         ServiceLocator.GetService<ThemeService>(),
         ServiceLocator.GetService<IKeybindingsJsonCache>());
+
+    public static TelemetryService ForTelemetryDisplayKey() => ServiceLocator.GetService<TelemetryService>();
 }
 
 internal sealed record SCActionBaseDependencies(
