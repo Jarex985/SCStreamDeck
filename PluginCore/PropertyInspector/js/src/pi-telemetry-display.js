@@ -337,12 +337,12 @@
   function renderColors(rule) {
     function colorControl(key, caption) {
       const input = el('input', {type: 'color', class: 'pi-rule__color', title: caption});
-      input.value = rule[key] || (key === 'textColor' ? '#ffffff' : '#1b1f27');
+      input.value = rule[key] || (key === 'textColor' ? '#ffffff' : '#000000');
       const clear = el('button', {
         class: 'file-picker-clear', type: 'button', title: `Reset ${caption.toLowerCase()}`, text: 'X',
         onClick: () => {
           rule[key] = null;
-          input.value = key === 'textColor' ? '#ffffff' : '#1b1f27';
+          input.value = key === 'textColor' ? '#ffffff' : '#000000';
           status.textContent = 'auto';
           saveRules();
         }

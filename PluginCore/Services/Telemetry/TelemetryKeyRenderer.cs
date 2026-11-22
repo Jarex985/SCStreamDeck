@@ -30,7 +30,7 @@ public sealed class TelemetryKeyRenderer : IDisposable
     private const int Margin = 6;
     private const int MaxCachedImages = 16;
 
-    private static readonly Color s_defaultBackground = Color.FromArgb(0x1B, 0x1F, 0x27);
+    private static readonly Color s_defaultBackground = Color.Black;
 
     private readonly object _cacheGate = new();
     private readonly Dictionary<string, (DateTime Stamp, Bitmap Image)> _imageCache = new(StringComparer.OrdinalIgnoreCase);
