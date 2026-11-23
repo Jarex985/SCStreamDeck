@@ -19,7 +19,7 @@ Notes:
 
 ### Features / Improvements
 
-- The `Telemetry Display` keys read the available attributes from the installed game (`StarCitizen.exe`) instead of a built-in list, so they always match the game version; the built-in list remains as a fallback.
+- The `Telemetry Display` keys read the available attributes from the installed game (`StarCitizen.exe`) instead of a built-in list, so they always match the game version; the built-in list remains as a fallback. The protocol that was read is exported next to the plugin log (`telemetry-protocol.proto` / `.desc`).
 - New `Advanced Telemetry Display` key: rules combine conditions on several attributes (all / any), for example "landed AND hydrogen fuel low", and texts can print any attribute with `{value:attribute.path}`.
 - New `Telemetry Display` key: shows any value from Star Citizen's local gRPC telemetry API and changes text, image and colors through ordered rules; each rule can optionally flash its text/image, play a sound when it becomes active and run a keybinding when the key is pressed.
 

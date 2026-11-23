@@ -14,13 +14,14 @@ public sealed class TelemetrySchema
     public const string ServiceFullName = "sc.game.telemetry.v1.GameTelemetryService";
 
     private static readonly Lazy<TelemetrySchema> s_bundled = new(() =>
-        new TelemetrySchema(TelemetryStreamResponse.Descriptor, "bundled proto"));
+        new TelemetrySchema(TelemetryStreamResponse.Descriptor, [TelemetryStreamResponse.Descriptor.File], "bundled proto"));
 
     private readonly Dictionary<string, TelemetryField> _byPath;
 
-    private TelemetrySchema(MessageDescriptor response, string source)
+    private TelemetrySchema(MessageDescriptor response, IReadOnlyList<FileDescriptor> files, string source)
     {
         Response = response;
+        Files = files;
         Source = source;
         Fields = TelemetryFieldCatalog.Build(response);
         _byPath = Fields.ToDictionary(f => f.Path, StringComparer.Ordinal);
@@ -30,6 +31,9 @@ public sealed class TelemetrySchema
     public static TelemetrySchema Bundled => s_bundled.Value;
 
     public MessageDescriptor Response { get; }
+
+    /// <summary>All file descriptors of this schema (including imported well-known types), dependencies first.</summary>
+    public IReadOnlyList<FileDescriptor> Files { get; }
 
     /// <summary>Human readable origin, for logs.</summary>
     public string Source { get; }
@@ -57,7 +61,7 @@ public sealed class TelemetrySchema
             return false;
         }
 
-        schema = new TelemetrySchema(response, source);
+        schema = new TelemetrySchema(response, files, source);
         return true;
     }
 }

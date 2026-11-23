@@ -66,11 +66,27 @@ public sealed class TelemetrySchemaProvider(StateService stateService, PathProvi
 
             _current = schema;
             Log.Info($"[{nameof(TelemetrySchemaProvider)}] Using telemetry protocol from {schema.Source} ({schema.Fields.Count} attributes).");
+            ExportSchema(schema, exePath);
             Changed?.Invoke();
         }
         catch (Exception ex)
         {
             Log.Err($"[{nameof(TelemetrySchemaProvider)}] Telemetry schema refresh failed: {ex.Message}", ex);
+        }
+    }
+
+    // Written next to the plugin log so the protocol of the installed game can be inspected.
+    private static void ExportSchema(TelemetrySchema schema, string exePath)
+    {
+        try
+        {
+            string directory = PluginLogLocation.GetDirectory();
+            IReadOnlyList<string> written = TelemetrySchemaExporter.Export(schema, directory, exePath);
+            Log.Info($"[{nameof(TelemetrySchemaProvider)}] Exported the telemetry protocol to {string.Join(", ", written)}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            Log.Warn($"[{nameof(TelemetrySchemaProvider)}] Could not export the telemetry protocol: {ex.Message}");
         }
     }
 

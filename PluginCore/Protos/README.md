@@ -6,7 +6,8 @@ It is unofficial: recovered from the descriptors embedded in `StarCitizen.exe`.
 **At runtime the plugin does not rely on this file.** On first use of a telemetry key it reads the protocol
 definition straight from the installed game (`<channel>\Bin64\StarCitizen.exe`, see `ProtoDescriptorExtractor`), caches it
 in the plugin's `cache` folder per exe size and modification time, and uses it to build the attribute list and to decode the
-stream. The attributes therefore always match the installed build, also after a patch. This bundled copy is the fallback
+stream. It also exports what it read next to the plugin log (`telemetry-protocol.proto`, a readable rendering, and
+`telemetry-protocol.desc`, a binary `FileDescriptorSet` usable with `grpcurl -protoset`). The attributes therefore always match the installed build, also after a patch. This bundled copy is the fallback
 (game not found, or its definitions could not be read) and is what the unit tests and the mock server use. To refresh it,
 replace the file with the newer reference copy from the `sharing` repository.
 
