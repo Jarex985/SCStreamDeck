@@ -299,7 +299,8 @@
       saveRules();
     }, 'number'), 'Show the text/image for this many ms, then hide it for the same time, repeating. Minimum 250. Empty = no flashing.'));
     card.appendChild(row('Press', renderPressAction(rule, idPrefix),
-      'Action run when the key is pressed while this rule is active.'));
+      ADVANCED ? 'Actions run, in order, when the key is pressed while this rule is active.'
+        : 'Action run when the key is pressed while this rule is active.'));
 
     queueMicrotask(() => {
       if (!isDefault) {
@@ -478,27 +479,107 @@
   }
 
   function renderPressAction(rule, idPrefix) {
+    return ADVANCED
+      ? renderPressActions(rule, idPrefix)
+      : renderFunctionPicker(rule, `${idPrefix}-function`, () => saveRules());
+  }
+
+  // Advanced rules: an ordered list of actions, each with an optional delay before it.
+  function renderPressActions(rule, idPrefix) {
+    // A single legacy `function` becomes the first entry of the list.
+    if (!Array.isArray(rule.actions)) {
+      rule.actions = rule.function ? [{function: rule.function, delayMs: null}] : [];
+    }
+    rule.function = null;
+
+    const wrap = el('div', {class: 'pi-rule__actions-list'});
+
+    rule.actions.forEach((action, index) => {
+      const line = el('div', {class: 'pi-rule__action'});
+
+      const header = el('div', {class: 'pi-rule__action-header'}, [
+        el('span', {class: 'pi-rule__hint', text: `${index + 1}.`}),
+        el('div', {class: 'pi-rule__value'}, [
+          textInput(action.delayMs, 'delay (ms)', (v) => {
+            const parsed = parseInt(v, 10);
+            action.delayMs = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+            saveRules();
+          }, 'number')
+        ]),
+        el('button', {
+          class: 'file-picker-clear', type: 'button', title: 'Move up', text: '▲', onClick: () => moveAction(rule, index, -1)
+        }),
+        el('button', {
+          class: 'file-picker-clear', type: 'button', title: 'Move down', text: '▼', onClick: () => moveAction(rule, index, 1)
+        }),
+        el('button', {
+          class: 'file-picker-clear', type: 'button', title: 'Remove action', text: 'X',
+          onClick: () => {
+            rule.actions.splice(index, 1);
+            saveRules();
+            renderRules();
+          }
+        })
+      ]);
+
+      line.appendChild(header);
+      line.appendChild(renderFunctionPicker(action, `${idPrefix}-action-${index}`, () => saveRules(), false));
+      wrap.appendChild(line);
+    });
+
+    wrap.appendChild(el('button', {
+      class: 'pi-button', type: 'button', text: 'Add action',
+      onClick: () => {
+        rule.actions.push({function: null, delayMs: null});
+        saveRules();
+        renderRules();
+      }
+    }));
+
+    wrap.appendChild(el('span', {
+      class: 'pi-rule__hint',
+      text: 'Actions run in order when the key is pressed (a single action without delay can be held).'
+    }));
+
+    return wrap;
+  }
+
+  function moveAction(rule, index, delta) {
+    const target = index + delta;
+    if (target < 0 || target >= rule.actions.length) {
+      return;
+    }
+    [rule.actions[index], rule.actions[target]] = [rule.actions[target], rule.actions[index]];
+    saveRules();
+    renderRules();
+  }
+
+  // Shows the function stored in `target.function` with a clear button and a searchable picker.
+  function renderFunctionPicker(target, rootId, onChanged, showClear = true) {
     const nameFor = (value) => functionOptions.find((o) => o.value === value)?.text || value || '';
 
     const current = el('span', {
-      class: 'pi-rule__function', text: rule.function ? nameFor(rule.function) : 'None'
+      class: 'pi-rule__function', text: target.function ? nameFor(target.function) : 'None'
     });
-    const clear = el('button', {
-      class: 'file-picker-clear', type: 'button', title: 'Clear press action', text: 'X',
-      onClick: () => {
-        rule.function = null;
-        current.textContent = 'None';
-        saveRules();
-      }
-    });
+    const currentRow = el('div', {class: 'pi-rule__press-current'}, [current]);
+    if (showClear) {
+      currentRow.appendChild(el('button', {
+        class: 'file-picker-clear', type: 'button', title: 'Clear press action', text: 'X',
+        onClick: () => {
+          target.function = null;
+          current.textContent = 'None';
+          onChanged();
+        }
+      }));
+    }
 
     const dropdownRoot = el('div', {
-      class: 'pi-dropdown', id: `${idPrefix}-function`, 'data-placeholder': 'Search functions...'
+      class: 'pi-dropdown', id: rootId, 'data-placeholder': 'Search functions...'
     });
 
     queueMicrotask(() => {
       const dropdown = SCPI?.ui?.dropdown?.initDropdown?.({
-        rootId: `${idPrefix}-function`,
+        rootId,
         searchEnabled: true,
         minLoadingMs: 0,
         successFlashMs: 100,
@@ -509,9 +590,9 @@
         getGroup: (opt) => String(opt?.group ?? ''),
         isDisabled: (opt) => !!opt?.disabled,
         onSelect: (opt) => {
-          rule.function = opt.value;
+          target.function = opt.value;
           current.textContent = opt.text;
-          saveRules();
+          onChanged();
         }
       });
 
@@ -524,10 +605,7 @@
       }
     });
 
-    return el('div', {class: 'pi-rule__press'}, [
-      el('div', {class: 'pi-rule__press-current'}, [current, clear]),
-      dropdownRoot
-    ]);
+    return el('div', {class: 'pi-rule__press'}, [currentRow, dropdownRoot]);
   }
 
   function moveRule(index, delta) {

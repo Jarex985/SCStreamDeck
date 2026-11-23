@@ -88,6 +88,40 @@ public sealed class TelemetryRuleEvaluatorTests
 
 public sealed class TelemetryAdvancedRuleTests
 {
+    [Fact]
+    public void PressActions_PreferTheListOverTheSingleFunction()
+    {
+        TelemetryRule rule = new()
+        {
+            Function = "v_toggle_lights",
+            Actions =
+            [
+                new TelemetryPressAction { Function = "v_toggle_landing_system", DelayMs = 100 },
+                new TelemetryPressAction { Function = "  " },
+                new TelemetryPressAction { Function = "v_toggle_vtol" }
+            ]
+        };
+
+        rule.GetPressActions().Select(a => a.Function).Should().Equal("v_toggle_landing_system", "v_toggle_vtol");
+    }
+
+    [Fact]
+    public void PressActions_FallBackToTheSingleFunctionOrNothing()
+    {
+        new TelemetryRule { Function = "v_toggle_lights" }.GetPressActions()
+            .Should().ContainSingle().Which.Function.Should().Be("v_toggle_lights");
+        new TelemetryRule { Actions = [new TelemetryPressAction()] }.GetPressActions().Should().BeEmpty();
+        new TelemetryRule().GetPressActions().Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(null, 0)]
+    [InlineData(-5, 0)]
+    [InlineData(250, 250)]
+    [InlineData(10_000_000, TelemetryPressAction.MaxDelayMs)]
+    public void PressActionDelay_IsClamped(int? delay, int expected) =>
+        new TelemetryPressAction { DelayMs = delay }.EffectiveDelayMs.Should().Be(expected);
+
     private static TelemetryCondition Cond(string path, string op, string? value, string? value2 = null) =>
         new() { FieldPath = path, Op = op, Value = value, Value2 = value2 };
 

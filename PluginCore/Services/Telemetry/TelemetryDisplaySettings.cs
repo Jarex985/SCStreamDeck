@@ -3,6 +3,22 @@ using Newtonsoft.Json;
 namespace SCStreamDeck.Services.Telemetry;
 
 /// <summary>
+///     One step of a press-action sequence.
+/// </summary>
+public sealed class TelemetryPressAction
+{
+    public const int MaxDelayMs = 60_000;
+
+    /// <summary>Star Citizen action name (as used in defaultProfile.xml).</summary>
+    [JsonProperty("function")] public string? Function { get; set; }
+
+    /// <summary>Wait this many milliseconds before running this action.</summary>
+    [JsonProperty("delayMs")] public int? DelayMs { get; set; }
+
+    public int EffectiveDelayMs => Math.Clamp(DelayMs ?? 0, 0, MaxDelayMs);
+}
+
+/// <summary>
 ///     One test on one attribute, used by advanced rules.
 /// </summary>
 public sealed class TelemetryCondition
@@ -59,6 +75,29 @@ public sealed class TelemetryRule
 
     /// <summary>Star Citizen action name executed on key press while this rule is active.</summary>
     [JsonProperty("function")] public string? Function { get; set; }
+
+    /// <summary>
+    ///     Advanced rules: several actions run in order on key press (each optionally after a delay). When present
+    ///     they replace <see cref="Function" />.
+    /// </summary>
+    [JsonProperty("actions")] public List<TelemetryPressAction>? Actions { get; set; }
+
+    /// <summary>
+    ///     The actions to run on key press: <see cref="Actions" /> if any, otherwise the single <see cref="Function" />.
+    /// </summary>
+    public IReadOnlyList<TelemetryPressAction> GetPressActions()
+    {
+        List<TelemetryPressAction> configured = (Actions ?? [])
+            .Where(a => a != null && !string.IsNullOrWhiteSpace(a.Function))
+            .ToList();
+
+        if (configured.Count > 0)
+        {
+            return configured;
+        }
+
+        return string.IsNullOrWhiteSpace(Function) ? [] : [new TelemetryPressAction { Function = Function }];
+    }
 
     /// <summary>Optional sound file (.wav/.mp3) played once when this rule becomes the active one.</summary>
     [JsonProperty("soundPath")] public string? SoundPath { get; set; }

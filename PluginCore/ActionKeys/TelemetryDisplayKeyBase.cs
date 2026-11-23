@@ -20,8 +20,11 @@ namespace SCStreamDeck.ActionKeys;
 public abstract class TelemetryDisplayKeyBase : SCActionBase
 {
     private static readonly TimeSpan s_minRenderInterval = TimeSpan.FromMilliseconds(200);
+    private static readonly TimeSpan s_tapDuration = TimeSpan.FromMilliseconds(50);
 
     private readonly object _gate = new();
+    private readonly CancellationTokenSource _lifetime = new();
+    private int _sequenceRunning;
     private readonly bool _advanced;
     private readonly TelemetryKeyRenderer _renderer = new();
     private readonly TelemetryService _telemetry;
@@ -87,15 +90,24 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
     {
         try
         {
-            string? function = EvaluateCurrent().Match is { HasData: true } match ? match.Rule.Function : null;
-            if (string.IsNullOrWhiteSpace(function))
+            IReadOnlyList<TelemetryPressAction> actions =
+                EvaluateCurrent().Match is { HasData: true } match ? match.Rule.GetPressActions() : [];
+            if (actions.Count == 0)
             {
                 return;
             }
 
-            Interlocked.Exchange(ref _pressedFunction, function);
             PlayClickSoundIfConfigured();
-            await ExecuteAsync(function, true).ConfigureAwait(false);
+
+            if (actions is [{ DelayMs: null or <= 0 } single])
+            {
+                // One immediate action behaves like Adaptive Key: key down now, key up when released (holds work).
+                Interlocked.Exchange(ref _pressedFunction, single.Function);
+                await ExecuteAsync(single.Function!, true).ConfigureAwait(false);
+                return;
+            }
+
+            _ = RunSequenceAsync(actions);
         }
         catch (Exception ex)
         {
@@ -120,8 +132,48 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
         }
     }
 
+    // The sequence was chosen when the key was pressed: actions change telemetry, which may switch the active rule
+    // mid-way. Presses during a running sequence are ignored so toggles cannot interleave.
+    private async Task RunSequenceAsync(IReadOnlyList<TelemetryPressAction> actions)
+    {
+        if (Interlocked.CompareExchange(ref _sequenceRunning, 1, 0) != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            CancellationToken token = _lifetime.Token;
+            foreach (TelemetryPressAction action in actions)
+            {
+                if (action.EffectiveDelayMs > 0)
+                {
+                    await Task.Delay(action.EffectiveDelayMs, token).ConfigureAwait(false);
+                }
+
+                // Each step is a short tap so activation modes that need a release (tap, release-triggered) fire.
+                await ExecuteAsync(action.Function!, true).ConfigureAwait(false);
+                await Task.Delay(s_tapDuration, token).ConfigureAwait(false);
+                await ExecuteAsync(action.Function!, false).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Key disposed while the sequence was running.
+        }
+        catch (Exception ex)
+        {
+            Log.Err($"{GetType().Name}: action sequence failed: {ex.Message}", ex);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _sequenceRunning, 0);
+        }
+    }
+
     public override void Dispose()
     {
+        _lifetime.Cancel();
         _subscription.Dispose();
         _schemas.Changed -= OnSchemaChanged;
         Connection.OnPropertyInspectorDidAppear -= OnPropertyInspectorDidAppear;
@@ -134,6 +186,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
             _renderer.Dispose();
         }
 
+        _lifetime.Dispose();
         base.Dispose();
         GC.SuppressFinalize(this);
     }

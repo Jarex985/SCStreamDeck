@@ -68,6 +68,9 @@ It has the same text, image, color, flash, sound and press-action options as `Te
 3. Add a Rule and build its **When** part: choose `All of these (AND)` or `Any of these (OR)`, then add conditions. Each condition has its own attribute, operator and value (for example `Is Landed` is `On`, `Hydrogen Fuel` is less than `20`).
 4. In a rule's Text you can print any attribute with `{value:attribute.path}`, for example `REFUEL\n{value:vehicle.state.flight.instruments.hydrogen_fuel}`.
 5. Rules are checked in order and the first one that matches wins. A condition on an attribute that has no data (for example ship values while you are on foot) is false, so such a rule does not match. The Default section applies when no rule matches.
+6. Each rule (and the Default section) has a **Press** list: add one or more actions, optionally with a delay in ms before each one. When you press the key, the actions of the rule that is active at that moment run in order. A single action without a delay behaves like `Adaptive Key` (it is held while you hold the key); with several actions or a delay, each step is a short tap. Pressing again while a sequence is still running is ignored.
+
+Example toggle on one key: Rule 1 = `Gear` is `Deployed` shows "Gear DOWN" and presses the landing gear action; the Default section shows "Gear UP" and presses the same action, so the key always shows and does the right thing.
 
 Example warning light: Rule 1 = ALL of `Is Landed` is `On`, `Hydrogen Fuel` is less than `20`; set a red image, Flash `1000` and a sound.
 

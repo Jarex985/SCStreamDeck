@@ -115,6 +115,29 @@
       border-radius: var(--radius-sm);
     }
 
+    .pi-rule__actions-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      flex: 1;
+      min-width: 0;
+    }
+
+    .pi-rule__action {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+      padding: var(--space-xs);
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-sm);
+    }
+
+    .pi-rule__action-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+
     .pi-rule__attribute {
       flex: 1 1 100%;
     }
