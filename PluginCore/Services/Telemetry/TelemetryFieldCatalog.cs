@@ -1,29 +1,16 @@
-using System.Globalization;
 using System.Text;
-using Google.Protobuf;
 using Google.Protobuf.Reflection;
-using Sc.Game.Telemetry.V1;
 
 namespace SCStreamDeck.Services.Telemetry;
 
 /// <summary>
-///     Discovers displayable attributes from the protobuf descriptors and reads their values from messages,
-///     so new fields in the proto show up without code changes.
+///     Discovers displayable attributes from protobuf descriptors, so new fields in the game's protocol show up
+///     without code changes. Values are read by <see cref="TelemetryFrameDecoder" />.
 /// </summary>
 public static class TelemetryFieldCatalog
 {
-    private const string GaugeFullName = "sc.game.telemetry.v1.Gauge";
-    private const string PercentSegment = "percent";
-
-    private static readonly Lazy<IReadOnlyList<TelemetryField>> s_default =
-        new(() => Build(TelemetryStreamResponse.Descriptor));
-
-    public static IReadOnlyList<TelemetryField> Default => s_default.Value;
-
-    public static TelemetryField? Find(string? path) =>
-        string.IsNullOrWhiteSpace(path)
-            ? null
-            : Default.FirstOrDefault(f => string.Equals(f.Path, path, StringComparison.Ordinal));
+    internal const string GaugeFullName = "sc.game.telemetry.v1.Gauge";
+    internal const string PercentSegment = "percent";
 
     public static IReadOnlyList<TelemetryField> Build(MessageDescriptor root)
     {
@@ -32,63 +19,6 @@ public static class TelemetryFieldCatalog
         List<TelemetryField> fields = [];
         Walk(root, string.Empty, [], fields);
         return fields;
-    }
-
-    /// <summary>
-    ///     Reads the value at <paramref name="path" />. Returns false when any message on the way is absent
-    ///     (e.g. no vehicle frame yet) or the path does not exist.
-    /// </summary>
-    public static bool TryGetValue(IMessage? root, string? path, out TelemetryValue value)
-    {
-        value = default;
-        if (root == null || string.IsNullOrWhiteSpace(path))
-        {
-            return false;
-        }
-
-        string[] segments = path.Split('.');
-        IMessage current = root;
-
-        for (int i = 0; i < segments.Length; i++)
-        {
-            bool isLast = i == segments.Length - 1;
-
-            if (isLast && segments[i] == PercentSegment && current.Descriptor.FullName == GaugeFullName)
-            {
-                return TryGetGaugePercent(current, out value);
-            }
-
-            FieldDescriptor? field = current.Descriptor.FindFieldByName(segments[i]);
-            if (field == null || field.IsRepeated || field.IsMap)
-            {
-                return false;
-            }
-
-            if (field.FieldType == FieldType.Message)
-            {
-                if (isLast || !field.Accessor.HasValue(current) || field.Accessor.GetValue(current) is not IMessage next)
-                {
-                    return false;
-                }
-
-                current = next;
-                continue;
-            }
-
-            if (!isLast)
-            {
-                return false;
-            }
-
-            if (field.HasPresence && !field.Accessor.HasValue(current))
-            {
-                return false;
-            }
-
-            return TryConvert(field, field.Accessor.GetValue(current), out value);
-        }
-
-        return false;
     }
 
     internal static string HumanizeEnumValue(EnumDescriptor enumType, string valueName)
@@ -163,59 +93,6 @@ public static class TelemetryFieldCatalog
             default:
                 return new TelemetryField(path, label, group, TelemetryValueKind.Number, true, null);
         }
-    }
-
-    private static bool TryConvert(FieldDescriptor field, object? raw, out TelemetryValue value)
-    {
-        value = default;
-        switch (field.FieldType)
-        {
-            case FieldType.Bool when raw is bool b:
-                value = new TelemetryValue(TelemetryValueKind.Boolean, Boolean: b, DisplayText: b ? "On" : "Off");
-                return true;
-            case FieldType.String when raw is string s:
-                value = new TelemetryValue(TelemetryValueKind.Text, Text: s, DisplayText: s);
-                return true;
-            case FieldType.Enum when raw != null:
-                int number = Convert.ToInt32(raw, CultureInfo.InvariantCulture);
-                EnumValueDescriptor? member = field.EnumType.FindValueByNumber(number);
-                string name = member?.Name ?? number.ToString(CultureInfo.InvariantCulture);
-                string display = member == null ? name : HumanizeEnumValue(field.EnumType, name);
-                value = new TelemetryValue(TelemetryValueKind.Enum, Text: name, DisplayText: display);
-                return true;
-            case FieldType.Float or FieldType.Double when raw is IConvertible floating:
-                double fp = floating.ToDouble(CultureInfo.InvariantCulture);
-                if (!double.IsFinite(fp))
-                {
-                    return false;
-                }
-
-                value = new TelemetryValue(TelemetryValueKind.Number, fp);
-                return true;
-            case FieldType.Message or FieldType.Group or FieldType.Bytes:
-                return false;
-            default:
-                if (raw is IConvertible integral)
-                {
-                    value = new TelemetryValue(TelemetryValueKind.Number, integral.ToDouble(CultureInfo.InvariantCulture),
-                        IsInteger: true);
-                    return true;
-                }
-
-                return false;
-        }
-    }
-
-    private static bool TryGetGaugePercent(IMessage gauge, out TelemetryValue value)
-    {
-        value = default;
-        if (gauge is not Gauge g || g.Max <= 0 || !float.IsFinite(g.Current) || !float.IsFinite(g.Max))
-        {
-            return false;
-        }
-
-        value = new TelemetryValue(TelemetryValueKind.Number, Math.Clamp(g.Current / g.Max * 100.0, 0, 100));
-        return true;
     }
 
     private static string Group(string path)

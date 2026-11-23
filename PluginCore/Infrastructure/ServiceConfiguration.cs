@@ -49,6 +49,7 @@ public static class ServiceConfiguration
         services.AddSingleton<ActionMapsWatcherService>();
         services.AddSingleton<InitializationService>();
 
+        services.AddSingleton<ITelemetrySchemaProvider, TelemetrySchemaProvider>();
         services.AddSingleton<ITelemetryStreamSource, GrpcTelemetryStreamSource>();
         services.AddSingleton<TelemetryService>();
     }

@@ -1,10 +1,14 @@
 # Telemetry proto
 
 `sc_telemetry_v1.proto` is the schema of Star Citizen's local gRPC telemetry API (`sc.game.telemetry.v1`).
-It is unofficial: recovered from the descriptors embedded in `StarCitizen.exe`. The reference copy and the notes
-live in the `sharing` repository; this file is compiled by `Grpc.Tools` (see `PluginCore.csproj`) into the client used by
-the `Telemetry Display` key. Update it by replacing the file with the newer reference copy; field changes show up in the
-Property Inspector automatically because the attribute list is generated from the descriptors.
+It is unofficial: recovered from the descriptors embedded in `StarCitizen.exe`.
+
+**At runtime the plugin does not rely on this file.** On first use of a telemetry key it reads the protocol
+definition straight from the installed game (`<channel>\Bin64\StarCitizen.exe`, see `ProtoDescriptorExtractor`), caches it
+in the plugin's `cache` folder per exe size and modification time, and uses it to build the attribute list and to decode the
+stream. The attributes therefore always match the installed build, also after a patch. This bundled copy is the fallback
+(game not found, or its definitions could not be read) and is what the unit tests and the mock server use. To refresh it,
+replace the file with the newer reference copy from the `sharing` repository.
 
 ## Enabling telemetry in the game
 

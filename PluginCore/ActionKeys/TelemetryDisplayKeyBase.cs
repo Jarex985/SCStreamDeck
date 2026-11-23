@@ -4,7 +4,6 @@ using BarRaider.SdTools.Events;
 using BarRaider.SdTools.Wrappers;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Sc.Game.Telemetry.V1;
 using SCStreamDeck.Common;
 using SCStreamDeck.Infrastructure;
 using SCStreamDeck.Logging;
@@ -26,6 +25,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
     private readonly bool _advanced;
     private readonly TelemetryKeyRenderer _renderer = new();
     private readonly TelemetryService _telemetry;
+    private readonly ITelemetrySchemaProvider _schemas;
     private readonly IDisposable _subscription;
 
     private TelemetryDisplaySettings _display;
@@ -46,12 +46,16 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
         : base(connection, payload)
     {
         _advanced = advanced;
-        _telemetry = ActionDependencies.ForTelemetryDisplayKey();
+        TelemetryKeyDependencies deps = ActionDependencies.ForTelemetryDisplayKey();
+        _telemetry = deps.Telemetry;
+        _schemas = deps.Schemas;
         _display = ParseSettings(payload.Settings);
         _flashTimer = new Timer(_ => Refresh(false), null, Timeout.Infinite, Timeout.Infinite);
 
         Connection.OnPropertyInspectorDidAppear += OnPropertyInspectorDidAppear;
         Connection.OnSendToPlugin += OnSendToPlugin;
+        _schemas.Changed += OnSchemaChanged;
+        _schemas.EnsureRefreshStarted();
 
         Refresh(true);
         _subscription = _telemetry.Subscribe(OnTelemetryUpdated);
@@ -119,6 +123,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
     public override void Dispose()
     {
         _subscription.Dispose();
+        _schemas.Changed -= OnSchemaChanged;
         Connection.OnPropertyInspectorDidAppear -= OnPropertyInspectorDidAppear;
         Connection.OnSendToPlugin -= OnSendToPlugin;
 
@@ -156,6 +161,13 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
 
     private void OnTelemetryUpdated() => Refresh(false);
 
+    // A newer protocol definition was read from the game: refresh the attribute list and the key.
+    private void OnSchemaChanged()
+    {
+        SendFieldsToPropertyInspector();
+        Refresh(false);
+    }
+
     private (TelemetryRuleMatch Match, TelemetryRenderModel Model) EvaluateCurrent()
     {
         TelemetryDisplaySettings display;
@@ -164,11 +176,11 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
             display = _display;
         }
 
-        TelemetryStreamResponse? snapshot = _telemetry.Snapshot;
+        TelemetrySnapshot? snapshot = _telemetry.Snapshot;
         TelemetryValue? Resolve(string path) =>
-            TelemetryFieldCatalog.TryGetValue(snapshot, path, out TelemetryValue read) ? read : null;
+            snapshot != null && snapshot.TryGetValue(path, out TelemetryValue read) ? read : null;
 
-        TelemetryField? field = TelemetryFieldCatalog.Find(display.FieldPath);
+        TelemetryField? field = _schemas.Current.Find(display.FieldPath);
         TelemetryValue? value = Resolve(display.FieldPath ?? string.Empty);
 
         TelemetryRuleMatch match = _advanced
@@ -341,7 +353,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
         {
             Connection.SendToPropertyInspectorAsync(new JObject
             {
-                ["telemetryFields"] = JArray.FromObject(TelemetryFieldCatalog.Default)
+                ["telemetryFields"] = JArray.FromObject(_schemas.Current.Fields)
             });
         }
         catch (Exception ex)

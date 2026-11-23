@@ -69,7 +69,7 @@
 
   <!-- Star Citizen local telemetry API (see Protos/README.md) -->
   <ItemGroup>
-    <Protobuf Include="Protos\sc_telemetry_v1.proto" GrpcServices="Client"/>
+    <Protobuf Include="Protos\sc_telemetry_v1.proto" GrpcServices="None"/>
   </ItemGroup>
 
   <!-- Manifest & Property Inspector -->

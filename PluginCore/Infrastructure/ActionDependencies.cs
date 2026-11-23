@@ -24,8 +24,12 @@ internal static class ActionDependencies
         ServiceLocator.GetService<ThemeService>(),
         ServiceLocator.GetService<IKeybindingsJsonCache>());
 
-    public static TelemetryService ForTelemetryDisplayKey() => ServiceLocator.GetService<TelemetryService>();
+    public static TelemetryKeyDependencies ForTelemetryDisplayKey() => new(
+        ServiceLocator.GetService<TelemetryService>(),
+        ServiceLocator.GetService<ITelemetrySchemaProvider>());
 }
+
+internal sealed record TelemetryKeyDependencies(TelemetryService Telemetry, ITelemetrySchemaProvider Schemas);
 
 internal sealed record SCActionBaseDependencies(
     InitializationService InitializationService,

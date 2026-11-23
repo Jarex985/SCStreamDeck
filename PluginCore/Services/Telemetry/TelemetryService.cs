@@ -1,4 +1,3 @@
-using Sc.Game.Telemetry.V1;
 using SCStreamDeck.Logging;
 
 namespace SCStreamDeck.Services.Telemetry;
@@ -21,21 +20,13 @@ public sealed class TelemetryService(ITelemetryStreamSource source) : IDisposabl
 
     private readonly object _gate = new();
     private readonly object _stateGate = new();
-    private readonly DateTime[] _partStamps = new DateTime[PartCount];
+    private readonly Dictionary<string, DateTime> _partStamps = new(StringComparer.Ordinal);
     private readonly ITelemetryStreamSource _source = source ?? throw new ArgumentNullException(nameof(source));
-
-    private const int PartVehicle = 0;
-    private const int PartWeapons = 1;
-    private const int PartEvents = 2;
-    private const int PartActor = 3;
-    private const int PartForceFeedback = 4;
-    private const int PartTurret = 5;
-    private const int PartCount = 6;
 
     private CancellationTokenSource? _loopCts;
     private Task? _loopTask;
     private int _subscribers;
-    private volatile TelemetryStreamResponse? _snapshot;
+    private volatile TelemetrySnapshot? _snapshot;
     private volatile TelemetryConnectionState _state;
 
     public TimeSpan MinRetryDelay { get; init; } = s_defaultMinRetry;
@@ -46,8 +37,8 @@ public sealed class TelemetryService(ITelemetryStreamSource source) : IDisposabl
 
     public TimeSpan StaleCheckInterval { get; init; } = TimeSpan.FromMilliseconds(500);
 
-    /// <summary>Latest value of each frame type; null while nothing is being received.</summary>
-    public TelemetryStreamResponse? Snapshot => _snapshot;
+    /// <summary>Latest value of each frame part; null while nothing is being received.</summary>
+    public TelemetrySnapshot? Snapshot => _snapshot;
 
     public TelemetryConnectionState State => _state;
 
@@ -140,7 +131,7 @@ public sealed class TelemetryService(ITelemetryStreamSource source) : IDisposabl
             SetState(TelemetryConnectionState.Connecting);
             try
             {
-                await foreach (TelemetryStreamResponse frame in _source.StreamAsync(token).ConfigureAwait(false))
+                await foreach (TelemetrySnapshot frame in _source.StreamAsync(token).ConfigureAwait(false))
                 {
                     delay = MinRetryDelay;
                     ApplyFrame(frame, DateTime.UtcNow);
@@ -187,20 +178,20 @@ public sealed class TelemetryService(ITelemetryStreamSource source) : IDisposabl
     ///     A frame may only carry some of its parts and the game stops sending a part when it no longer applies
     ///     (e.g. the vehicle part after leaving a seat). Keep the last value of each part until it goes stale.
     /// </summary>
-    internal void ApplyFrame(TelemetryStreamResponse frame, DateTime now)
+    internal void ApplyFrame(TelemetrySnapshot frame, DateTime now)
     {
         lock (_stateGate)
         {
-            TelemetryStreamResponse? previous = _snapshot;
-            _snapshot = new TelemetryStreamResponse
+            Dictionary<string, IReadOnlyDictionary<string, TelemetryValue>> parts =
+                new(_snapshot?.Parts ?? TelemetrySnapshot.Empty.Parts, StringComparer.Ordinal);
+
+            foreach ((string name, IReadOnlyDictionary<string, TelemetryValue> values) in frame.Parts)
             {
-                Vehicle = Pick(frame.Vehicle, previous?.Vehicle, PartVehicle, now),
-                Weapons = Pick(frame.Weapons, previous?.Weapons, PartWeapons, now),
-                Events = Pick(frame.Events, previous?.Events, PartEvents, now),
-                Actor = Pick(frame.Actor, previous?.Actor, PartActor, now),
-                ForceFeedback = Pick(frame.ForceFeedback, previous?.ForceFeedback, PartForceFeedback, now),
-                Turret = Pick(frame.Turret, previous?.Turret, PartTurret, now)
-            };
+                parts[name] = values;
+                _partStamps[name] = now;
+            }
+
+            _snapshot = new TelemetrySnapshot(parts);
         }
     }
 
@@ -211,49 +202,31 @@ public sealed class TelemetryService(ITelemetryStreamSource source) : IDisposabl
     {
         lock (_stateGate)
         {
-            TelemetryStreamResponse? current = _snapshot;
+            TelemetrySnapshot? current = _snapshot;
             if (current == null)
             {
                 return false;
             }
 
-            TelemetryStreamResponse next = new()
-            {
-                Vehicle = Fresh(current.Vehicle, PartVehicle, now),
-                Weapons = Fresh(current.Weapons, PartWeapons, now),
-                Events = Fresh(current.Events, PartEvents, now),
-                Actor = Fresh(current.Actor, PartActor, now),
-                ForceFeedback = Fresh(current.ForceFeedback, PartForceFeedback, now),
-                Turret = Fresh(current.Turret, PartTurret, now)
-            };
-
-            bool changed = !ReferenceEquals(next.Vehicle, current.Vehicle) || !ReferenceEquals(next.Weapons, current.Weapons) ||
-                           !ReferenceEquals(next.Events, current.Events) || !ReferenceEquals(next.Actor, current.Actor) ||
-                           !ReferenceEquals(next.ForceFeedback, current.ForceFeedback) ||
-                           !ReferenceEquals(next.Turret, current.Turret);
-            if (!changed)
+            List<string> stale = current.Parts.Keys
+                .Where(name => !_partStamps.TryGetValue(name, out DateTime stamp) || now - stamp >= StaleAfter)
+                .ToList();
+            if (stale.Count == 0)
             {
                 return false;
             }
 
-            _snapshot = next;
+            Dictionary<string, IReadOnlyDictionary<string, TelemetryValue>> parts = new(current.Parts, StringComparer.Ordinal);
+            foreach (string name in stale)
+            {
+                parts.Remove(name);
+                _partStamps.Remove(name);
+            }
+
+            _snapshot = new TelemetrySnapshot(parts);
             return true;
         }
     }
-
-    private T? Pick<T>(T? fromFrame, T? previous, int part, DateTime now) where T : class
-    {
-        if (fromFrame == null)
-        {
-            return previous;
-        }
-
-        _partStamps[part] = now;
-        return fromFrame;
-    }
-
-    private T? Fresh<T>(T? value, int part, DateTime now) where T : class =>
-        value != null && now - _partStamps[part] < StaleAfter ? value : null;
 
     private async Task ExpireLoopAsync(CancellationToken token)
     {

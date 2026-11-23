@@ -1,26 +1,37 @@
 using System.Runtime.CompilerServices;
 using FluentAssertions;
-using Sc.Game.Telemetry.V1;
 using SCStreamDeck.Services.Telemetry;
 
 namespace Tests.Unit.Services.Telemetry;
 
 public sealed class TelemetryServiceTests
 {
-    private sealed class ScriptedSource(Func<int, CancellationToken, IAsyncEnumerable<TelemetryStreamResponse>> script)
+    private sealed class ScriptedSource(Func<int, CancellationToken, IAsyncEnumerable<TelemetrySnapshot>> script)
         : ITelemetryStreamSource
     {
         private int _attempts;
         public int Attempts => _attempts;
 
-        public IAsyncEnumerable<TelemetryStreamResponse> StreamAsync(CancellationToken cancellationToken) =>
+        public IAsyncEnumerable<TelemetrySnapshot> StreamAsync(CancellationToken cancellationToken) =>
             script(Interlocked.Increment(ref _attempts), cancellationToken);
     }
 
-    private static async IAsyncEnumerable<TelemetryStreamResponse> Frames(
-        IEnumerable<TelemetryStreamResponse> frames, bool thenWait, [EnumeratorCancellation] CancellationToken token)
+    private static TelemetrySnapshot Part(string name, params (string Path, double Value)[] values) =>
+        new(new Dictionary<string, IReadOnlyDictionary<string, TelemetryValue>>
+        {
+            [name] = values.ToDictionary(v => v.Path, v => new TelemetryValue(TelemetryValueKind.Number, v.Value))
+        });
+
+    private static TelemetrySnapshot Merge(params TelemetrySnapshot[] parts) =>
+        new(parts.SelectMany(p => p.Parts).ToDictionary(p => p.Key, p => p.Value));
+
+    private static readonly TelemetrySnapshot s_actor = Part("actor", ("actor.vitals.pressure", 1));
+    private static readonly TelemetrySnapshot s_vehicle = Part("vehicle", ("vehicle.state.speed", 5));
+
+    private static async IAsyncEnumerable<TelemetrySnapshot> Frames(
+        IEnumerable<TelemetrySnapshot> frames, bool thenWait, [EnumeratorCancellation] CancellationToken token)
     {
-        foreach (TelemetryStreamResponse frame in frames)
+        foreach (TelemetrySnapshot frame in frames)
         {
             yield return frame;
         }
@@ -46,14 +57,14 @@ public sealed class TelemetryServiceTests
     {
         using TelemetryService service = new(new ScriptedSource((_, token) => Frames([], true, token)));
         DateTime t0 = DateTime.UtcNow;
-        TelemetryStreamResponse first = new() { Actor = new ActorFrame(), Vehicle = new VehicleFrame() };
-        TelemetryStreamResponse second = new() { Actor = new ActorFrame { State = new ActorState { UecBalance = 5 } } };
 
-        service.ApplyFrame(first, t0);
-        service.ApplyFrame(second, t0.AddMilliseconds(100));
+        service.ApplyFrame(Merge(s_actor, s_vehicle), t0);
+        service.ApplyFrame(Part("actor", ("actor.vitals.pressure", 2)), t0.AddMilliseconds(100));
 
-        service.Snapshot!.Vehicle.Should().BeSameAs(first.Vehicle);
-        service.Snapshot.Actor.Should().BeSameAs(second.Actor);
+        service.Snapshot!.TryGetValue("vehicle.state.speed", out TelemetryValue speed).Should().BeTrue();
+        speed.Number.Should().Be(5);
+        service.Snapshot.TryGetValue("actor.vitals.pressure", out TelemetryValue pressure).Should().BeTrue();
+        pressure.Number.Should().Be(2);
     }
 
     [Fact]
@@ -66,24 +77,24 @@ public sealed class TelemetryServiceTests
         DateTime t0 = DateTime.UtcNow;
 
         // Seated: vehicle and actor arrive. Then the player leaves the seat and only the actor keeps coming.
-        service.ApplyFrame(new TelemetryStreamResponse { Actor = new ActorFrame(), Vehicle = new VehicleFrame() }, t0);
-        service.ApplyFrame(new TelemetryStreamResponse { Actor = new ActorFrame() }, t0.AddSeconds(2));
+        service.ApplyFrame(Merge(s_actor, s_vehicle), t0);
+        service.ApplyFrame(s_actor, t0.AddSeconds(2));
 
         service.ExpireStale(t0.AddSeconds(2.5)).Should().BeFalse();
-        service.Snapshot!.Vehicle.Should().NotBeNull();
+        service.Snapshot!.HasPart("vehicle").Should().BeTrue();
 
-        service.ApplyFrame(new TelemetryStreamResponse { Actor = new ActorFrame() }, t0.AddSeconds(3.5));
+        service.ApplyFrame(s_actor, t0.AddSeconds(3.5));
         service.ExpireStale(t0.AddSeconds(3.6)).Should().BeTrue();
 
-        service.Snapshot!.Vehicle.Should().BeNull();
-        service.Snapshot.Actor.Should().NotBeNull();
+        service.Snapshot!.HasPart("vehicle").Should().BeFalse();
+        service.Snapshot.HasPart("actor").Should().BeTrue();
         service.ExpireStale(t0.AddSeconds(3.7)).Should().BeFalse();
     }
 
     [Fact]
     public async Task StalePart_RaisesUpdatedWithoutNewFrames()
     {
-        ScriptedSource source = new((_, token) => Frames([new TelemetryStreamResponse { Vehicle = new VehicleFrame() }], true, token));
+        ScriptedSource source = new((_, token) => Frames([s_vehicle], true, token));
         using TelemetryService service = new(source)
         {
             StaleAfter = TimeSpan.FromMilliseconds(100), StaleCheckInterval = TimeSpan.FromMilliseconds(20)
@@ -91,19 +102,19 @@ public sealed class TelemetryServiceTests
 
         using IDisposable subscription = service.Subscribe(() => { });
 
-        (await WaitUntilAsync(() => service.Snapshot?.Vehicle != null)).Should().BeTrue();
-        (await WaitUntilAsync(() => service.Snapshot?.Vehicle == null)).Should().BeTrue();
+        (await WaitUntilAsync(() => service.Snapshot?.HasPart("vehicle") == true)).Should().BeTrue();
+        (await WaitUntilAsync(() => service.Snapshot?.HasPart("vehicle") == false)).Should().BeTrue();
     }
 
     [Fact]
     public async Task Subscribe_StreamsFramesAndStopsWhenLastSubscriberLeaves()
     {
-        ScriptedSource source = new((_, token) => Frames([new TelemetryStreamResponse { Actor = new ActorFrame() }], true, token));
+        ScriptedSource source = new((_, token) => Frames([s_actor], true, token));
         using TelemetryService service = new(source);
 
         IDisposable subscription = service.Subscribe(() => { });
         (await WaitUntilAsync(() => service.State == TelemetryConnectionState.Streaming)).Should().BeTrue();
-        service.Snapshot!.Actor.Should().NotBeNull();
+        service.Snapshot!.HasPart("actor").Should().BeTrue();
 
         subscription.Dispose();
         (await WaitUntilAsync(() => service.State == TelemetryConnectionState.Disconnected)).Should().BeTrue();
@@ -115,7 +126,7 @@ public sealed class TelemetryServiceTests
     {
         ScriptedSource source = new((attempt, token) => attempt == 1
             ? ThrowingFrames()
-            : Frames([new TelemetryStreamResponse { Actor = new ActorFrame() }], true, token));
+            : Frames([s_actor], true, token));
         using TelemetryService service = new(source)
         {
             MinRetryDelay = TimeSpan.FromMilliseconds(10), MaxRetryDelay = TimeSpan.FromMilliseconds(20)
@@ -126,7 +137,7 @@ public sealed class TelemetryServiceTests
         (await WaitUntilAsync(() => source.Attempts >= 2 && service.Snapshot != null)).Should().BeTrue();
         service.State.Should().Be(TelemetryConnectionState.Streaming);
 
-        static async IAsyncEnumerable<TelemetryStreamResponse> ThrowingFrames()
+        static async IAsyncEnumerable<TelemetrySnapshot> ThrowingFrames()
         {
             await Task.Yield();
             throw new InvalidOperationException("server unavailable");
