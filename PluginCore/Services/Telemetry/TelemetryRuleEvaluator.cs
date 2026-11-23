@@ -15,57 +15,123 @@ public static class TelemetryRuleEvaluator
     ///     Picks the first rule matching <paramref name="value" />; falls back to the default rule.
     ///     Without data only the default rule applies.
     /// </summary>
-    public static TelemetryRuleMatch Evaluate(TelemetryDisplaySettings settings, TelemetryValue? value)
+    public static TelemetryRuleMatch Evaluate(TelemetryDisplaySettings settings, TelemetryValue? value) =>
+        EvaluateCore(settings, value, _ => null);
+
+    /// <summary>
+    ///     Like <see cref="Evaluate" /> but values are looked up by attribute path, so rules can use several
+    ///     attributes. Rules without conditions test the settings' primary attribute (<c>FieldPath</c>); rules with
+    ///     conditions test their own attributes and match when all (or any) conditions hold. A condition on an
+    ///     attribute without data is false.
+    /// </summary>
+    public static TelemetryRuleMatch EvaluateWithResolver(
+        TelemetryDisplaySettings settings, Func<string, TelemetryValue?> resolve)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(resolve);
+
+        Dictionary<string, TelemetryValue?> cache = new(StringComparer.Ordinal);
+
+        TelemetryValue? Get(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return null;
+            }
+
+            if (!cache.TryGetValue(path, out TelemetryValue? value))
+            {
+                value = resolve(path);
+                cache[path] = value;
+            }
+
+            return value;
+        }
+
+        return EvaluateCore(settings, Get(settings.FieldPath), Get);
+    }
+
+    private static TelemetryRuleMatch EvaluateCore(
+        TelemetryDisplaySettings settings, TelemetryValue? primary, Func<string?, TelemetryValue?> get)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
         TelemetryRule fallback = settings.DefaultRule ?? new TelemetryRule();
-        if (value is not { } current)
-        {
-            return new TelemetryRuleMatch(fallback, -1, false);
-        }
 
         for (int i = 0; i < settings.Rules.Count; i++)
         {
             TelemetryRule rule = settings.Rules[i];
-            if (rule != null && Matches(rule, current))
+            if (rule == null)
+            {
+                continue;
+            }
+
+            bool matched = rule.Conditions is { Count: > 0 }
+                ? MatchesConditions(rule, get)
+                : primary is { } p && Matches(rule, p);
+
+            if (matched)
             {
                 return new TelemetryRuleMatch(rule, i, true);
             }
         }
 
-        return new TelemetryRuleMatch(fallback, -1, true);
+        bool anyData = primary.HasValue ||
+                       settings.Rules.Any(r => r?.Conditions != null && r.Conditions.Any(c => get(c?.FieldPath).HasValue));
+        return new TelemetryRuleMatch(fallback, -1, anyData);
     }
 
     public static bool Matches(TelemetryRule rule, TelemetryValue value)
     {
         ArgumentNullException.ThrowIfNull(rule);
 
-        if (rule.Op == TelemetryRule.OpAlways)
-        {
-            return true;
-        }
+        return Matches(rule.Op, rule.Value, rule.Value2, value);
+    }
 
-        return value.Kind switch
-        {
-            TelemetryValueKind.Number => MatchesNumber(rule, value.Number),
-            TelemetryValueKind.Boolean => MatchesBoolean(rule, value.Boolean),
-            _ => MatchesText(rule, value.Text)
-        };
+    public static bool Matches(TelemetryCondition condition, TelemetryValue value)
+    {
+        ArgumentNullException.ThrowIfNull(condition);
+
+        return Matches(condition.Op, condition.Value, condition.Value2, value);
     }
 
     public static bool TryParseNumber(string? text, out double number) =>
         double.TryParse(text?.Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out number) &&
         double.IsFinite(number);
 
-    private static bool MatchesNumber(TelemetryRule rule, double actual)
+    private static bool MatchesConditions(TelemetryRule rule, Func<string?, TelemetryValue?> get)
     {
-        if (!TryParseNumber(rule.Value, out double threshold))
+        bool any = string.Equals(rule.Match, TelemetryRule.MatchAny, StringComparison.OrdinalIgnoreCase);
+
+        bool Holds(TelemetryCondition? condition) =>
+            condition != null && get(condition.FieldPath) is { } value && Matches(condition, value);
+
+        return any ? rule.Conditions!.Any(Holds) : rule.Conditions!.All(Holds);
+    }
+
+    private static bool Matches(string op, string? value, string? value2, TelemetryValue actual)
+    {
+        if (op == TelemetryRule.OpAlways)
+        {
+            return true;
+        }
+
+        return actual.Kind switch
+        {
+            TelemetryValueKind.Number => MatchesNumber(op, value, value2, actual.Number),
+            TelemetryValueKind.Boolean => MatchesBoolean(op, value, actual.Boolean),
+            _ => MatchesText(op, value, actual.Text)
+        };
+    }
+
+    private static bool MatchesNumber(string op, string? value, string? value2, double actual)
+    {
+        if (!TryParseNumber(value, out double threshold))
         {
             return false;
         }
 
-        switch (rule.Op)
+        switch (op)
         {
             case TelemetryRule.OpLessThan:
                 return actual < threshold;
@@ -80,7 +146,7 @@ public static class TelemetryRuleEvaluator
             case TelemetryRule.OpNotEquals:
                 return Math.Abs(actual - threshold) >= Epsilon;
             case TelemetryRule.OpBetween:
-                if (!TryParseNumber(rule.Value2, out double upper))
+                if (!TryParseNumber(value2, out double upper))
                 {
                     return false;
                 }
@@ -92,14 +158,14 @@ public static class TelemetryRuleEvaluator
         }
     }
 
-    private static bool MatchesBoolean(TelemetryRule rule, bool actual)
+    private static bool MatchesBoolean(string op, string? value, bool actual)
     {
-        if (!bool.TryParse(rule.Value?.Trim(), out bool expected))
+        if (!bool.TryParse(value?.Trim(), out bool expected))
         {
             return false;
         }
 
-        return rule.Op switch
+        return op switch
         {
             TelemetryRule.OpEquals => actual == expected,
             TelemetryRule.OpNotEquals => actual != expected,
@@ -107,12 +173,12 @@ public static class TelemetryRuleEvaluator
         };
     }
 
-    private static bool MatchesText(TelemetryRule rule, string actual)
+    private static bool MatchesText(string op, string? value, string actual)
     {
-        string expected = rule.Value?.Trim() ?? string.Empty;
+        string expected = value?.Trim() ?? string.Empty;
         bool equal = string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
 
-        return rule.Op switch
+        return op switch
         {
             TelemetryRule.OpEquals => equal,
             TelemetryRule.OpNotEquals => !equal,

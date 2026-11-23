@@ -7,6 +7,9 @@
   const SCPI = globalThis.SCPI;
   SCPI?.bus?.start?.();
 
+  // Advanced page: rules hold conditions on several attributes (set by AdvancedTelemetryDisplay.html).
+  const ADVANCED = globalThis.SCPI_TELEMETRY_ADVANCED === true;
+
   // #region State
 
   const OPS_NUMBER = [
@@ -84,12 +87,12 @@
     return node;
   }
 
-  function currentField() {
-    return fields.find((f) => f.path === state.fieldPath) || null;
+  function currentField(path = state.fieldPath) {
+    return fields.find((f) => f.path === path) || null;
   }
 
-  function fieldKind() {
-    return String(currentField()?.kind || '').toLowerCase();
+  function fieldKind(path = state.fieldPath) {
+    return String(currentField(path)?.kind || '').toLowerCase();
   }
 
   function row(label, content, title) {
@@ -152,11 +155,15 @@
     state.fieldPath = path;
     save('fieldPath', path);
     refreshFieldSummary();
-    // Operators and value editors depend on the attribute type.
-    state.rules.forEach(normalizeRuleForField);
+    // Operators and value editors depend on the attribute type (simple rules only).
+    if (!ADVANCED) {
+      state.rules.forEach((rule) => normalizeForField(rule, currentField()));
+    }
     saveRules();
     renderRules();
   }
+
+  document.getElementById('fieldClear')?.addEventListener('click', () => selectField(''));
 
   function refreshFieldSummary() {
     const field = currentField();
@@ -170,23 +177,31 @@
     if (labelInput) {
       labelInput.placeholder = field ? field.label : 'Attribute name';
     }
+    const clear = document.getElementById('fieldClear');
+    if (clear) {
+      clear.disabled = !state.fieldPath;
+    }
   }
 
-  function normalizeRuleForField(rule) {
-    const kind = fieldKind();
-    const allowed = (kind === 'number' ? OPS_NUMBER : OPS_EQUALITY).map(([v]) => v);
-    if (!allowed.includes(rule.op)) {
-      rule.op = allowed[0];
-      rule.value = '';
-      rule.value2 = '';
+  // Makes op/value valid for the attribute's type; works for rules and for conditions.
+  function normalizeForField(target, field) {
+    const kind = String(field?.kind || '').toLowerCase();
+    if (!kind) {
+      return;
     }
-    if (kind === 'boolean' && rule.value !== 'true' && rule.value !== 'false') {
-      rule.value = 'true';
+    const allowed = (kind === 'number' ? OPS_NUMBER : OPS_EQUALITY).map(([v]) => v);
+    if (!allowed.includes(target.op)) {
+      target.op = allowed[0];
+      target.value = '';
+      target.value2 = '';
+    }
+    if (kind === 'boolean' && target.value !== 'true' && target.value !== 'false') {
+      target.value = 'true';
     }
     if (kind === 'enum') {
-      const names = (currentField()?.enumValues || []).map((e) => e.name);
-      if (!names.includes(rule.value)) {
-        rule.value = names[0] || '';
+      const names = (field?.enumValues || []).map((e) => e.name);
+      if (!names.includes(target.value)) {
+        target.value = names[0] || '';
       }
     }
   }
@@ -208,9 +223,16 @@
 
   // #region Rules
 
+  function newCondition() {
+    return {fieldPath: '', op: 'eq', value: '', value2: ''};
+  }
+
   function newRule() {
+    if (ADVANCED) {
+      return {match: 'all', conditions: [newCondition()]};
+    }
     const rule = {op: fieldKind() === 'number' ? 'lt' : 'eq', value: '', value2: ''};
-    normalizeRuleForField(rule);
+    normalizeForField(rule, currentField());
     return rule;
   }
 
@@ -248,13 +270,15 @@
     const card = el('div', {class: 'pi-rule'}, [header]);
 
     if (!isDefault) {
-      card.appendChild(row('When', renderCondition(rule)));
+      card.appendChild(row('When', ADVANCED ? renderConditions(rule) : renderCondition(rule)));
     }
 
     card.appendChild(row('Text', textInput(rule.text, '{label}\\n{value}', (v) => {
       rule.text = v;
       saveRules();
-    }), 'Use {value} and {label}; \\n starts a new line. Empty = "{label}\\n{value}".'));
+    }), ADVANCED
+      ? 'Use {value}/{label} (display attribute) or {value:attribute.path} for any attribute; \\n starts a new line.'
+      : 'Use {value} and {label}; \\n starts a new line. Empty = "{label}\\n{value}".'));
 
     card.appendChild(row('Image', el('div', {
       class: 'pi-file-picker', id: `${idPrefix}-image`, 'data-accept': '.png,.jpg,.jpeg,.bmp,.gif',
@@ -305,7 +329,77 @@
   }
 
   function renderCondition(rule) {
-    const kind = fieldKind();
+    return renderOperatorEditor(rule, currentField());
+  }
+
+  // Advanced rules: all/any selector plus one row per condition (attribute + operator + value).
+  function renderConditions(rule) {
+    rule.conditions = Array.isArray(rule.conditions) ? rule.conditions : [];
+    rule.match = rule.match === 'any' ? 'any' : 'all';
+
+    const wrap = el('div', {class: 'pi-rule__conditions'});
+    wrap.appendChild(selectInput([['all', 'All of these (AND)'], ['any', 'Any of these (OR)']], rule.match, (m) => {
+      rule.match = m;
+      saveRules();
+    }));
+
+    rule.conditions.forEach((condition, index) => {
+      const field = currentField(condition.fieldPath);
+      const line = el('div', {class: 'pi-rule__condition-row'});
+
+      line.appendChild(attributeSelect(condition.fieldPath, (path) => {
+        condition.fieldPath = path;
+        condition.value = '';
+        condition.value2 = '';
+        normalizeForField(condition, currentField(path));
+        saveRules();
+        renderRules();
+      }));
+      line.appendChild(renderOperatorEditor(condition, field));
+      line.appendChild(el('button', {
+        class: 'file-picker-clear', type: 'button', title: 'Remove condition', text: 'X',
+        onClick: () => {
+          rule.conditions.splice(index, 1);
+          saveRules();
+          renderRules();
+        }
+      }));
+      wrap.appendChild(line);
+    });
+
+    wrap.appendChild(el('button', {
+      class: 'pi-button', type: 'button', text: 'Add condition',
+      onClick: () => {
+        rule.conditions.push(newCondition());
+        saveRules();
+        renderRules();
+      }
+    }));
+
+    return wrap;
+  }
+
+  function attributeSelect(path, onChange) {
+    const select = el('select', {class: 'pi-rule__select pi-rule__attribute'});
+    select.appendChild(el('option', {value: '', text: 'Select attribute...'}));
+
+    const groups = new Map();
+    for (const f of fields) {
+      if (!groups.has(f.group)) {
+        groups.set(f.group, el('optgroup', {label: f.group}));
+        select.appendChild(groups.get(f.group));
+      }
+      groups.get(f.group).appendChild(el('option', {value: f.path, text: f.label}));
+    }
+
+    select.value = fields.some((f) => f.path === path) ? path : '';
+    select.addEventListener('change', () => onChange(select.value));
+    return select;
+  }
+
+  // Operator + value editors for a rule (simple key) or a condition (advanced key) on the given attribute.
+  function renderOperatorEditor(rule, field) {
+    const kind = String(field?.kind || '').toLowerCase();
     const wrap = el('div', {class: 'pi-rule__condition'});
 
     if (!kind) {
@@ -326,7 +420,7 @@
         saveRules();
       }));
     } else if (kind === 'enum') {
-      const options = (currentField()?.enumValues || []).map((e) => [e.name, e.label]);
+      const options = (field?.enumValues || []).map((e) => [e.name, e.label]);
       wrap.appendChild(selectInput(options, rule.value, (v) => {
         rule.value = v;
         saveRules();

@@ -86,6 +86,94 @@ public sealed class TelemetryRuleEvaluatorTests
     }
 }
 
+public sealed class TelemetryAdvancedRuleTests
+{
+    private static TelemetryCondition Cond(string path, string op, string? value, string? value2 = null) =>
+        new() { FieldPath = path, Op = op, Value = value, Value2 = value2 };
+
+    private static Func<string, TelemetryValue?> Values(bool? landed, double? fuel) => path => path switch
+    {
+        "landed" when landed is { } l => new TelemetryValue(TelemetryValueKind.Boolean, Boolean: l),
+        "fuel" when fuel is { } f => new TelemetryValue(TelemetryValueKind.Number, f),
+        _ => null
+    };
+
+    private static TelemetryDisplaySettings LandedAndLowFuel(string? match = null) => new()
+    {
+        Rules =
+        [
+            new TelemetryRule
+            {
+                Text = "REFUEL",
+                Match = match,
+                Conditions = [Cond("landed", "eq", "true"), Cond("fuel", "lt", "20")]
+            }
+        ],
+        DefaultRule = new TelemetryRule { Text = "ok" }
+    };
+
+    [Theory]
+    [InlineData(true, 10.0, true)]
+    [InlineData(true, 50.0, false)]
+    [InlineData(false, 10.0, false)]
+    public void AllConditionsMustHold(bool landed, double fuel, bool expected)
+    {
+        TelemetryRuleMatch match = TelemetryRuleEvaluator.EvaluateWithResolver(LandedAndLowFuel(), Values(landed, fuel));
+
+        (match.Index == 0).Should().Be(expected);
+        match.HasData.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(true, 50.0, true)]
+    [InlineData(false, 10.0, true)]
+    [InlineData(false, 50.0, false)]
+    public void AnyModeNeedsOneCondition(bool landed, double fuel, bool expected)
+    {
+        TelemetryRuleMatch match = TelemetryRuleEvaluator.EvaluateWithResolver(LandedAndLowFuel("any"), Values(landed, fuel));
+
+        (match.Index == 0).Should().Be(expected);
+    }
+
+    [Fact]
+    public void ConditionOnAttributeWithoutDataIsFalse()
+    {
+        TelemetryRuleMatch ship = TelemetryRuleEvaluator.EvaluateWithResolver(LandedAndLowFuel(), Values(null, null));
+        TelemetryRuleMatch partial = TelemetryRuleEvaluator.EvaluateWithResolver(LandedAndLowFuel(), Values(true, null));
+
+        ship.Index.Should().Be(-1);
+        ship.HasData.Should().BeFalse();
+        partial.Index.Should().Be(-1);
+        partial.HasData.Should().BeTrue();
+    }
+
+    [Fact]
+    public void SimpleAndAdvancedRulesCanBeMixed()
+    {
+        TelemetryDisplaySettings settings = new()
+        {
+            FieldPath = "fuel",
+            Rules =
+            [
+                new TelemetryRule { Op = "lt", Value = "5", Text = "empty" },
+                new TelemetryRule { Text = "landed", Conditions = [Cond("landed", "eq", "true")] }
+            ]
+        };
+
+        TelemetryRuleEvaluator.EvaluateWithResolver(settings, Values(true, 2)).Rule.Text.Should().Be("empty");
+        TelemetryRuleEvaluator.EvaluateWithResolver(settings, Values(true, 80)).Rule.Text.Should().Be("landed");
+    }
+
+    [Fact]
+    public void Apply_ReplacesFieldTokens()
+    {
+        string text = TelemetryTextFormatter.Apply("Fuel {value:fuel} / {VALUE:speed}", "x", "y", path => $"<{path}>");
+
+        text.Should().Be("Fuel <fuel> / <speed>");
+        TelemetryTextFormatter.Apply("{value:fuel}", "x", "y").Should().Be("{value:fuel}");
+    }
+}
+
 public sealed class TelemetryTextFormatterTests
 {
     [Theory]

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Star Citizen Stream Deck Plugin PI - Advanced Telemetry Display</title>
+  <link href="../css/base.css" rel="stylesheet">
+  <link id="pi-theme-styles" rel="stylesheet">
+  <style>
+    .pi-rule {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-bg-card);
+      padding: var(--space-sm);
+      margin-bottom: var(--space-sm);
+    }
+
+    .pi-rule__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-sm);
+    }
+
+    .pi-rule__title {
+      color: var(--color-primary);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .pi-rule__actions {
+      display: flex;
+      gap: var(--space-xs);
+    }
+
+    .pi-rule__condition,
+    .pi-rule__colors,
+    .pi-rule__press-current {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .pi-rule__press {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+      flex: 1;
+      min-width: 0;
+    }
+
+    .pi-rule__function {
+      color: var(--color-text-secondary);
+      font-size: var(--font-size-sm);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .pi-rule__value {
+      flex: 1;
+      min-width: 60px;
+    }
+
+    .pi-rule__select {
+      background: var(--color-bg-elevated);
+      color: var(--color-text-primary);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      height: 32px;
+      padding: 0 var(--space-sm);
+      max-width: 100%;
+    }
+
+    .pi-rule__hint {
+      color: var(--color-text-tertiary);
+      font-size: var(--font-size-sm);
+    }
+
+    .pi-rule__color-group {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+
+    .pi-rule__color {
+      width: 32px;
+      height: 28px;
+      padding: 0;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background: transparent;
+    }
+
+    .pi-rule__conditions {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      flex: 1;
+      min-width: 0;
+    }
+
+    .pi-rule__condition-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+      padding: var(--space-xs);
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-sm);
+    }
+
+    .pi-rule__attribute {
+      flex: 1 1 100%;
+    }
+
+    .pi-telemetry-note {
+      color: var(--color-text-tertiary);
+      font-size: var(--font-size-sm);
+      margin-top: var(--space-sm);
+    }
+
+    #decimalsInput::-webkit-outer-spin-button,
+    #decimalsInput::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  </style>
+  <script src="../js/sc-preload.js"></script>
+  <script defer src="../js/sdpi-components.js"></script>
+  <script defer src="../js/sc-components.js"></script>
+  <script>
+    // Rules hold conditions on several attributes (AND / OR).
+    globalThis.SCPI_TELEMETRY_ADVANCED = true;
+  </script>
+  <script defer src="../js/pi-telemetry-display.js"></script>
+</head>
+<body>
+<div class="pi-container">
+  <div class="pi-panel">
+    <div class="pi-section">
+      <div class="pi-dropdown" data-placeholder="Display attribute (optional): search..." id="fieldDropdown"></div>
+      <div class="pi-picker-row">
+        <div class="pi-content-box" id="fieldCurrent" style="flex:1">No attribute selected</div>
+        <button class="file-picker-clear" disabled id="fieldClear" title="Clear display attribute" type="button">X</button>
+      </div>
+      <div class="pi-telemetry-note">
+        The display attribute is optional and only feeds {value} and {label} in the rule texts. Rules test their own attributes below.
+      </div>
+
+      <div class="pi-picker-grid">
+        <div class="pi-picker-row">
+          <div class="pi-picker-label" title="Replaces {label}. Empty uses the attribute name.">Label</div>
+          <div class="pi-dropdown">
+            <div class="pi-dropdown__input-row">
+              <div class="pi-dropdown__input-wrapper">
+                <input aria-label="Label" id="labelInput" placeholder="Attribute name" type="text">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pi-picker-row">
+          <div class="pi-picker-label" title="Decimal places for numbers. Empty = automatic.">Decimals</div>
+          <div class="pi-dropdown">
+            <div class="pi-dropdown__input-row">
+              <div class="pi-dropdown__input-wrapper">
+                <input aria-label="Decimals" id="decimalsInput" max="4" min="0" placeholder="auto" step="1" type="number">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pi-section">
+      <div class="pi-page-title">Rules (first match wins)</div>
+      <div id="rulesList"></div>
+      <div class="pi-button-row">
+        <button class="pi-button" id="addRule" type="button">Add rule</button>
+      </div>
+    </div>
+
+    <div class="pi-section">
+      <div id="defaultRule"></div>
+      <div class="pi-telemetry-note">
+        Press actions only run while telemetry data is available. The game's telemetry server must be enabled.
+      </div>
+    </div>
+
+    <div class="pi-section audio-file-section">
+      <div class="pi-picker-row">
+        <div class="pi-picker-label" title="Played when a press action runs.">Press sound</div>
+        <div class="pi-file-picker"
+             data-accept=".wav,.mp3"
+             data-clear-title="Clear audio file"
+             data-placeholder="No file selected"
+             data-select-title="Select audio file"
+             id="audioFilePicker"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

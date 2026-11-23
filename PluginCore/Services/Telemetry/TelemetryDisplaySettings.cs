@@ -3,6 +3,20 @@ using Newtonsoft.Json;
 namespace SCStreamDeck.Services.Telemetry;
 
 /// <summary>
+///     One test on one attribute, used by advanced rules.
+/// </summary>
+public sealed class TelemetryCondition
+{
+    [JsonProperty("fieldPath")] public string? FieldPath { get; set; }
+
+    [JsonProperty("op")] public string Op { get; set; } = TelemetryRule.OpEquals;
+
+    [JsonProperty("value")] public string? Value { get; set; }
+
+    [JsonProperty("value2")] public string? Value2 { get; set; }
+}
+
+/// <summary>
 ///     Appearance (and optional press action) applied while a rule is the active one.
 /// </summary>
 public sealed class TelemetryRule
@@ -15,6 +29,8 @@ public sealed class TelemetryRule
     public const string OpEquals = "eq";
     public const string OpNotEquals = "neq";
     public const string OpBetween = "between";
+    public const string MatchAll = "all";
+    public const string MatchAny = "any";
 
     [JsonProperty("op")] public string Op { get; set; } = OpAlways;
 
@@ -22,6 +38,15 @@ public sealed class TelemetryRule
 
     /// <summary>Upper bound (inclusive) for <see cref="OpBetween" />; <see cref="Value" /> is the lower bound.</summary>
     [JsonProperty("value2")] public string? Value2 { get; set; }
+
+    /// <summary>
+    ///     Advanced rules: conditions on several attributes. When there are any, they replace
+    ///     <see cref="Op" />/<see cref="Value" /> and the rule matches according to <see cref="Match" />.
+    /// </summary>
+    [JsonProperty("conditions")] public List<TelemetryCondition>? Conditions { get; set; }
+
+    /// <summary><see cref="MatchAll" /> (AND, default) or <see cref="MatchAny" /> (OR) for <see cref="Conditions" />.</summary>
+    [JsonProperty("match")] public string? Match { get; set; }
 
     /// <summary>Text template, supports {value} and {label} and line breaks. Empty uses the default template.</summary>
     [JsonProperty("text")] public string? Text { get; set; }

@@ -57,6 +57,19 @@ Basic flow:
 
 Press actions use the same keybindings as `Adaptive Key`, run for the rule that is active when you press the key, and only run while telemetry data is available.
 
+## Advanced Telemetry Display Key
+
+Use `Advanced Telemetry Display` when a state depends on **several attributes at once**, for example a warning light that appears only when the ship is **landed AND low on hydrogen fuel**.
+It has the same text, image, color, flash, sound and press-action options as `Telemetry Display`; only the rule conditions differ.
+
+1. Drag `Advanced Telemetry Display` onto a key and open the Property Inspector.
+2. (Optional) Pick a Display attribute. It only feeds `{value}` and `{label}` in the rule texts.
+3. Add a Rule and build its **When** part: choose `All of these (AND)` or `Any of these (OR)`, then add conditions. Each condition has its own attribute, operator and value (for example `Is Landed` is `On`, `Hydrogen Fuel` is less than `20`).
+4. In a rule's Text you can print any attribute with `{value:attribute.path}`, for example `REFUEL\n{value:vehicle.state.flight.instruments.hydrogen_fuel}`.
+5. Rules are checked in order and the first one that matches wins. A condition on an attribute that has no data (for example ship values while you are on foot) is false, so such a rule does not match. The Default section applies when no rule matches.
+
+Example warning light: Rule 1 = ALL of `Is Landed` is `On`, `Hydrogen Fuel` is less than `20`; set a red image, Flash `1000` and a sound.
+
 ## Control Panel Key
 
 Use `Control Panel` for global plugin settings:

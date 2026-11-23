@@ -1,8 +1,9 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace SCStreamDeck.Services.Telemetry;
 
-public static class TelemetryTextFormatter
+public static partial class TelemetryTextFormatter
 {
     public const string NoDataText = "—";
     public const string DefaultTemplate = "{label}\n{value}";
@@ -25,12 +26,23 @@ public static class TelemetryTextFormatter
         return v.Number.ToString($"N{digits}", CultureInfo.CurrentCulture);
     }
 
-    public static string Apply(string? template, string label, string valueText)
+    /// <summary>
+    ///     Replaces {label} and {value}; with <paramref name="fieldValue" /> also {value:attribute.path} tokens,
+    ///     so advanced keys can print several attributes.
+    /// </summary>
+    public static string Apply(string? template, string label, string valueText, Func<string, string>? fieldValue = null)
     {
         string source = string.IsNullOrEmpty(template) ? DefaultTemplate : template;
-        return source
+        string text = source
             .Replace("\\n", "\n", StringComparison.Ordinal)
             .Replace("{label}", label, StringComparison.OrdinalIgnoreCase)
             .Replace("{value}", valueText, StringComparison.OrdinalIgnoreCase);
+
+        return fieldValue == null
+            ? text
+            : FieldToken().Replace(text, m => fieldValue(m.Groups[1].Value));
     }
+
+    [GeneratedRegex(@"\{value:([A-Za-z0-9_.]+)\}", RegexOptions.IgnoreCase)]
+    private static partial Regex FieldToken();
 }
