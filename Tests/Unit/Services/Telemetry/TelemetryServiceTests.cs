@@ -42,15 +42,57 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public void Merge_KeepsLastKnownValueOfMissingFrameParts()
+    public void ApplyFrame_KeepsLastKnownValueOfMissingFrameParts()
     {
+        using TelemetryService service = new(new ScriptedSource((_, token) => Frames([], true, token)));
+        DateTime t0 = DateTime.UtcNow;
         TelemetryStreamResponse first = new() { Actor = new ActorFrame(), Vehicle = new VehicleFrame() };
         TelemetryStreamResponse second = new() { Actor = new ActorFrame { State = new ActorState { UecBalance = 5 } } };
 
-        TelemetryStreamResponse merged = TelemetryService.Merge(first, second);
+        service.ApplyFrame(first, t0);
+        service.ApplyFrame(second, t0.AddMilliseconds(100));
 
-        merged.Vehicle.Should().BeSameAs(first.Vehicle);
-        merged.Actor.Should().BeSameAs(second.Actor);
+        service.Snapshot!.Vehicle.Should().BeSameAs(first.Vehicle);
+        service.Snapshot.Actor.Should().BeSameAs(second.Actor);
+    }
+
+    [Fact]
+    public void ExpireStale_DropsOnlyPartsTheGameStoppedSending()
+    {
+        using TelemetryService service = new(new ScriptedSource((_, token) => Frames([], true, token)))
+        {
+            StaleAfter = TimeSpan.FromSeconds(3)
+        };
+        DateTime t0 = DateTime.UtcNow;
+
+        // Seated: vehicle and actor arrive. Then the player leaves the seat and only the actor keeps coming.
+        service.ApplyFrame(new TelemetryStreamResponse { Actor = new ActorFrame(), Vehicle = new VehicleFrame() }, t0);
+        service.ApplyFrame(new TelemetryStreamResponse { Actor = new ActorFrame() }, t0.AddSeconds(2));
+
+        service.ExpireStale(t0.AddSeconds(2.5)).Should().BeFalse();
+        service.Snapshot!.Vehicle.Should().NotBeNull();
+
+        service.ApplyFrame(new TelemetryStreamResponse { Actor = new ActorFrame() }, t0.AddSeconds(3.5));
+        service.ExpireStale(t0.AddSeconds(3.6)).Should().BeTrue();
+
+        service.Snapshot!.Vehicle.Should().BeNull();
+        service.Snapshot.Actor.Should().NotBeNull();
+        service.ExpireStale(t0.AddSeconds(3.7)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task StalePart_RaisesUpdatedWithoutNewFrames()
+    {
+        ScriptedSource source = new((_, token) => Frames([new TelemetryStreamResponse { Vehicle = new VehicleFrame() }], true, token));
+        using TelemetryService service = new(source)
+        {
+            StaleAfter = TimeSpan.FromMilliseconds(100), StaleCheckInterval = TimeSpan.FromMilliseconds(20)
+        };
+
+        using IDisposable subscription = service.Subscribe(() => { });
+
+        (await WaitUntilAsync(() => service.Snapshot?.Vehicle != null)).Should().BeTrue();
+        (await WaitUntilAsync(() => service.Snapshot?.Vehicle == null)).Should().BeTrue();
     }
 
     [Fact]

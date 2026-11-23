@@ -20,7 +20,17 @@ public sealed class TelemetryService(ITelemetryStreamSource source) : IDisposabl
     private static readonly TimeSpan s_defaultMaxRetry = TimeSpan.FromSeconds(5);
 
     private readonly object _gate = new();
+    private readonly object _stateGate = new();
+    private readonly DateTime[] _partStamps = new DateTime[PartCount];
     private readonly ITelemetryStreamSource _source = source ?? throw new ArgumentNullException(nameof(source));
+
+    private const int PartVehicle = 0;
+    private const int PartWeapons = 1;
+    private const int PartEvents = 2;
+    private const int PartActor = 3;
+    private const int PartForceFeedback = 4;
+    private const int PartTurret = 5;
+    private const int PartCount = 6;
 
     private CancellationTokenSource? _loopCts;
     private Task? _loopTask;
@@ -30,6 +40,11 @@ public sealed class TelemetryService(ITelemetryStreamSource source) : IDisposabl
 
     public TimeSpan MinRetryDelay { get; init; } = s_defaultMinRetry;
     public TimeSpan MaxRetryDelay { get; init; } = s_defaultMaxRetry;
+
+    /// <summary>A frame part not refreshed for this long is dropped (the game stops sending parts that no longer apply).</summary>
+    public TimeSpan StaleAfter { get; init; } = TimeSpan.FromSeconds(3);
+
+    public TimeSpan StaleCheckInterval { get; init; } = TimeSpan.FromMilliseconds(500);
 
     /// <summary>Latest value of each frame type; null while nothing is being received.</summary>
     public TelemetryStreamResponse? Snapshot => _snapshot;
@@ -118,6 +133,7 @@ public sealed class TelemetryService(ITelemetryStreamSource source) : IDisposabl
     private async Task RunAsync(CancellationToken token)
     {
         TimeSpan delay = MinRetryDelay;
+        _ = ExpireLoopAsync(token);
 
         while (!token.IsCancellationRequested)
         {
@@ -127,7 +143,7 @@ public sealed class TelemetryService(ITelemetryStreamSource source) : IDisposabl
                 await foreach (TelemetryStreamResponse frame in _source.StreamAsync(token).ConfigureAwait(false))
                 {
                     delay = MinRetryDelay;
-                    _snapshot = Merge(_snapshot, frame);
+                    ApplyFrame(frame, DateTime.UtcNow);
                     _state = TelemetryConnectionState.Streaming;
                     RaiseUpdated();
                 }
@@ -168,18 +184,95 @@ public sealed class TelemetryService(ITelemetryStreamSource source) : IDisposabl
     }
 
     /// <summary>
-    ///     A frame may only carry some of its parts; keep the last known value of the others.
+    ///     A frame may only carry some of its parts and the game stops sending a part when it no longer applies
+    ///     (e.g. the vehicle part after leaving a seat). Keep the last value of each part until it goes stale.
     /// </summary>
-    internal static TelemetryStreamResponse Merge(TelemetryStreamResponse? previous, TelemetryStreamResponse frame) =>
-        new()
+    internal void ApplyFrame(TelemetryStreamResponse frame, DateTime now)
+    {
+        lock (_stateGate)
         {
-            Vehicle = frame.Vehicle ?? previous?.Vehicle,
-            Weapons = frame.Weapons ?? previous?.Weapons,
-            Events = frame.Events ?? previous?.Events,
-            Actor = frame.Actor ?? previous?.Actor,
-            ForceFeedback = frame.ForceFeedback ?? previous?.ForceFeedback,
-            Turret = frame.Turret ?? previous?.Turret
-        };
+            TelemetryStreamResponse? previous = _snapshot;
+            _snapshot = new TelemetryStreamResponse
+            {
+                Vehicle = Pick(frame.Vehicle, previous?.Vehicle, PartVehicle, now),
+                Weapons = Pick(frame.Weapons, previous?.Weapons, PartWeapons, now),
+                Events = Pick(frame.Events, previous?.Events, PartEvents, now),
+                Actor = Pick(frame.Actor, previous?.Actor, PartActor, now),
+                ForceFeedback = Pick(frame.ForceFeedback, previous?.ForceFeedback, PartForceFeedback, now),
+                Turret = Pick(frame.Turret, previous?.Turret, PartTurret, now)
+            };
+        }
+    }
+
+    /// <summary>
+    ///     Drops parts that have not been received for <see cref="StaleAfter" />. Returns true if anything changed.
+    /// </summary>
+    internal bool ExpireStale(DateTime now)
+    {
+        lock (_stateGate)
+        {
+            TelemetryStreamResponse? current = _snapshot;
+            if (current == null)
+            {
+                return false;
+            }
+
+            TelemetryStreamResponse next = new()
+            {
+                Vehicle = Fresh(current.Vehicle, PartVehicle, now),
+                Weapons = Fresh(current.Weapons, PartWeapons, now),
+                Events = Fresh(current.Events, PartEvents, now),
+                Actor = Fresh(current.Actor, PartActor, now),
+                ForceFeedback = Fresh(current.ForceFeedback, PartForceFeedback, now),
+                Turret = Fresh(current.Turret, PartTurret, now)
+            };
+
+            bool changed = !ReferenceEquals(next.Vehicle, current.Vehicle) || !ReferenceEquals(next.Weapons, current.Weapons) ||
+                           !ReferenceEquals(next.Events, current.Events) || !ReferenceEquals(next.Actor, current.Actor) ||
+                           !ReferenceEquals(next.ForceFeedback, current.ForceFeedback) ||
+                           !ReferenceEquals(next.Turret, current.Turret);
+            if (!changed)
+            {
+                return false;
+            }
+
+            _snapshot = next;
+            return true;
+        }
+    }
+
+    private T? Pick<T>(T? fromFrame, T? previous, int part, DateTime now) where T : class
+    {
+        if (fromFrame == null)
+        {
+            return previous;
+        }
+
+        _partStamps[part] = now;
+        return fromFrame;
+    }
+
+    private T? Fresh<T>(T? value, int part, DateTime now) where T : class =>
+        value != null && now - _partStamps[part] < StaleAfter ? value : null;
+
+    private async Task ExpireLoopAsync(CancellationToken token)
+    {
+        using PeriodicTimer timer = new(StaleCheckInterval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token).ConfigureAwait(false))
+            {
+                if (ExpireStale(DateTime.UtcNow))
+                {
+                    RaiseUpdated();
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Stream loop stopped.
+        }
+    }
 
     private void SetState(TelemetryConnectionState state)
     {

@@ -21,6 +21,7 @@ WebApplication app = builder.Build();
 app.MapGrpcService<MockTelemetryService>();
 Console.WriteLine($"Mock telemetry server on http://127.0.0.1:{port} (Ctrl+C to stop)");
 Console.WriteLine("Pressure sweeps 0-120 kPa every 24 s, health 100->0 every 40 s, locomotion cycles every 10 s.");
+Console.WriteLine("Vehicle part (speed) is sent for 25 s, then omitted for 15 s, like leaving a ship seat.");
 app.Run();
 
 internal sealed class MockTelemetryService : GameTelemetryService.GameTelemetryServiceBase
@@ -56,7 +57,21 @@ internal sealed class MockTelemetryService : GameTelemetryService.GameTelemetryS
                         UecBalance = 123456
                     },
                     Environment = new ActorEnvironment { BreathableAtmosphere = ((int)(t / 5) % 2) == 0 }
-                }
+                },
+                // Like the game, the vehicle part is only sent while seated (25 s seated, 15 s on foot).
+                Vehicle = (t % 40) < 25
+                    ? new VehicleFrame
+                    {
+                        State = new VehicleState
+                        {
+                            Name = "Mock Ship",
+                            Flight = new VehicleFlight
+                            {
+                                Instruments = new VehicleFlightInstruments { Speed = (float)(100 + (50 * Math.Sin(t))) }
+                            }
+                        }
+                    }
+                    : null
             });
         }
     }
