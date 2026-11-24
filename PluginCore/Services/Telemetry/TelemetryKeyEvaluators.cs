@@ -47,13 +47,15 @@ public sealed class DecelerationEvaluator : ITelemetryKeyEvaluator
 
         DecelerationEstimate? estimate = _estimator.Update(nowUtc, current, options.Window);
 
+        // Units are shown (and compared by rules) in the chosen order of magnitude, e.g. km instead of m.
+        double divisor = options.EffectiveUnitsDivisor;
         string output = options.EffectiveOutput;
         TelemetryValue? ruleValue = estimate is { } e
-            ? new TelemetryValue(TelemetryValueKind.Number, output == TelemetryDecelerationSettings.OutputTime ? e.TimeSeconds : e.Units)
+            ? new TelemetryValue(TelemetryValueKind.Number, output == TelemetryDecelerationSettings.OutputTime ? e.TimeSeconds : e.Units / divisor)
             : null;
         TelemetryRuleMatch match = TelemetryRuleEvaluator.Evaluate(display, ruleValue);
 
-        string units = estimate is { } u ? UnitsText(u.Units, options) : Placeholder;
+        string units = estimate is { } u ? UnitsText(u.Units / divisor, options) : Placeholder;
         string time = estimate is { } t ? $"{TelemetryTextFormatter.FormatRounded(t.TimeSeconds, options.TimeRounding)} s" : Placeholder;
         string value = output == TelemetryDecelerationSettings.OutputTime ? time : units;
         string label = string.IsNullOrWhiteSpace(display.Label) ? field.Label : display.Label;

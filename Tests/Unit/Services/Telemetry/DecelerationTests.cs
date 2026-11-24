@@ -124,6 +124,30 @@ public sealed class DecelerationTests
     }
 
     [Fact]
+    public void Evaluator_UnitsCanBeShownInAnotherOrderOfMagnitude()
+    {
+        TelemetryDisplaySettings settings = Settings(unitsRounding: 0.5, unit: "km");
+        settings.Deceleration.UnitsDivisor = 1000;
+        settings.Rules = [new TelemetryRule { Op = "lt", Value = "2", Text = "NEAR {units}" }];
+        DecelerationEvaluator evaluator = new();
+
+        evaluator.Evaluate(settings, Speed(300), TelemetrySchema.Bundled, At(0));
+        TelemetryEvaluation result = evaluator.Evaluate(settings, Speed(280), TelemetrySchema.Bundled, At(1000));
+
+        // 1960 m = 1.96 km: rounded to the nearest 0.5 km and compared by rules in km.
+        result.Text.Should().Be("NEAR 2.0 km");
+        result.Match.Index.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(null, 1.0)]
+    [InlineData(0.0, 1.0)]
+    [InlineData(-5.0, 1.0)]
+    [InlineData(1000.0, 1000.0)]
+    public void UnitsDivisor_FallsBackToOne(double? configured, double expected) =>
+        new TelemetryDecelerationSettings { UnitsDivisor = configured }.EffectiveUnitsDivisor.Should().Be(expected);
+
+    [Fact]
     public void Evaluator_OutputChoiceAndRoundingApply()
     {
         TelemetrySchema schema = TelemetrySchema.Bundled;

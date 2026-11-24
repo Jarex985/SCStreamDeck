@@ -131,6 +131,16 @@ public sealed class TelemetryDecelerationSettings
     /// <summary>Round the cumulative units to a multiple of this value (for example 50 m). Empty = one decimal.</summary>
     [JsonProperty("unitsRounding")] public double? UnitsRounding { get; set; }
 
+    /// <summary>
+    ///     The cumulative units are divided by this before rounding and display, to change the order of magnitude
+    ///     (1000: meters become kilometers). Empty or invalid = 1.
+    /// </summary>
+    [JsonProperty("unitsDivisor")] public double? UnitsDivisor { get; set; }
+
+    [JsonIgnore]
+    public double EffectiveUnitsDivisor =>
+        UnitsDivisor is { } d && d > 0 && double.IsFinite(d) ? d : 1;
+
     /// <summary>Round the time (seconds) to a multiple of this value. Empty = one decimal.</summary>
     [JsonProperty("timeRounding")] public double? TimeRounding { get; set; }
 

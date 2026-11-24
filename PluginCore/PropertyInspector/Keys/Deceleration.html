@@ -155,7 +155,23 @@
           </select>
         </div>
         <div class="pi-picker-row">
-          <div class="pi-picker-label" title="Round the cumulative units to a multiple of this value, e.g. 50. Empty = one decimal.">Round units</div>
+          <div class="pi-picker-label" title="Divide the units by this to change the order of magnitude, e.g. 1000 to show kilometers when the attribute is in meters. Empty = 1.">Divide by</div>
+          <div class="pi-dropdown">
+            <div class="pi-dropdown__input-row">
+              <div class="pi-dropdown__input-wrapper">
+                <input aria-label="Divide units by" id="decelDivisor" list="decelDivisorPresets" min="0" placeholder="1" step="any" type="number">
+                <datalist id="decelDivisorPresets">
+                  <option value="1">m &rarr; m</option>
+                  <option value="1000">m &rarr; km</option>
+                  <option value="1000000">m &rarr; Mm</option>
+                  <option value="0.001">km &rarr; m</option>
+                </datalist>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pi-picker-row">
+          <div class="pi-picker-label" title="Round the cumulative units (after dividing) to a multiple of this value, e.g. 0.5 for half a kilometer. Empty = one decimal.">Round units</div>
           <div class="pi-dropdown">
             <div class="pi-dropdown__input-row">
               <div class="pi-dropdown__input-wrapper">

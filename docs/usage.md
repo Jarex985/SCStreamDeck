@@ -81,8 +81,8 @@ Use `Deceleration` to see how far you will still travel, and how long it will ta
 1. Drag `Deceleration` onto a key and open the Property Inspector.
 2. Pick a numeric attribute (for example `Vehicle State Flight Instruments › Speed`).
 3. Set the **Window** (ms, default 1000): the key compares the value now with the value one window ago. A longer window gives a steadier estimate, a shorter one reacts faster.
-4. Choose what to **Show**: units and time, units only, or time only. **Round units** / **Round time** round to a multiple (for example 50 shows 1,950 m instead of 1,963.2 m); empty keeps one decimal. **Unit** is the suffix after the units, for example `m`.
-5. Rules, images, colors, flash, sounds and press actions work as on `Telemetry Display`. Texts can use `{units}`, `{time}`, `{value}` (the selected output) and `{label}`. Rules compare the time when only time is shown, otherwise the units, so for example "units is less than 2000" can turn the key red.
+4. Choose what to **Show**: units and time, units only, or time only. **Divide by** changes the order of magnitude of the units (1000 turns meters into kilometers; pick a preset or type your own) and **Unit** is the suffix shown after them, for example `km`. **Round units** / **Round time** round to a multiple in the displayed unit (for example 0.5 shows 2.0 km instead of 1.96 km, 50 shows 1,950 m instead of 1,963 m); empty keeps one decimal.
+5. Rules, images, colors, flash, sounds and press actions work as on `Telemetry Display`. Texts can use `{units}`, `{time}`, `{value}` (the selected output) and `{label}`. Rules compare the time (seconds) when only time is shown, otherwise the units in the displayed unit (after dividing), so for example "units is less than 2" can turn the key red when you are within 2 km.
 
 The estimate assumes the value keeps dropping at the rate seen over the window: time = value / rate and units = value² / (2 × rate). It needs one full window of history first, and while the value is not clearly decreasing (constant, increasing, already zero, or no data) the key shows `—` and uses the Default section.
 

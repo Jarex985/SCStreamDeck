@@ -230,6 +230,7 @@
     windowMs: document.getElementById('decelWindow'),
     output: document.getElementById('decelOutput'),
     unitsRounding: document.getElementById('decelUnitsRounding'),
+    unitsDivisor: document.getElementById('decelDivisor'),
     timeRounding: document.getElementById('decelTimeRounding'),
     unit: document.getElementById('decelUnit')
   };
@@ -244,6 +245,7 @@
       windowMs: readNumber(decelInputs.windowMs, true),
       output: decelInputs.output?.value || 'both',
       unitsRounding: readNumber(decelInputs.unitsRounding, false),
+      unitsDivisor: readNumber(decelInputs.unitsDivisor, false),
       timeRounding: readNumber(decelInputs.timeRounding, false),
       unit: decelInputs.unit?.value?.trim() || null
     };
@@ -256,6 +258,7 @@
     if (decelInputs.windowMs) decelInputs.windowMs.value = d.windowMs ?? '';
     if (decelInputs.output) decelInputs.output.value = d.output || 'both';
     if (decelInputs.unitsRounding) decelInputs.unitsRounding.value = d.unitsRounding ?? '';
+    if (decelInputs.unitsDivisor) decelInputs.unitsDivisor.value = d.unitsDivisor ?? '';
     if (decelInputs.timeRounding) decelInputs.timeRounding.value = d.timeRounding ?? '';
     if (decelInputs.unit) decelInputs.unit.value = d.unit ?? '';
   }
