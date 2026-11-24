@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using BarRaider.SdTools;
+using SCStreamDeck.Services.Telemetry;
 
 namespace SCStreamDeck.ActionKeys;
 
@@ -10,4 +11,4 @@ namespace SCStreamDeck.ActionKeys;
 [SuppressMessage("ReSharper", "UnusedType.Global", Justification = "Stream Deck action instantiated via SDK reflection")]
 [PluginActionId("com.jarex985.scstreamdeck.telemetryadvanced")]
 public sealed class AdvancedTelemetryDisplayKey(SDConnection connection, InitialPayload payload)
-    : TelemetryDisplayKeyBase(connection, payload, true);
+    : TelemetryDisplayKeyBase(connection, payload, new RuleKeyEvaluator(true));

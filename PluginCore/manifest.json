@@ -68,6 +68,21 @@
     },
     {
       "Icon": "Images/icon",
+      "Name": "Deceleration",
+      "States": [
+        {
+          "Image": "PropertyInspector/svg/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "Estimates the distance and time until a telemetry value (for example speed) reaches zero",
+      "UUID": "com.jarex985.scstreamdeck.deceleration",
+      "PropertyInspectorPath": "PropertyInspector/Keys/Deceleration.html"
+    },
+    {
+      "Icon": "Images/icon",
       "Name": "Control Panel",
       "States": [
         {

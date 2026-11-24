@@ -10,6 +10,9 @@
   // Advanced page: rules hold conditions on several attributes (set by AdvancedTelemetryDisplay.html).
   const ADVANCED = globalThis.SCPI_TELEMETRY_ADVANCED === true;
 
+  // Deceleration page: numeric attributes only, plus the estimate options (set by Deceleration.html).
+  const DECEL = globalThis.SCPI_TELEMETRY_DECELERATION === true;
+
   // #region State
 
   const OPS_NUMBER = [
@@ -142,6 +145,9 @@
 
   function populateFields(list) {
     fields = Array.isArray(list) ? list : [];
+    if (DECEL) {
+      fields = fields.filter((f) => String(f.kind).toLowerCase() === 'number');
+    }
     fieldDropdown?.setItems?.(fields.map((f) => ({
       value: f.path,
       text: `${f.group} › ${f.label}`
@@ -219,6 +225,46 @@
     save('decimals', state.decimals);
   });
 
+  // Deceleration options: window, output, rounding steps and unit suffix.
+  const decelInputs = {
+    windowMs: document.getElementById('decelWindow'),
+    output: document.getElementById('decelOutput'),
+    unitsRounding: document.getElementById('decelUnitsRounding'),
+    timeRounding: document.getElementById('decelTimeRounding'),
+    unit: document.getElementById('decelUnit')
+  };
+
+  function readNumber(input, integer) {
+    const parsed = integer ? parseInt(input.value, 10) : parseFloat(input.value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
+  function saveDeceleration() {
+    state.deceleration = {
+      windowMs: readNumber(decelInputs.windowMs, true),
+      output: decelInputs.output?.value || 'both',
+      unitsRounding: readNumber(decelInputs.unitsRounding, false),
+      timeRounding: readNumber(decelInputs.timeRounding, false),
+      unit: decelInputs.unit?.value?.trim() || null
+    };
+    save('deceleration', state.deceleration);
+  }
+
+  function showDeceleration(value) {
+    const d = value && typeof value === 'object' ? value : {};
+    state.deceleration = d;
+    if (decelInputs.windowMs) decelInputs.windowMs.value = d.windowMs ?? '';
+    if (decelInputs.output) decelInputs.output.value = d.output || 'both';
+    if (decelInputs.unitsRounding) decelInputs.unitsRounding.value = d.unitsRounding ?? '';
+    if (decelInputs.timeRounding) decelInputs.timeRounding.value = d.timeRounding ?? '';
+    if (decelInputs.unit) decelInputs.unit.value = d.unit ?? '';
+  }
+
+  Object.values(decelInputs).forEach((input) => {
+    input?.addEventListener('input', saveDeceleration);
+    input?.addEventListener('change', saveDeceleration);
+  });
+
   // #endregion
 
   // #region Rules
@@ -278,7 +324,9 @@
       saveRules();
     }), ADVANCED
       ? 'Use {value}/{label} (display attribute) or {value:attribute.path} for any attribute; \\n starts a new line.'
-      : 'Use {value} and {label}; \\n starts a new line. Empty = "{label}\\n{value}".'));
+      : DECEL
+        ? 'Use {units}, {time}, {value} (the selected output) and {label}; \\n starts a new line. Empty = the default for the chosen output.'
+        : 'Use {value} and {label}; \\n starts a new line. Empty = "{label}\\n{value}".'));
 
     card.appendChild(row('Image', el('div', {
       class: 'pi-file-picker', id: `${idPrefix}-image`, 'data-accept': '.png,.jpg,.jpeg,.bmp,.gif',
@@ -687,6 +735,7 @@
       labelInput.value = state.label;
     }
   });
+  useSetting('deceleration', (v) => showDeceleration(v));
   useSetting('decimals', (v) => {
     state.decimals = Number.isFinite(v) ? v : null;
     if (decimalsInput) {

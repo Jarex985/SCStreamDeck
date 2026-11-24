@@ -109,9 +109,51 @@ public sealed class TelemetryRule
     [JsonProperty("flashMs")] public int? FlashMs { get; set; }
 }
 
+/// <summary>
+///     Settings of the Deceleration key: how the estimate is derived and shown.
+/// </summary>
+public sealed class TelemetryDecelerationSettings
+{
+    public const string OutputUnits = "units";
+    public const string OutputTime = "time";
+    public const string OutputBoth = "both";
+
+    public const int DefaultWindowMs = 1000;
+    public const int MinWindowMs = 200;
+    public const int MaxWindowMs = 30_000;
+
+    /// <summary>Observation period over which the reduction is measured.</summary>
+    [JsonProperty("windowMs")] public int? WindowMs { get; set; }
+
+    /// <summary><see cref="OutputUnits" />, <see cref="OutputTime" /> or <see cref="OutputBoth" /> (default).</summary>
+    [JsonProperty("output")] public string? Output { get; set; }
+
+    /// <summary>Round the cumulative units to a multiple of this value (for example 50 m). Empty = one decimal.</summary>
+    [JsonProperty("unitsRounding")] public double? UnitsRounding { get; set; }
+
+    /// <summary>Round the time (seconds) to a multiple of this value. Empty = one decimal.</summary>
+    [JsonProperty("timeRounding")] public double? TimeRounding { get; set; }
+
+    /// <summary>Suffix shown after the cumulative units, for example "m".</summary>
+    [JsonProperty("unit")] public string? Unit { get; set; }
+
+    [JsonIgnore]
+    public TimeSpan Window =>
+        TimeSpan.FromMilliseconds(Math.Clamp(WindowMs ?? DefaultWindowMs, MinWindowMs, MaxWindowMs));
+
+    [JsonIgnore]
+    public string EffectiveOutput =>
+        string.Equals(Output, OutputUnits, StringComparison.OrdinalIgnoreCase) ? OutputUnits
+        : string.Equals(Output, OutputTime, StringComparison.OrdinalIgnoreCase) ? OutputTime
+        : OutputBoth;
+}
+
 public sealed class TelemetryDisplaySettings
 {
     [JsonProperty("fieldPath")] public string? FieldPath { get; set; }
+
+    /// <summary>Deceleration key only.</summary>
+    [JsonProperty("deceleration")] public TelemetryDecelerationSettings Deceleration { get; set; } = new();
 
     /// <summary>Text used for {label}. Empty uses the field's friendly name.</summary>
     [JsonProperty("label")] public string? Label { get; set; }

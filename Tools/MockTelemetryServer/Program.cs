@@ -67,7 +67,8 @@ internal sealed class MockTelemetryService : GameTelemetryService.GameTelemetryS
                             Name = "Mock Ship",
                             Flight = new VehicleFlight
                             {
-                                Instruments = new VehicleFlightInstruments { Speed = (float)(100 + (50 * Math.Sin(t))) }
+                                // Slows from 300 m/s to 0 over 15 s, then stays at 0 until the seated window ends.
+                                Instruments = new VehicleFlightInstruments { Speed = (float)Math.Max(0, 300 - (20 * (t % 40))) }
                             }
                         }
                     }

@@ -74,6 +74,18 @@ Example toggle on one key: Rule 1 = `Gear` is `Deployed` shows "Gear DOWN" and p
 
 Example warning light: Rule 1 = ALL of `Is Landed` is `On`, `Hydrogen Fuel` is less than `20`; set a red image, Flash `1000` and a sound.
 
+## Deceleration Key
+
+Use `Deceleration` to see how far you will still travel, and how long it will take, until a value reaches zero while it is dropping. For the ship's speed in m/s the cumulative units are meters, so the key answers "how much distance do I need to stop?".
+
+1. Drag `Deceleration` onto a key and open the Property Inspector.
+2. Pick a numeric attribute (for example `Vehicle State Flight Instruments › Speed`).
+3. Set the **Window** (ms, default 1000): the key compares the value now with the value one window ago. A longer window gives a steadier estimate, a shorter one reacts faster.
+4. Choose what to **Show**: units and time, units only, or time only. **Round units** / **Round time** round to a multiple (for example 50 shows 1,950 m instead of 1,963.2 m); empty keeps one decimal. **Unit** is the suffix after the units, for example `m`.
+5. Rules, images, colors, flash, sounds and press actions work as on `Telemetry Display`. Texts can use `{units}`, `{time}`, `{value}` (the selected output) and `{label}`. Rules compare the time when only time is shown, otherwise the units, so for example "units is less than 2000" can turn the key red.
+
+The estimate assumes the value keeps dropping at the rate seen over the window: time = value / rate and units = value² / (2 × rate). It needs one full window of history first, and while the value is not clearly decreasing (constant, increasing, already zero, or no data) the key shows `—` and uses the Default section.
+
 ## Control Panel Key
 
 Use `Control Panel` for global plugin settings:

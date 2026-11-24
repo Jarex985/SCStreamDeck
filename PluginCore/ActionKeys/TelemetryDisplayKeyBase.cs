@@ -25,7 +25,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
     private readonly object _gate = new();
     private readonly CancellationTokenSource _lifetime = new();
     private int _sequenceRunning;
-    private readonly bool _advanced;
+    private readonly ITelemetryKeyEvaluator _evaluator;
     private readonly TelemetryKeyRenderer _renderer = new();
     private readonly TelemetryService _telemetry;
     private readonly ITelemetrySchemaProvider _schemas;
@@ -45,10 +45,10 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
     private readonly TelemetryRuleTransitionTracker _transitions = new();
 
     [ExcludeFromCodeCoverage]
-    protected TelemetryDisplayKeyBase(SDConnection connection, InitialPayload payload, bool advanced)
+    protected TelemetryDisplayKeyBase(SDConnection connection, InitialPayload payload, ITelemetryKeyEvaluator evaluator)
         : base(connection, payload)
     {
-        _advanced = advanced;
+        _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
         TelemetryKeyDependencies deps = ActionDependencies.ForTelemetryDisplayKey();
         _telemetry = deps.Telemetry;
         _schemas = deps.Schemas;
@@ -229,40 +229,11 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
             display = _display;
         }
 
-        TelemetrySnapshot? snapshot = _telemetry.Snapshot;
-        TelemetryValue? Resolve(string path) =>
-            snapshot != null && snapshot.TryGetValue(path, out TelemetryValue read) ? read : null;
+        TelemetryEvaluation evaluation =
+            _evaluator.Evaluate(display, _telemetry.Snapshot, _schemas.Current, DateTime.UtcNow);
+        TelemetryRuleMatch match = evaluation.Match;
 
-        TelemetryField? field = _schemas.Current.Find(display.FieldPath);
-        TelemetryValue? value = Resolve(display.FieldPath ?? string.Empty);
-
-        TelemetryRuleMatch match = _advanced
-            ? TelemetryRuleEvaluator.EvaluateWithResolver(display, Resolve)
-            : TelemetryRuleEvaluator.Evaluate(display, value);
-
-        string text;
-        if (field == null && !_advanced)
-        {
-            text = "Select\nattribute";
-        }
-        else if (field == null && display.Rules.Count == 0)
-        {
-            text = "Add\nrules";
-        }
-        else
-        {
-            string label = string.IsNullOrWhiteSpace(display.Label) ? field?.Label ?? string.Empty : display.Label;
-            string valueText = field == null ? string.Empty : TelemetryTextFormatter.FormatValue(value, display.Decimals);
-            // Advanced keys without a primary attribute only show the label unless the rule's text says otherwise.
-            string? template = string.IsNullOrEmpty(match.Rule.Text) && field == null ? "{label}" : match.Rule.Text;
-
-            text = TelemetryTextFormatter.Apply(template, label, valueText, _advanced ? FormatField : null);
-
-            string FormatField(string path) =>
-                TelemetryTextFormatter.FormatValue(Resolve(path), display.Decimals);
-        }
-
-        return (match, new TelemetryRenderModel(text, match.Rule.ImagePath, match.Rule.TextColor, match.Rule.BackgroundColor));
+        return (match, new TelemetryRenderModel(evaluation.Text, match.Rule.ImagePath, match.Rule.TextColor, match.Rule.BackgroundColor));
     }
 
     private void Refresh(bool force)
