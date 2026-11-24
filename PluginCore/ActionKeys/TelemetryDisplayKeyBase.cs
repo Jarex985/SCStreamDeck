@@ -29,6 +29,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
     private readonly TelemetryKeyRenderer _renderer = new();
     private readonly TelemetryService _telemetry;
     private readonly ITelemetrySchemaProvider _schemas;
+    private readonly TelemetryTemplateService _templates;
     private readonly IDisposable _subscription;
 
     private TelemetryDisplaySettings _display;
@@ -52,13 +53,16 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
         TelemetryKeyDependencies deps = ActionDependencies.ForTelemetryDisplayKey();
         _telemetry = deps.Telemetry;
         _schemas = deps.Schemas;
+        _templates = deps.Templates;
         _display = ParseSettings(payload.Settings);
         _flashTimer = new Timer(_ => Refresh(false), null, Timeout.Infinite, Timeout.Infinite);
 
         Connection.OnPropertyInspectorDidAppear += OnPropertyInspectorDidAppear;
         Connection.OnSendToPlugin += OnSendToPlugin;
         _schemas.Changed += OnSchemaChanged;
+        _templates.Changed += OnTemplatesChanged;
         _schemas.EnsureRefreshStarted();
+        RequestGlobalSettings();
 
         Refresh(true);
         _subscription = _telemetry.Subscribe(OnTelemetryUpdated);
@@ -176,6 +180,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
         _lifetime.Cancel();
         _subscription.Dispose();
         _schemas.Changed -= OnSchemaChanged;
+        _templates.Changed -= OnTemplatesChanged;
         Connection.OnPropertyInspectorDidAppear -= OnPropertyInspectorDidAppear;
         Connection.OnSendToPlugin -= OnSendToPlugin;
 
@@ -212,6 +217,19 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
         }
     }
 
+    private void RequestGlobalSettings()
+    {
+        try
+        {
+            // The answer arrives in ReceivedGlobalSettings.
+            _ = Connection.GetGlobalSettingsAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Err($"[{nameof(TelemetryDisplayKeyBase)}] Failed to request global settings: {ex.Message}", ex);
+        }
+    }
+
     private void OnTelemetryUpdated() => Refresh(false);
 
     // A newer protocol definition was read from the game: refresh the attribute list and the key.
@@ -219,6 +237,17 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
     {
         SendFieldsToPropertyInspector();
         Refresh(false);
+    }
+
+    private void OnTemplatesChanged() => Refresh(false);
+
+    // Format templates live in the plugin's global settings, shared by all telemetry keys.
+    [ExcludeFromCodeCoverage]
+    public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+
+        _templates.Update(TelemetryTemplateService.Parse(payload.Settings));
     }
 
     private (TelemetryRuleMatch Match, TelemetryRenderModel Model) EvaluateCurrent()
@@ -233,7 +262,9 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
             _evaluator.Evaluate(display, _telemetry.Snapshot, _schemas.Current, DateTime.UtcNow);
         TelemetryRuleMatch match = evaluation.Match;
 
-        return (match, new TelemetryRenderModel(evaluation.Text, match.Rule.ImagePath, match.Rule.TextColor, match.Rule.BackgroundColor));
+        TelemetryRuleAppearance appearance = _templates.Resolve(match.Rule);
+
+        return (match, new TelemetryRenderModel(evaluation.Text, appearance.ImagePath, appearance.TextColor, appearance.BackgroundColor));
     }
 
     private void Refresh(bool force)
@@ -257,7 +288,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
 
                 DateTime now = DateTime.UtcNow;
                 TimeSpan? untilSwitch = null;
-                int flashMs = TelemetryFlash.Normalize(match.Rule.FlashMs);
+                int flashMs = TelemetryFlash.Normalize(_templates.Resolve(match.Rule).FlashMs);
 
                 if (flashMs > 0)
                 {

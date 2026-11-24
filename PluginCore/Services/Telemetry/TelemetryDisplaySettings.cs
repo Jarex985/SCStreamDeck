@@ -73,6 +73,12 @@ public sealed class TelemetryRule
 
     [JsonProperty("backgroundColor")] public string? BackgroundColor { get; set; }
 
+    /// <summary>
+    ///     Id of a shared format template (<see cref="TelemetryFormatTemplate" />) supplying colors, image and flash
+    ///     for whatever this rule does not set itself.
+    /// </summary>
+    [JsonProperty("templateId")] public string? TemplateId { get; set; }
+
     /// <summary>Star Citizen action name executed on key press while this rule is active.</summary>
     [JsonProperty("function")] public string? Function { get; set; }
 

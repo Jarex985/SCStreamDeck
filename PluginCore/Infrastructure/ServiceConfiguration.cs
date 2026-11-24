@@ -50,6 +50,7 @@ public static class ServiceConfiguration
         services.AddSingleton<InitializationService>();
 
         services.AddSingleton<ITelemetrySchemaProvider, TelemetrySchemaProvider>();
+        services.AddSingleton<TelemetryTemplateService>();
         services.AddSingleton<ITelemetryStreamSource, GrpcTelemetryStreamSource>();
         services.AddSingleton<TelemetryService>();
     }

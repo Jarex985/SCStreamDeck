@@ -86,6 +86,16 @@ Use `Deceleration` to see how far you will still travel, and how long it will ta
 
 The estimate assumes the value keeps dropping at the rate seen over the window: time = value / rate and units = value² / (2 × rate). It needs one full window of history first, and while the value is not clearly decreasing (constant, increasing, already zero, or no data) the key shows `—` and uses the Default section.
 
+## Format templates
+
+All three telemetry keys (`Telemetry Display`, `Advanced Telemetry Display`, `Deceleration`) have a **Format templates** section. A template is a named look that bundles **text color, background color, image and flash interval**, for example a `warning` template with yellow text on red that flashes every 500 ms.
+
+1. Click **New template**, give it a name and set colors, image and flash.
+2. In any rule (or the Default section) pick it in the **Template** row.
+3. Change the template once and every rule using it, on every telemetry key, follows.
+
+Anything you set on the rule itself (its own colors, image or flash) overrides the template, so a rule can use a template and still differ in one detail. Templates are shared by all telemetry keys (they are stored in the plugin's global settings, not in the key, so they are not part of an exported profile). Deleting a template makes rules that used it fall back to their own settings.
+
 ## Control Panel Key
 
 Use `Control Panel` for global plugin settings:

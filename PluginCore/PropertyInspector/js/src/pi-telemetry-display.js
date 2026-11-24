@@ -34,6 +34,7 @@
     label: '',
     decimals: null,
     rules: [],
+    templates: [],
     defaultRule: {op: 'always'}
   };
 
@@ -350,6 +351,8 @@
       }), 'Played once when this rule becomes active.'));
     }
 
+    card.appendChild(row('Template', templateSelect(rule),
+      'Colors, image and flash from a shared format template. Anything set on this rule itself overrides the template.'));
     card.appendChild(row('Colors', renderColors(rule)));
     card.appendChild(row('Flash', textInput(rule.flashMs, 'off (ms)', (v) => {
       const parsed = parseInt(v, 10);
@@ -518,7 +521,7 @@
     return wrap;
   }
 
-  function renderColors(rule) {
+  function renderColors(rule, onChange = saveRules) {
     function colorControl(key, caption) {
       const input = el('input', {type: 'color', class: 'pi-rule__color', title: caption});
       input.value = rule[key] || (key === 'textColor' ? '#ffffff' : '#000000');
@@ -528,14 +531,14 @@
           rule[key] = null;
           input.value = key === 'textColor' ? '#ffffff' : '#000000';
           status.textContent = 'auto';
-          saveRules();
+          onChange();
         }
       });
       const status = el('span', {class: 'pi-rule__hint', text: rule[key] ? '' : 'auto'});
       input.addEventListener('input', () => {
         rule[key] = input.value;
         status.textContent = '';
-        saveRules();
+        onChange();
       });
       return el('div', {class: 'pi-rule__color-group'}, [
         el('span', {class: 'pi-rule__hint', text: caption}), input, clear, status
@@ -744,6 +747,141 @@
 
   // #endregion
 
+  // #region Format templates (shared by all telemetry keys through the plugin's global settings)
+
+  let selectedTemplateId = '';
+
+  function saveTemplates() {
+    setTemplates?.(JSON.parse(JSON.stringify(state.templates)));
+  }
+
+  function newTemplateId() {
+    return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  function templateName(template) {
+    return String(template?.name || '').trim() || '(unnamed)';
+  }
+
+  function templateSelect(rule) {
+    const options = [['', 'None'], ...state.templates.map((t) => [t.id, templateName(t)])];
+    return selectInput(options, rule.templateId || '', (id) => {
+      rule.templateId = id || null;
+      saveRules();
+    }, 'pi-rule__select pi-rule__template');
+  }
+
+  function renderTemplates() {
+    const host = document.getElementById('templates');
+    if (!host) {
+      return;
+    }
+
+    if (!state.templates.some((t) => t.id === selectedTemplateId)) {
+      selectedTemplateId = state.templates[0]?.id || '';
+    }
+    const selected = state.templates.find((t) => t.id === selectedTemplateId);
+
+    const toolbar = el('div', {class: 'pi-rule__condition'}, []);
+    if (state.templates.length > 0) {
+      toolbar.appendChild(selectInput(
+        state.templates.map((t) => [t.id, templateName(t)]), selectedTemplateId, (id) => {
+          selectedTemplateId = id;
+          renderTemplates();
+        }, 'pi-rule__select pi-rule__template'));
+    }
+    toolbar.appendChild(el('button', {
+      class: 'pi-button', type: 'button', text: 'New template',
+      onClick: () => {
+        const template = {id: newTemplateId(), name: `Template ${state.templates.length + 1}`};
+        state.templates.push(template);
+        selectedTemplateId = template.id;
+        saveTemplates();
+        renderTemplates();
+        renderRules();
+      }
+    }));
+
+    const children = [toolbar];
+
+    if (selected) {
+      toolbar.appendChild(el('button', {
+        class: 'file-picker-clear', type: 'button', title: 'Delete this template', text: 'X',
+        onClick: () => {
+          state.templates = state.templates.filter((t) => t.id !== selected.id);
+          saveTemplates();
+          renderTemplates();
+          renderRules();
+        }
+      }));
+
+      children.push(row('Name', textInput(selected.name, 'Template name', (v) => {
+        selected.name = v;
+        saveTemplates();
+      })));
+      children.push(row('Colors', renderColors(selected, saveTemplates)));
+      children.push(row('Image', el('div', {
+        class: 'pi-file-picker', id: 'template-image', 'data-accept': '.png,.jpg,.jpeg,.bmp,.gif',
+        'data-placeholder': 'No image', 'data-select-title': 'Select image', 'data-clear-title': 'Clear image'
+      })));
+      children.push(row('Flash', textInput(selected.flashMs, 'off (ms)', (v) => {
+        const parsed = parseInt(v, 10);
+        selected.flashMs = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+        saveTemplates();
+      }, 'number'), 'Show then hide for this many ms each (minimum 250). Empty = no flashing.'));
+    } else {
+      children.push(el('span', {
+        class: 'pi-rule__hint', text: 'No templates yet. A template bundles colors, image and flash so rules can share one look.'
+      }));
+    }
+
+    host.replaceChildren(...children);
+
+    if (selected) {
+      queueMicrotask(() => {
+        SCPI?.ui?.filePicker?.createFilePicker?.({
+          rootId: 'template-image',
+          placeholderText: 'No image',
+          initialValue: selected.imagePath || '',
+          onValueChanged: (path) => {
+            selected.imagePath = path || null;
+            saveTemplates();
+          }
+        });
+      });
+    }
+  }
+
+  // Name edits are applied when the field loses focus so the rule selects are not rebuilt on every keystroke.
+  document.getElementById('templates')?.addEventListener('change', (event) => {
+    if (event.target?.matches?.('input[type="text"]')) {
+      renderRules();
+    }
+  });
+
+  let setTemplates = null;
+  if (globalThis.SDPIComponents?.useGlobalSettings) {
+    const [getTemplates, set] = globalThis.SDPIComponents.useGlobalSettings(
+      'formatTemplates',
+      (value) => {
+        const next = Array.isArray(value) ? value : [];
+        if (JSON.stringify(next) !== JSON.stringify(state.templates)) {
+          state.templates = next;
+          renderTemplates();
+          renderRules();
+        }
+      });
+    setTemplates = set;
+    Promise.resolve(getTemplates()).then((value) => {
+      state.templates = Array.isArray(value) ? value : [];
+      renderTemplates();
+      renderRules();
+    }).catch(() => {
+    });
+  }
+
+  // #endregion
+
   // #region Startup
 
   useSetting('fieldPath', (v) => {
@@ -781,6 +919,7 @@
   });
 
   SCPI?.util?.onDocumentReady?.(() => {
+    renderTemplates();
     renderRules();
     SCPI?.bus?.sendOnce?.('pi.connected', 'propertyInspectorConnected');
   });
