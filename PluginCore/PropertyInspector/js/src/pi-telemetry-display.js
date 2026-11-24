@@ -38,6 +38,12 @@
   };
 
   let fields = [];
+
+  // Pseudo attributes of the deceleration estimate that rules can test (resolved by the plugin).
+  const DECEL_FIELDS = [
+    {path: 'deceleration.units', label: 'Estimate (units)', group: 'Deceleration', kind: 'Number', isInteger: false, enumValues: null},
+    {path: 'deceleration.time', label: 'Estimate (time, s)', group: 'Deceleration', kind: 'Number', isInteger: false, enumValues: null}
+  ];
   let functionOptions = [];
   let functionsLoaded = null;
 
@@ -144,11 +150,12 @@
   fieldDropdown?.setLoading?.(true, 'Loading attributes');
 
   function populateFields(list) {
-    fields = Array.isArray(list) ? list : [];
-    if (DECEL) {
-      fields = fields.filter((f) => String(f.kind).toLowerCase() === 'number');
-    }
-    fieldDropdown?.setItems?.(fields.map((f) => ({
+    const real = Array.isArray(list) ? list : [];
+    // Condition editors can test any attribute (and, on the deceleration page, the estimate itself);
+    // the primary attribute of the deceleration key must be numeric.
+    fields = DECEL ? real.concat(DECEL_FIELDS) : real;
+    const primary = DECEL ? real.filter((f) => String(f.kind).toLowerCase() === 'number') : real;
+    fieldDropdown?.setItems?.(primary.map((f) => ({
       value: f.path,
       text: `${f.group} › ${f.label}`
     })));
@@ -325,10 +332,10 @@
     card.appendChild(row('Text', textInput(rule.text, '{label}\\n{value}', (v) => {
       rule.text = v;
       saveRules();
-    }), ADVANCED
-      ? 'Use {value}/{label} (display attribute) or {value:attribute.path} for any attribute; \\n starts a new line.'
-      : DECEL
-        ? 'Use {units}, {time}, {value} (the selected output) and {label}; \\n starts a new line. Empty = the default for the chosen output.'
+    }), DECEL
+      ? 'Use {units}, {time}, {value} (the selected output), {label} or {value:attribute.path}; \\n starts a new line. Empty = the default for the chosen output.'
+      : ADVANCED
+        ? 'Use {value}/{label} (display attribute) or {value:attribute.path} for any attribute; \\n starts a new line.'
         : 'Use {value} and {label}; \\n starts a new line. Empty = "{label}\\n{value}".'));
 
     card.appendChild(row('Image', el('div', {
@@ -386,6 +393,18 @@
 
   // Advanced rules: all/any selector plus one row per condition (attribute + operator + value).
   function renderConditions(rule) {
+    // A rule saved before the deceleration key supported conditions tested the estimate with op/value.
+    if (DECEL && !Array.isArray(rule.conditions) && rule.op && rule.op !== 'always') {
+      rule.conditions = [{
+        fieldPath: state.deceleration?.output === 'time' ? 'deceleration.time' : 'deceleration.units',
+        op: rule.op, value: rule.value || '', value2: rule.value2 || ''
+      }];
+      rule.match = 'all';
+      rule.op = 'always';
+      rule.value = '';
+      rule.value2 = '';
+    }
+
     rule.conditions = Array.isArray(rule.conditions) ? rule.conditions : [];
     rule.match = rule.match === 'any' ? 'any' : 'all';
 

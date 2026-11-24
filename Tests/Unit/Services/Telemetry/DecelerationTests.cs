@@ -147,6 +147,67 @@ public sealed class DecelerationTests
     public void UnitsDivisor_FallsBackToOne(double? configured, double expected) =>
         new TelemetryDecelerationSettings { UnitsDivisor = configured }.EffectiveUnitsDivisor.Should().Be(expected);
 
+    private static TelemetrySnapshot Ship(double speed, bool landed) =>
+        new(new Dictionary<string, IReadOnlyDictionary<string, TelemetryValue>>
+        {
+            ["vehicle"] = new Dictionary<string, TelemetryValue>
+            {
+                [SpeedPath] = new(TelemetryValueKind.Number, speed),
+                ["vehicle.state.flight.state.is_landed"] =
+                    new(TelemetryValueKind.Boolean, Boolean: landed, DisplayText: landed ? "On" : "Off")
+            }
+        });
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public void Evaluator_RulesCanCombineTheEstimateWithOtherAttributes(bool landed, bool expectedMatch)
+    {
+        TelemetryDisplaySettings settings = Settings();
+        settings.Rules =
+        [
+            new TelemetryRule
+            {
+                Match = "all",
+                Text = "BRAKE {value:deceleration.time}",
+                Conditions =
+                [
+                    new TelemetryCondition { FieldPath = DecelerationEvaluator.TimePath, Op = "lt", Value = "20" },
+                    new TelemetryCondition { FieldPath = "vehicle.state.flight.state.is_landed", Op = "eq", Value = "false" }
+                ]
+            }
+        ];
+        DecelerationEvaluator evaluator = new();
+
+        evaluator.Evaluate(settings, Ship(300, landed), TelemetrySchema.Bundled, At(0));
+        TelemetryEvaluation result = evaluator.Evaluate(settings, Ship(280, landed), TelemetrySchema.Bundled, At(1000));
+
+        (result.Match.Index == 0).Should().Be(expectedMatch);
+        if (expectedMatch)
+        {
+            result.Text.Should().Be("BRAKE 14.0");
+        }
+    }
+
+    [Fact]
+    public void Evaluator_ConditionsOnTheEstimateNeedAnEstimate()
+    {
+        TelemetryDisplaySettings settings = Settings();
+        settings.Rules =
+        [
+            new TelemetryRule
+            {
+                Conditions = [new TelemetryCondition { FieldPath = DecelerationEvaluator.UnitsPath, Op = "gt", Value = "0" }]
+            }
+        ];
+        DecelerationEvaluator evaluator = new();
+
+        evaluator.Evaluate(settings, Ship(300, false), TelemetrySchema.Bundled, At(0));
+        TelemetryEvaluation steady = evaluator.Evaluate(settings, Ship(300, false), TelemetrySchema.Bundled, At(1000));
+
+        steady.Match.Index.Should().Be(-1); // not decelerating: no estimate, condition is false
+    }
+
     [Fact]
     public void Evaluator_OutputChoiceAndRoundingApply()
     {

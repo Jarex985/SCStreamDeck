@@ -97,6 +97,51 @@
       background: transparent;
     }
 
+    .pi-rule__conditions {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      flex: 1;
+      min-width: 0;
+    }
+
+    .pi-rule__condition-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+      padding: var(--space-xs);
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-sm);
+    }
+
+    .pi-rule__actions-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      flex: 1;
+      min-width: 0;
+    }
+
+    .pi-rule__action {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+      padding: var(--space-xs);
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-sm);
+    }
+
+    .pi-rule__action-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+
+    .pi-rule__attribute {
+      flex: 1 1 100%;
+    }
+
     .pi-telemetry-note {
       color: var(--color-text-tertiary);
       font-size: var(--font-size-sm);
@@ -113,8 +158,10 @@
   <script defer src="../js/sdpi-components.js"></script>
   <script defer src="../js/sc-components.js"></script>
   <script>
-    // Numeric attributes only, with the deceleration estimate options.
+    // Numeric source attribute with the deceleration estimate options; rules combine conditions on any
+    // attributes and on the estimate itself (like the advanced key).
     globalThis.SCPI_TELEMETRY_DECELERATION = true;
+    globalThis.SCPI_TELEMETRY_ADVANCED = true;
   </script>
   <script defer src="../js/pi-telemetry-display.js"></script>
 </head>
@@ -147,7 +194,7 @@
           </div>
         </div>
         <div class="pi-picker-row">
-          <div class="pi-picker-label" title="What the key shows. Rules compare time when only time is shown, otherwise the cumulative units.">Show</div>
+          <div class="pi-picker-label" title="What the key shows. Legacy rules without conditions compare time when only time is shown, otherwise the units.">Show</div>
           <select aria-label="Output" class="pi-rule__select" id="decelOutput" style="flex:1">
             <option value="both">Units and time</option>
             <option value="units">Units only</option>
@@ -204,6 +251,7 @@
       <div class="pi-telemetry-note">
         Assumes the value keeps dropping at the rate seen over the window: time = value / rate, units = value&sup2; / (2 &times; rate).
         For ship speed in m/s the units are meters. Without a clear reduction the key shows the Default look with &mdash;.
+        Rules can test the estimate ("Estimate (units)" / "Estimate (time, s)") together with any other attributes.
       </div>
     </div>
 

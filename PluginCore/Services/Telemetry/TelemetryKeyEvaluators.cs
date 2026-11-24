@@ -24,6 +24,11 @@ public sealed class DecelerationEvaluator : ITelemetryKeyEvaluator
 {
     public const string Placeholder = "—";
 
+    /// <summary>Pseudo attributes rules can test: the estimate in the displayed unit, and the time in seconds.</summary>
+    public const string UnitsPath = "deceleration.units";
+
+    public const string TimePath = "deceleration.time";
+
     private readonly DecelerationEstimator _estimator = new();
 
     public TelemetryEvaluation Evaluate(
@@ -50,10 +55,19 @@ public sealed class DecelerationEvaluator : ITelemetryKeyEvaluator
         // Units are shown (and compared by rules) in the chosen order of magnitude, e.g. km instead of m.
         double divisor = options.EffectiveUnitsDivisor;
         string output = options.EffectiveOutput;
-        TelemetryValue? ruleValue = estimate is { } e
-            ? new TelemetryValue(TelemetryValueKind.Number, output == TelemetryDecelerationSettings.OutputTime ? e.TimeSeconds : e.Units / divisor)
-            : null;
-        TelemetryRuleMatch match = TelemetryRuleEvaluator.Evaluate(display, ruleValue);
+        TelemetryValue? unitsValue = estimate is { } eu ? new TelemetryValue(TelemetryValueKind.Number, eu.Units / divisor) : null;
+        TelemetryValue? timeValue = estimate is { } et ? new TelemetryValue(TelemetryValueKind.Number, et.TimeSeconds) : null;
+        TelemetryValue? ruleValue = output == TelemetryDecelerationSettings.OutputTime ? timeValue : unitsValue;
+
+        // Rules may test any attribute and the estimate itself ("deceleration.units" / "deceleration.time").
+        TelemetryValue? Resolve(string path) => path switch
+        {
+            UnitsPath => unitsValue,
+            TimePath => timeValue,
+            _ => snapshot != null && snapshot.TryGetValue(path, out TelemetryValue read) ? read : null
+        };
+
+        TelemetryRuleMatch match = TelemetryRuleEvaluator.EvaluateWithPrimary(display, ruleValue, Resolve);
 
         string units = estimate is { } u ? UnitsText(u.Units / divisor, options) : Placeholder;
         string time = estimate is { } t ? $"{TelemetryTextFormatter.FormatRounded(t.TimeSeconds, options.TimeRounding)} s" : Placeholder;
@@ -65,7 +79,9 @@ public sealed class DecelerationEvaluator : ITelemetryKeyEvaluator
             : match.Rule.Text;
 
         Dictionary<string, string> tokens = new(StringComparer.OrdinalIgnoreCase) { ["units"] = units, ["time"] = time };
-        return new TelemetryEvaluation(match, TelemetryTextFormatter.Apply(template, label, value, null, tokens));
+        return new TelemetryEvaluation(
+            match,
+            TelemetryTextFormatter.Apply(template, label, value, path => TelemetryTextFormatter.FormatValue(Resolve(path), display.Decimals), tokens));
     }
 
     private static string UnitsText(double units, TelemetryDecelerationSettings options)
@@ -74,6 +90,7 @@ public sealed class DecelerationEvaluator : ITelemetryKeyEvaluator
         return string.IsNullOrWhiteSpace(options.Unit) ? text : $"{text} {options.Unit.Trim()}";
     }
 }
+
 /// <summary>
 ///     Telemetry Display (one attribute) and Advanced Telemetry Display (conditions on several attributes).
 /// </summary>

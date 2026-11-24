@@ -19,6 +19,18 @@ public static class TelemetryRuleEvaluator
         EvaluateCore(settings, value, _ => null);
 
     /// <summary>
+    ///     Like <see cref="EvaluateWithResolver" /> but the primary value (tested by rules without conditions) is given
+    ///     explicitly, so it can be a derived value that has no attribute path (for example a deceleration estimate).
+    /// </summary>
+    public static TelemetryRuleMatch EvaluateWithPrimary(
+        TelemetryDisplaySettings settings, TelemetryValue? primary, Func<string, TelemetryValue?> resolve)
+    {
+        ArgumentNullException.ThrowIfNull(resolve);
+
+        return EvaluateCore(settings, primary, path => string.IsNullOrWhiteSpace(path) ? null : resolve(path));
+    }
+
+    /// <summary>
     ///     Like <see cref="Evaluate" /> but values are looked up by attribute path, so rules can use several
     ///     attributes. Rules without conditions test the settings' primary attribute (<c>FieldPath</c>); rules with
     ///     conditions test their own attributes and match when all (or any) conditions hold. A condition on an
