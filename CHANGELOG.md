@@ -19,6 +19,7 @@ Notes:
 
 ### Features / Improvements
 
+- New `Telemetry Debug` key: toggles a capture of the raw telemetry stream to `telemetry-debug.log` next to the plugin log, with field numbers, names from the protocol, unknown or mismatching fields flagged, the fields the game did not send, and a summary of attributes never sent. Use it when an attribute does not show up.
 - Flashing rules and templates have a new **Flashes** option: **Text** (default; only the text blinks), **Background + image** (the text stays while the background and image blink to black) or **Everything**. Rules that flashed before now blink only the text; image and background stay.
 - New format templates for the telemetry keys: a named bundle of text color, background color, image and flash interval that rules can use, shared by all telemetry keys.
 - New `Deceleration` key: estimates the cumulative units (for ship speed: meters) and the time until a numeric attribute reaches zero from its reduction over a configurable window, with rounding and rule-based looks.

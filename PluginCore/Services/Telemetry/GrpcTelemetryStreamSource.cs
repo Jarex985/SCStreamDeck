@@ -19,7 +19,8 @@ public interface ITelemetryStreamSource
 /// </summary>
 public sealed class GrpcTelemetryStreamSource(
     ITelemetrySchemaProvider schemas,
-    string address = GrpcTelemetryStreamSource.DefaultAddress) : ITelemetryStreamSource
+    string address = GrpcTelemetryStreamSource.DefaultAddress,
+    TelemetryDebugRecorder? debugRecorder = null) : ITelemetryStreamSource
 {
     public const string DefaultAddress = "http://127.0.0.1:2942";
 
@@ -39,6 +40,8 @@ public sealed class GrpcTelemetryStreamSource(
 
         await foreach (byte[] bytes in call.ResponseStream.ReadAllAsync(cancellationToken).ConfigureAwait(false))
         {
+            debugRecorder?.Record(bytes, _schemas.Current);
+
             TelemetrySnapshot frame;
             try
             {

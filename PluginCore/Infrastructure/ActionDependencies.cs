@@ -28,7 +28,13 @@ internal static class ActionDependencies
         ServiceLocator.GetService<TelemetryService>(),
         ServiceLocator.GetService<ITelemetrySchemaProvider>(),
         ServiceLocator.GetService<TelemetryTemplateService>());
+
+    public static TelemetryDebugKeyDependencies ForTelemetryDebugKey() => new(
+        ServiceLocator.GetService<TelemetryService>(),
+        ServiceLocator.GetService<TelemetryDebugRecorder>());
 }
+
+internal sealed record TelemetryDebugKeyDependencies(TelemetryService Telemetry, TelemetryDebugRecorder Recorder);
 
 internal sealed record TelemetryKeyDependencies(
     TelemetryService Telemetry, ITelemetrySchemaProvider Schemas, TelemetryTemplateService Templates);

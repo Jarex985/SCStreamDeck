@@ -96,6 +96,17 @@ All three telemetry keys (`Telemetry Display`, `Advanced Telemetry Display`, `De
 
 Anything you set on the rule itself (its own colors, image or flash) overrides the template, so a rule can use a template and still differ in one detail. Templates are shared by all telemetry keys (they are stored in the plugin's global settings, not in the key, so they are not part of an exported profile). Deleting a template makes rules that used it fall back to their own settings.
 
+## Telemetry Debug Key
+
+Use `Telemetry Debug` to find out why a telemetry attribute does not show up. Press the key to switch the capture on (red, `DEBUG ON`, with the stream state and the number of frames received) or off (grey):
+
+1. While it is on, raw frames of the game's telemetry stream are written, at most one every 2 seconds, to `telemetry-debug.log` in the folder of the plugin log (it is overwritten each time you switch it on).
+2. Every line shows the protobuf field number, the name from the protocol and the value. Fields the game sends that the protocol does not know are marked `NOT IN SCHEMA`, and fields sent with another wire type than the protocol says are marked `WIRE TYPE MISMATCH`.
+3. Fields the game leaves out are listed as `not sent, so 0/false/default` (proto3 does not send a value of 0). If you do see `0` on a key but expect another value, this is the place to check whether the game sent it.
+4. When you switch it off, a summary lists the protocol attributes that were never sent during the capture.
+
+The file stops growing at 5 MB. The key also keeps the telemetry connection open, so it works without any other telemetry key on the deck.
+
 ## Control Panel Key
 
 Use `Control Panel` for global plugin settings:

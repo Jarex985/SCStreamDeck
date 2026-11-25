@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Star Citizen Stream Deck Plugin PI - Telemetry Debug</title>
+  <link href="../css/base.css" rel="stylesheet">
+  <link id="pi-theme-styles" rel="stylesheet">
+  <script src="../js/sc-preload.js"></script>
+</head>
+<body>
+<div class="pi-container">
+  <div class="pi-panel">
+    <div class="pi-section">
+      <div class="pi-description__content pi-content-box">
+        Press the key to switch the telemetry debug capture on or off. While it is on, raw frames of Star Citizen's
+        telemetry stream are written (at most one every 2 seconds) to <b>telemetry-debug.log</b>, in the same folder as
+        the plugin log. Switching it off adds a summary of the attributes the game never sent.
+        Use it when an attribute does not show up: it lists fields the game sends that the protocol does not know, and
+        fields the game leaves out (proto3 does not send a value of 0).
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

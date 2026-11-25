@@ -83,6 +83,22 @@
     },
     {
       "Icon": "Images/icon",
+      "Name": "Telemetry Debug",
+      "States": [
+        {
+          "Image": "PropertyInspector/svg/key",
+          "Title": "Debug",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "Toggles a raw capture of the game's telemetry stream to telemetry-debug.log for troubleshooting",
+      "UUID": "com.jarex985.scstreamdeck.telemetrydebug",
+      "PropertyInspectorPath": "PropertyInspector/Keys/TelemetryDebug.html"
+    },
+    {
+      "Icon": "Images/icon",
       "Name": "Control Panel",
       "States": [
         {
