@@ -52,7 +52,7 @@ Basic flow:
     - On/Off values and enums (for example `Locomotion`): is / is not
     - Per rule: Text (`{value}` and `{label}` are replaced, `\n` is a new line), Image (.png/.jpg/.bmp/.gif), Text and Back colors, an optional Flash, and an optional Press action
     - Sound: a .wav/.mp3 played once each time the rule becomes the active one (not for the Default section, and not when the key first appears)
-    - Flash: enter a time in ms (minimum 250). While that rule is active the text and image are shown for that long, then hidden (only the background color remains) for the same time, repeating. Empty = no flashing
+    - Flash: enter a time in ms (minimum 250). While that rule is active the flashed part is shown for that long, then hidden for the same time, repeating. Empty = no flashing. **Flashes** chooses what blinks: **Text** (default; background and image stay), **Background + image** (the text stays; the background and image turn black while off) or **Everything** (all blink; the key is black while off)
 5. The Default section is used when no rule matches or there is no data.
 6. (Optional) Select a Press sound (.wav/.mp3), played when a press action runs.
 

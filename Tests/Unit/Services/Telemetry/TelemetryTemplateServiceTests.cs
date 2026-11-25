@@ -23,6 +23,18 @@ public sealed class TelemetryTemplateServiceTests
     }
 
     [Fact]
+    public void Resolve_FlashTargetComesFromTheTemplateUnlessTheRuleSetsOne()
+    {
+        TelemetryTemplateService service = new();
+        TelemetryFormatTemplate template = Warning();
+        template.FlashTarget = "background";
+        service.Update([template]);
+
+        service.Resolve(new TelemetryRule { TemplateId = "t1" }).FlashTarget.Should().Be("background");
+        service.Resolve(new TelemetryRule { TemplateId = "t1", FlashTarget = "text" }).FlashTarget.Should().Be("text");
+    }
+
+    [Fact]
     public void Resolve_RuleValuesOverrideTheTemplate()
     {
         TelemetryTemplateService service = new();

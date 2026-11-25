@@ -16,7 +16,16 @@ public sealed class TelemetryFlashTests
         TelemetryFlash.Normalize(input).Should().Be(expected);
 
     [Theory]
-    [InlineData(0, false, 1000)]
+    [InlineData(null, TelemetryFlashTarget.Text)]
+    [InlineData("", TelemetryFlashTarget.Text)]
+    [InlineData("text", TelemetryFlashTarget.Text)]
+    [InlineData("bogus", TelemetryFlashTarget.Text)]
+    [InlineData("background", TelemetryFlashTarget.BackgroundAndImage)]
+    [InlineData(" Everything ", TelemetryFlashTarget.Everything)]
+    public void ParseTarget_DefaultsToText(string? input, TelemetryFlashTarget expected) =>
+        TelemetryFlash.ParseTarget(input).Should().Be(expected);
+
+    [Theory]
     [InlineData(999, false, 1)]
     [InlineData(1000, true, 1000)]
     [InlineData(1500, true, 500)]

@@ -110,9 +110,12 @@ public sealed class TelemetryRule
 
     /// <summary>
     ///     When set, text and image alternate between shown and hidden, each for this many milliseconds,
-    ///     while this rule is active. Empty or 0 disables flashing.
+    ///     while this rule is active. Empty or 0 disables flashing; <see cref="FlashTarget" /> picks what blinks.
     /// </summary>
     [JsonProperty("flashMs")] public int? FlashMs { get; set; }
+
+    /// <summary>What blinks while flashing: "text" (default), "background" (background color and image) or "everything".</summary>
+    [JsonProperty("flashTarget")] public string? FlashTarget { get; set; }
 }
 
 /// <summary>

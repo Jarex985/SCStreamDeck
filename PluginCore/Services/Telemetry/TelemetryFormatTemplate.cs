@@ -20,13 +20,15 @@ public sealed class TelemetryFormatTemplate
     [JsonProperty("imagePath")] public string? ImagePath { get; set; }
 
     [JsonProperty("flashMs")] public int? FlashMs { get; set; }
+
+    [JsonProperty("flashTarget")] public string? FlashTarget { get; set; }
 }
 
 /// <summary>
 ///     The look a rule ends up with after applying its template.
 /// </summary>
 public readonly record struct TelemetryRuleAppearance(
-    string? TextColor, string? BackgroundColor, string? ImagePath, int? FlashMs);
+    string? TextColor, string? BackgroundColor, string? ImagePath, int? FlashMs, string? FlashTarget = null);
 
 /// <summary>
 ///     Holds the format templates shared by all telemetry keys (stored in the Stream Deck plugin's global settings)
@@ -105,7 +107,8 @@ public sealed class TelemetryTemplateService
             FirstNonEmpty(rule.TextColor, template?.TextColor),
             FirstNonEmpty(rule.BackgroundColor, template?.BackgroundColor),
             FirstNonEmpty(rule.ImagePath, template?.ImagePath),
-            rule.FlashMs is > 0 ? rule.FlashMs : template?.FlashMs);
+            rule.FlashMs is > 0 ? rule.FlashMs : template?.FlashMs,
+            FirstNonEmpty(rule.FlashTarget, template?.FlashTarget));
     }
 
     private static string? FirstNonEmpty(string? first, string? second) =>
@@ -116,5 +119,6 @@ public sealed class TelemetryTemplateService
         a.Count == b.Count && a.All(pair =>
             b.TryGetValue(pair.Key, out TelemetryFormatTemplate? other) &&
             pair.Value.TextColor == other.TextColor && pair.Value.BackgroundColor == other.BackgroundColor &&
-            pair.Value.ImagePath == other.ImagePath && pair.Value.FlashMs == other.FlashMs);
+            pair.Value.ImagePath == other.ImagePath && pair.Value.FlashMs == other.FlashMs &&
+            pair.Value.FlashTarget == other.FlashTarget);
 }

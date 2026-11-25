@@ -14,7 +14,8 @@ public sealed record TelemetryRenderModel(
     string? ImagePath,
     string? TextColor,
     string? BackgroundColor,
-    bool Hidden = false);
+    bool Hidden = false,
+    TelemetryFlashTarget FlashTarget = TelemetryFlashTarget.Text);
 
 /// <summary>
 ///     Draws a telemetry key: optional background image (cover-fit) with outlined, auto-fitted text on top.
@@ -46,22 +47,25 @@ public sealed class TelemetryKeyRenderer : IDisposable
         g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
         g.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
-        g.Clear(ParseColor(model.BackgroundColor) ?? s_defaultBackground);
+        bool hideText = model.Hidden && model.FlashTarget is TelemetryFlashTarget.Text or TelemetryFlashTarget.Everything;
+        bool hideBackground = model.Hidden &&
+                              model.FlashTarget is TelemetryFlashTarget.BackgroundAndImage
+                                  or TelemetryFlashTarget.Everything;
 
-        if (model.Hidden)
-        {
-            return canvas;
-        }
+        g.Clear(hideBackground ? s_defaultBackground : ParseColor(model.BackgroundColor) ?? s_defaultBackground);
 
-        bool hasImage = false;
         Bitmap? image = LoadImage(model.ImagePath);
-        if (image != null)
+        if (image != null && !hideBackground)
         {
             DrawCover(g, image);
-            hasImage = true;
         }
 
-        DrawText(g, model.Text, ParseColor(model.TextColor) ?? Color.White, hasImage);
+        if (!hideText)
+        {
+            // Text keeps its position over an image even while that image is blinked off.
+            DrawText(g, model.Text, ParseColor(model.TextColor) ?? Color.White, image != null);
+        }
+
         return canvas;
     }
 

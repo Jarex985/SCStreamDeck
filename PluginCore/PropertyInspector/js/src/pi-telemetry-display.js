@@ -133,6 +133,17 @@
     return select;
   }
 
+  function flashTargetSelect(target, save) {
+    return selectInput([
+      ['text', 'Text'],
+      ['background', 'Background + image'],
+      ['everything', 'Everything']
+    ], target.flashTarget || 'text', (v) => {
+      target.flashTarget = v;
+      save();
+    }, 'pi-rule__select');
+  }
+
   // #endregion
 
   // #region Attribute section
@@ -358,7 +369,8 @@
       const parsed = parseInt(v, 10);
       rule.flashMs = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
       saveRules();
-    }, 'number'), 'Show the text/image for this many ms, then hide it for the same time, repeating. Minimum 250. Empty = no flashing.'));
+    }, 'number'), 'Show the content for this many ms, then hide it for the same time, repeating. Minimum 250. Empty = no flashing.'));
+    card.appendChild(row('Flashes', flashTargetSelect(rule, saveRules), 'Which part blinks while flashing. Background and Everything switch to black while off.'));
     card.appendChild(row('Press', renderPressAction(rule, idPrefix),
       ADVANCED ? 'Actions run, in order, when the key is pressed while this rule is active.'
         : 'Action run when the key is pressed while this rule is active.'));
@@ -829,6 +841,8 @@
         selected.flashMs = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
         saveTemplates();
       }, 'number'), 'Show then hide for this many ms each (minimum 250). Empty = no flashing.'));
+      children.push(row('Flashes', flashTargetSelect(selected, saveTemplates),
+        'Which part blinks while flashing. Background and Everything switch to black while off.'));
     } else {
       children.push(el('span', {
         class: 'pi-rule__hint', text: 'No templates yet. A template bundles colors, image and flash so rules can share one look.'

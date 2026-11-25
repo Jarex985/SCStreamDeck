@@ -288,7 +288,9 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
 
                 DateTime now = DateTime.UtcNow;
                 TimeSpan? untilSwitch = null;
-                int flashMs = TelemetryFlash.Normalize(_templates.Resolve(match.Rule).FlashMs);
+                TelemetryRuleAppearance look = _templates.Resolve(match.Rule);
+                int flashMs = TelemetryFlash.Normalize(look.FlashMs);
+                TelemetryFlashTarget flashTarget = TelemetryFlash.ParseTarget(look.FlashTarget);
 
                 if (flashMs > 0)
                 {
@@ -302,7 +304,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
 
                     bool hidden = TelemetryFlash.IsHidden(now - _flashStartUtc, flashMs, out TimeSpan remaining);
                     untilSwitch = remaining;
-                    model = model with { Hidden = hidden };
+                    model = model with { Hidden = hidden, FlashTarget = flashTarget };
                 }
                 else
                 {
@@ -311,7 +313,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
 
                 ArmFlashTimer(untilSwitch);
 
-                string key = $"{model.Text}|{model.ImagePath}|{model.TextColor}|{model.BackgroundColor}|{model.Hidden}";
+                string key = $"{model.Text}|{model.ImagePath}|{model.TextColor}|{model.BackgroundColor}|{model.Hidden}|{model.FlashTarget}";
                 if (!force && key == _renderedKey)
                 {
                     _dirty = false;
