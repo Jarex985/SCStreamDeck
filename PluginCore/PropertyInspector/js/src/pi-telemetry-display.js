@@ -13,6 +13,9 @@
   // Deceleration page: numeric attributes only, plus the estimate options (set by Deceleration.html).
   const DECEL = globalThis.SCPI_TELEMETRY_DECELERATION === true;
 
+  // UEC tracker page: no attribute picker; rules can test the balance and the session change (set by UecTracker.html).
+  const UEC = globalThis.SCPI_TELEMETRY_UEC === true;
+
   // #region State
 
   const OPS_NUMBER = [
@@ -44,6 +47,11 @@
   const DECEL_FIELDS = [
     {path: 'deceleration.units', label: 'Estimate (units)', group: 'Deceleration', kind: 'Number', isInteger: false, enumValues: null},
     {path: 'deceleration.time', label: 'Estimate (time, s)', group: 'Deceleration', kind: 'Number', isInteger: false, enumValues: null}
+  ];
+
+  // Pseudo attribute of the UEC tracker: gain (positive) or loss (negative) since the session started.
+  const UEC_FIELDS = [
+    {path: 'uec.change', label: 'Session change', group: 'UEC', kind: 'Number', isInteger: true, enumValues: null}
   ];
   let functionOptions = [];
   let functionsLoaded = null;
@@ -165,7 +173,7 @@
     const real = Array.isArray(list) ? list : [];
     // Condition editors can test any attribute (and, on the deceleration page, the estimate itself);
     // the primary attribute of the deceleration key must be numeric.
-    fields = DECEL ? real.concat(DECEL_FIELDS) : real;
+    fields = DECEL ? real.concat(DECEL_FIELDS) : UEC ? real.concat(UEC_FIELDS) : real;
     const primary = DECEL ? real.filter((f) => String(f.kind).toLowerCase() === 'number') : real;
     fieldDropdown?.setItems?.(primary.map((f) => ({
       value: f.path,
@@ -341,10 +349,12 @@
       card.appendChild(row('When', ADVANCED ? renderConditions(rule) : renderCondition(rule)));
     }
 
-    card.appendChild(row('Text', textInput(rule.text, '{label}\\n{value}', (v) => {
+    card.appendChild(row('Text', textInput(rule.text, UEC ? '{value}\\n{change}' : '{label}\\n{value}', (v) => {
       rule.text = v;
       saveRules();
-    }), DECEL
+    }), UEC
+      ? 'Use {value} (balance), {change} (earned/lost), {label} or {value:attribute.path}; \\n starts a new line. Empty = "{value}\\n{change}".'
+      : DECEL
       ? 'Use {units}, {time}, {value} (the selected output), {label} or {value:attribute.path}; \\n starts a new line. Empty = the default for the chosen output.'
       : ADVANCED
         ? 'Use {value}/{label} (display attribute) or {value:attribute.path} for any attribute; \\n starts a new line.'

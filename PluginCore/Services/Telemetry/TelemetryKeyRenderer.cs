@@ -15,7 +15,8 @@ public sealed record TelemetryRenderModel(
     string? TextColor,
     string? BackgroundColor,
     bool Hidden = false,
-    TelemetryFlashTarget FlashTarget = TelemetryFlashTarget.Text);
+    TelemetryFlashTarget FlashTarget = TelemetryFlashTarget.Text,
+    IReadOnlyList<string?>? LineColors = null);
 
 /// <summary>
 ///     Draws a telemetry key: optional background image (cover-fit) with outlined, auto-fitted text on top.
@@ -63,7 +64,7 @@ public sealed class TelemetryKeyRenderer : IDisposable
         if (!hideText)
         {
             // Text keeps its position over an image even while that image is blinked off.
-            DrawText(g, model.Text, ParseColor(model.TextColor) ?? Color.White, image != null);
+            DrawText(g, model.Text, ParseColor(model.TextColor) ?? Color.White, image != null, model.LineColors);
         }
 
         return canvas;
@@ -154,7 +155,7 @@ public sealed class TelemetryKeyRenderer : IDisposable
         g.DrawImage(image, (Size - width) / 2f, (Size - height) / 2f, width, height);
     }
 
-    private static void DrawText(Graphics g, string text, Color color, bool overImage)
+    private static void DrawText(Graphics g, string text, Color color, bool overImage, IReadOnlyList<string?>? lineColors)
     {
         string[] lines = text.Split('\n', StringSplitOptions.None);
         if (lines.All(string.IsNullOrWhiteSpace))
@@ -174,11 +175,12 @@ public sealed class TelemetryKeyRenderer : IDisposable
         {
             Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Near, Trimming = StringTrimming.None
         };
-        using SolidBrush brush = new(color);
         using Pen outline = new(Color.FromArgb(220, 0, 0, 0), Math.Max(2f, fontSize / 6f)) { LineJoin = LineJoin.Round };
 
         for (int i = 0; i < lines.Length; i++)
         {
+            Color lineColor = lineColors != null && i < lineColors.Count ? ParseColor(lineColors[i]) ?? color : color;
+            using SolidBrush brush = new(lineColor);
             RectangleF box = new(Margin, top + (lineHeight * i), available, lineHeight);
             using GraphicsPath path = new();
             path.AddString(lines[i], font.FontFamily, (int)font.Style, fontSize, box, format);

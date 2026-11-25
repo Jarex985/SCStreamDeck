@@ -86,9 +86,20 @@ Use `Deceleration` to see how far you will still travel, and how long it will ta
 
 The estimate assumes the value keeps dropping at the rate seen over the window: time = value / rate and units = value² / (2 × rate). It needs one full window of history first, and while the value is not clearly decreasing (constant, increasing, already zero, or no data) the key shows `—` and uses the Default section.
 
+## UEC Tracker Key
+
+Use `UEC Tracker` to watch your in-game UEC balance and how much you earned or lost during the session.
+
+1. Drag `UEC Tracker` onto a key. The first line is your current balance; the second line is the change since the session started, in accounting style without decimals: `1,250` in green for a gain, `(800)` in red for a loss, plain `0` when nothing changed.
+2. **Press the key** to reset the count: the change restarts at 0 from your current balance.
+3. A new session also starts by itself when the balance was unavailable for more than a minute (for example the game was restarted). All `UEC Tracker` keys share the same session.
+4. Rules, images, colors, flash, sounds and **format templates** work as on `Advanced Telemetry Display` and style the whole key and the balance line; only the change line is colored green/red. Rules can test the balance (`Actor State › Uec Balance`) and the change (`UEC › Session change`). Texts can use `{value}` (balance), `{change}`, `{label}` and `{value:attribute.path}`; the default text is `{value}\n{change}`.
+
+The key needs the game's telemetry server to be enabled and shows `—` while no balance is received.
+
 ## Format templates
 
-All three telemetry keys (`Telemetry Display`, `Advanced Telemetry Display`, `Deceleration`) have a **Format templates** section. A template is a named look that bundles **text color, background color, image and flash interval**, for example a `warning` template with yellow text on red that flashes every 500 ms.
+All telemetry keys (`Telemetry Display`, `Advanced Telemetry Display`, `Deceleration`, `UEC Tracker`) have a **Format templates** section. A template is a named look that bundles **text color, background color, image and flash interval**, for example a `warning` template with yellow text on red that flashes every 500 ms.
 
 1. Click **New template**, give it a name and set colors, image and flash.
 2. In any rule (or the Default section) pick it in the **Template** row.

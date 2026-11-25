@@ -94,6 +94,15 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
     {
         try
         {
+            bool handled = false;
+            if (_evaluator is ITelemetryKeyPressHandler pressHandler)
+            {
+                pressHandler.OnKeyPressed();
+                PlayClickSoundIfConfigured();
+                handled = true;
+                Refresh(true);
+            }
+
             IReadOnlyList<TelemetryPressAction> actions =
                 EvaluateCurrent().Match is { HasData: true } match ? match.Rule.GetPressActions() : [];
             if (actions.Count == 0)
@@ -101,7 +110,10 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
                 return;
             }
 
-            PlayClickSoundIfConfigured();
+            if (!handled)
+            {
+                PlayClickSoundIfConfigured();
+            }
 
             if (actions is [{ DelayMs: null or <= 0 } single])
             {
@@ -276,7 +288,9 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
 
         TelemetryRuleAppearance appearance = _templates.Resolve(match.Rule);
 
-        return (match, new TelemetryRenderModel(evaluation.Text, appearance.ImagePath, appearance.TextColor, appearance.BackgroundColor));
+        return (match, new TelemetryRenderModel(
+            evaluation.Text, appearance.ImagePath, appearance.TextColor, appearance.BackgroundColor,
+            LineColors: evaluation.LineColors));
     }
 
     private void Refresh(bool force)
@@ -325,7 +339,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
 
                 ArmFlashTimer(untilSwitch);
 
-                string key = $"{model.Text}|{model.ImagePath}|{model.TextColor}|{model.BackgroundColor}|{model.Hidden}|{model.FlashTarget}";
+                string key = $"{model.Text}|{model.ImagePath}|{model.TextColor}|{model.BackgroundColor}|{model.Hidden}|{model.FlashTarget}|{string.Join(',', model.LineColors ?? [])}";
                 if (!force && key == _renderedKey)
                 {
                     _dirty = false;

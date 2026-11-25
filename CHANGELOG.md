@@ -15,6 +15,14 @@ Notes:
 
 ---
 
+## v1.2.0.1 - Minor Release
+
+### Features / Improvements
+
+- New `UEC Tracker` key: shows your in-game UEC balance with the amount earned (green) or lost (red, in brackets) since the session started on a second line. Press the key to restart the count. Rules and format templates work as on the other telemetry keys.
+
+---
+
 ## v1.2.0.0 - Minor Release
 
 ### Features / Improvements

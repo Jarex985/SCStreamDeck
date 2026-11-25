@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Star Citizen Stream Deck Plugin PI - UEC Tracker</title>
+  <link href="../css/base.css" rel="stylesheet">
+  <link id="pi-theme-styles" rel="stylesheet">
+  <style>
+    .pi-rule {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-bg-card);
+      padding: var(--space-sm);
+      margin-bottom: var(--space-sm);
+    }
+
+    .pi-rule__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-sm);
+    }
+
+    .pi-rule__title {
+      color: var(--color-primary);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .pi-rule__actions {
+      display: flex;
+      gap: var(--space-xs);
+    }
+
+    .pi-rule__condition,
+    .pi-rule__colors,
+    .pi-rule__press-current {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .pi-rule__press {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+      flex: 1;
+      min-width: 0;
+    }
+
+    .pi-rule__function {
+      color: var(--color-text-secondary);
+      font-size: var(--font-size-sm);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .pi-rule__value {
+      flex: 1;
+      min-width: 60px;
+    }
+
+    .pi-rule__select {
+      background: var(--color-bg-elevated);
+      color: var(--color-text-primary);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      height: 32px;
+      padding: 0 var(--space-sm);
+      max-width: 100%;
+    }
+
+    .pi-rule__hint {
+      color: var(--color-text-tertiary);
+      font-size: var(--font-size-sm);
+    }
+
+    .pi-rule__color-group {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+
+    .pi-rule__color {
+      width: 32px;
+      height: 28px;
+      padding: 0;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background: transparent;
+    }
+
+    .pi-rule__conditions {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      flex: 1;
+      min-width: 0;
+    }
+
+    .pi-rule__condition-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+      padding: var(--space-xs);
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-sm);
+    }
+
+    .pi-rule__actions-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      flex: 1;
+      min-width: 0;
+    }
+
+    .pi-rule__action {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+      padding: var(--space-xs);
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-sm);
+    }
+
+    .pi-rule__action-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+
+    .pi-rule__attribute {
+      flex: 1 1 100%;
+    }
+
+    .pi-telemetry-note {
+      color: var(--color-text-tertiary);
+      font-size: var(--font-size-sm);
+      margin-top: var(--space-sm);
+    }
+  </style>
+  <script src="../js/sc-preload.js"></script>
+  <script defer src="../js/sdpi-components.js"></script>
+  <script defer src="../js/sc-components.js"></script>
+  <script>
+    // The balance is fixed; rules hold conditions on any attribute and on the session change ("uec.change").
+    globalThis.SCPI_TELEMETRY_UEC = true;
+    globalThis.SCPI_TELEMETRY_ADVANCED = true;
+  </script>
+  <script defer src="../js/pi-telemetry-display.js"></script>
+</head>
+<body>
+<div class="pi-container">
+  <div class="pi-panel">
+    <div class="pi-section">
+      <div class="pi-telemetry-note">
+        Shows your UEC balance with the amount earned (green) or lost (red, in brackets) since the session started
+        on a second line. Press the key to restart the count from the current balance. A new session also starts
+        when the game was closed for more than a minute. The game's telemetry server must be enabled.
+      </div>
+
+      <div class="pi-picker-grid">
+        <div class="pi-picker-row">
+          <div class="pi-picker-label" title="Replaces {label} in the rule texts.">Label</div>
+          <div class="pi-dropdown">
+            <div class="pi-dropdown__input-row">
+              <div class="pi-dropdown__input-wrapper">
+                <input aria-label="Label" id="labelInput" placeholder="UEC" type="text">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pi-section">
+      <div class="pi-page-title">Format templates</div>
+      <div class="pi-telemetry-note">Shared by all telemetry keys. A template bundles text color, background color, image and flash; pick it per rule below.</div>
+      <div id="templates"></div>
+    </div>
+
+    <div class="pi-section">
+      <div class="pi-page-title">Rules (first match wins)</div>
+      <div id="rulesList"></div>
+      <div class="pi-button-row">
+        <button class="pi-button" id="addRule" type="button">Add rule</button>
+      </div>
+    </div>
+
+    <div class="pi-section">
+      <div id="defaultRule"></div>
+      <div class="pi-telemetry-note">
+        The look of the key is the Default section unless a rule matches. Pressing the key always resets the count; rule press actions run as well.
+      </div>
+    </div>
+
+    <div class="pi-section audio-file-section">
+      <div class="pi-picker-row">
+        <div class="pi-picker-label" title="Played when the key is pressed.">Press sound</div>
+        <div class="pi-file-picker"
+             data-accept=".wav,.mp3"
+             data-clear-title="Clear audio file"
+             data-placeholder="No file selected"
+             data-select-title="Select audio file"
+             id="audioFilePicker"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

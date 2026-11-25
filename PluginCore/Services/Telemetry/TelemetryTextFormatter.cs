@@ -27,6 +27,14 @@ public static partial class TelemetryTextFormatter
     }
 
     /// <summary>
+    ///     Accounting style without currency symbol or decimals: 1,234 and (1,234) for negatives.
+    /// </summary>
+    public static string FormatAccounting(long amount) =>
+        amount < 0
+            ? $"({(-(decimal)amount).ToString("N0", CultureInfo.CurrentCulture)})"
+            : amount.ToString("N0", CultureInfo.CurrentCulture);
+
+    /// <summary>
     ///     Replaces {label} and {value}; with <paramref name="fieldValue" /> also {value:attribute.path} tokens,
     ///     so advanced keys can print several attributes.
     /// </summary>
