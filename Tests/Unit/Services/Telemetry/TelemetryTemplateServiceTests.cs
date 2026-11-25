@@ -102,4 +102,48 @@ public sealed class TelemetryTemplateServiceTests
         TelemetryTemplateService.Parse(null).Should().BeEmpty();
         TelemetryTemplateService.Parse(new JObject()).Should().BeEmpty();
     }
+
+    [Fact]
+    public void ApplyGlobalSettings_KeepsACopyAndRestoresItWhenStreamDeckLostTheTemplates()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"templates-{Guid.NewGuid():N}", TelemetryTemplateService.BackupFileName);
+        try
+        {
+            TelemetryTemplateService first = new(() => path);
+            JObject withTemplates = JObject.Parse("""{ "formatTemplates": [ { "id": "a", "name": "warning", "flashMs": 750 } ] }""");
+            first.ApplyGlobalSettings(withTemplates).Should().BeNull();
+            File.Exists(path).Should().BeTrue();
+
+            // After reinstalling the plugin the global settings are empty.
+            TelemetryTemplateService reinstalled = new(() => path);
+            JObject? toWrite = reinstalled.ApplyGlobalSettings(new JObject());
+
+            toWrite.Should().NotBeNull();
+            TelemetryTemplateService.Parse(toWrite).Select(t => t.Id).Should().Equal("a");
+            reinstalled.Templates.Should().ContainSingle().Which.FlashMs.Should().Be(750);
+            reinstalled.ApplyGlobalSettings(new JObject()).Should().BeNull("a restore is attempted only once");
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, true);
+        }
+    }
+
+    [Fact]
+    public void ApplyGlobalSettings_DoesNotRestoreAfterTheUserDeletedAllTemplates()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"templates-{Guid.NewGuid():N}", TelemetryTemplateService.BackupFileName);
+        try
+        {
+            TelemetryTemplateService service = new(() => path);
+            service.ApplyGlobalSettings(JObject.Parse("""{ "formatTemplates": [ { "id": "a" } ] }"""));
+            service.ApplyGlobalSettings(JObject.Parse("""{ "formatTemplates": [] }""")).Should().BeNull();
+
+            new TelemetryTemplateService(() => path).ApplyGlobalSettings(new JObject()).Should().BeNull();
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, true);
+        }
+    }
 }

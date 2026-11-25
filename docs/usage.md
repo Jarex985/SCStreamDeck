@@ -96,6 +96,8 @@ All three telemetry keys (`Telemetry Display`, `Advanced Telemetry Display`, `De
 
 Anything you set on the rule itself (its own colors, image or flash) overrides the template, so a rule can use a template and still differ in one detail. Templates are shared by all telemetry keys (they are stored in the plugin's global settings, not in the key, so they are not part of an exported profile). Deleting a template makes rules that used it fall back to their own settings.
 
+Stream Deck can lose the plugin's global settings when the plugin is installed again, so the plugin also keeps a copy of the templates in `%APPDATA%\SCStreamDeck\telemetry-format-templates.json` and restores it when a telemetry key finds no templates at all. If you delete every template on purpose, the copy is emptied too and nothing is restored.
+
 ## Telemetry Debug Key
 
 Use `Telemetry Debug` to find out why a telemetry attribute does not show up. Press the key to switch the capture on (red, `DEBUG ON`, with the stream state and the number of frames received) or off (grey):

@@ -247,7 +247,19 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
     {
         ArgumentNullException.ThrowIfNull(payload);
 
-        _templates.Update(TelemetryTemplateService.Parse(payload.Settings));
+        JObject? restored = _templates.ApplyGlobalSettings(payload.Settings);
+        if (restored != null)
+        {
+            // Stream Deck lost the templates (for example after reinstalling the plugin); give them back.
+            try
+            {
+                _ = Connection.SetGlobalSettingsAsync(restored);
+            }
+            catch (Exception ex)
+            {
+                Log.Err($"[{nameof(TelemetryDisplayKeyBase)}] Failed to restore format templates: {ex.Message}", ex);
+            }
+        }
     }
 
     private (TelemetryRuleMatch Match, TelemetryRenderModel Model) EvaluateCurrent()

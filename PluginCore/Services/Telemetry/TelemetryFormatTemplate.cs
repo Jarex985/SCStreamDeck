@@ -1,5 +1,6 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using SCStreamDeck.Logging;
 
 namespace SCStreamDeck.Services.Telemetry;
 
@@ -37,13 +38,87 @@ public readonly record struct TelemetryRuleAppearance(
 public sealed class TelemetryTemplateService
 {
     public const string GlobalSettingsKey = "formatTemplates";
+    public const string BackupFileName = "telemetry-format-templates.json";
+
+    private readonly Func<string> _backupPath;
+    private int _restoreAttempted;
 
     private volatile IReadOnlyDictionary<string, TelemetryFormatTemplate> _byId =
         new Dictionary<string, TelemetryFormatTemplate>();
 
+    public TelemetryTemplateService() : this(DefaultBackupPath)
+    {
+    }
+
+    internal TelemetryTemplateService(Func<string> backupPath) =>
+        _backupPath = backupPath ?? throw new ArgumentNullException(nameof(backupPath));
+
     public event Action? Changed;
 
     public IReadOnlyCollection<TelemetryFormatTemplate> Templates => _byId.Values.ToList();
+
+    /// <summary>
+    ///     A copy outside the plugin folder, which Stream Deck replaces when the plugin is installed again.
+    /// </summary>
+    public static string DefaultBackupPath() =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SCStreamDeck", BackupFileName);
+
+    /// <summary>
+    ///     Applies the plugin's global settings. Templates are also copied to <see cref="DefaultBackupPath" />; when
+    ///     the settings contain no template list at all (a fresh or reinstalled plugin) the copy is restored instead.
+    ///     Returns the global settings to write back to Stream Deck after a restore, otherwise null.
+    /// </summary>
+    public JObject? ApplyGlobalSettings(JObject? globalSettings)
+    {
+        if (globalSettings?[GlobalSettingsKey] is JArray current)
+        {
+            Update(Parse(globalSettings));
+            WriteBackup(current);
+            return null;
+        }
+
+        if (Interlocked.Exchange(ref _restoreAttempted, 1) == 0 && ReadBackup() is { Count: > 0 } saved)
+        {
+            JObject restored = globalSettings != null ? (JObject)globalSettings.DeepClone() : new JObject();
+            restored[GlobalSettingsKey] = saved;
+            Update(Parse(restored));
+            Log.Info($"[{nameof(TelemetryTemplateService)}] Restored {saved.Count} format template(s) from {_backupPath()}");
+            return restored;
+        }
+
+        Update(Parse(globalSettings));
+        return null;
+    }
+
+    private JArray? ReadBackup()
+    {
+        try
+        {
+            string path = _backupPath();
+            return File.Exists(path) ? JArray.Parse(File.ReadAllText(path)) : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            Log.Warn($"[{nameof(TelemetryTemplateService)}] Cannot read the format template backup: {ex.Message}");
+            return null;
+        }
+    }
+
+    private void WriteBackup(JArray templates)
+    {
+        try
+        {
+            string path = _backupPath();
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            string temp = path + ".tmp";
+            File.WriteAllText(temp, templates.ToString(Formatting.Indented));
+            File.Move(temp, path, true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            Log.Warn($"[{nameof(TelemetryTemplateService)}] Cannot write the format template backup: {ex.Message}");
+        }
+    }
 
     /// <summary>
     ///     Reads the templates from the plugin's global settings; invalid entries are ignored.
