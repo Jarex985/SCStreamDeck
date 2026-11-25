@@ -1,3 +1,8 @@
+> [!WARNING]
+> **As i am no longer playing Star Citizen, this repo will be archived. 
+> You can fork it and update it if you think whatever is necessary.
+> Just keep the necessary credits in it, according to MIT License.**  
+
 ![Star Citizen Stream Deck Plugin](./docs/assets/images/scsd-banner.png)
 
 
