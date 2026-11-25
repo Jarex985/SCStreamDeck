@@ -15,7 +15,7 @@ Notes:
 
 ---
 
-## Unreleased
+## v1.2.0.0 - Minor Release
 
 ### Features / Improvements
 
