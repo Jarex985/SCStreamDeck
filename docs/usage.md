@@ -90,7 +90,7 @@ The estimate assumes the value keeps dropping at the rate seen over the window: 
 
 Use `UEC Tracker` to watch your in-game UEC balance and how much you earned or lost during the session.
 
-1. Drag `UEC Tracker` onto a key. The first line is your current balance; the second line is the change since the session started, in accounting style without decimals: `1,250` in green for a gain, `(800)` in red for a loss, plain `0` when nothing changed.
+1. Drag `UEC Tracker` onto a key. The first line is your current balance; the second line is the change since the session started, in accounting style: `800` in green for a gain, `(800)` in red for a loss, plain `0` when nothing changed. Both lines are abbreviated to keep the text large: from 1,000 as `1.5k` (up to one decimal), from 1,000,000 as `1.25m` and from 1,000,000,000 as `1.25b` (up to two decimals), for example `(12k)` for a loss.
 2. **Press the key** to reset the count: the change restarts at 0 from your current balance.
 3. A new session also starts by itself when the balance was unavailable for more than a minute (for example the game was restarted). All `UEC Tracker` keys share the same session.
 4. Rules, images, colors, flash, sounds and **format templates** work as on `Advanced Telemetry Display` and style the whole key and the balance line; only the change line is colored green/red. Rules can test the balance (`Actor State › Uec Balance`) and the change (`UEC › Session change`). Texts can use `{value}` (balance), `{change}`, `{label}` and `{value:attribute.path}`; the default text is `{value}\n{change}`.

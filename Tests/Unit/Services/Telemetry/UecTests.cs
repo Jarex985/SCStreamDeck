@@ -24,10 +24,20 @@ public sealed class UecTests
 
     [Theory]
     [InlineData(0, "0")]
-    [InlineData(1234, "1,234")]
-    [InlineData(-1234, "(1,234)")]
+    [InlineData(999, "999")]
+    [InlineData(1000, "1k")]
+    [InlineData(1234, "1.2k")]
+    [InlineData(12_500, "12.5k")]
+    [InlineData(999_949, "999.9k")]
+    [InlineData(999_950, "1m")]
+    [InlineData(1_000_000, "1m")]
+    [InlineData(1_500_000, "1.5m")]
+    [InlineData(1_234_567, "1.23m")]
+    [InlineData(1_250_000_000, "1.25b")]
     [InlineData(-5, "(5)")]
-    public void FormatAccounting_UsesBracketsForNegativesWithoutSymbolOrDecimals(long amount, string expected)
+    [InlineData(-1234, "(1.2k)")]
+    [InlineData(-1_250_000, "(1.25m)")]
+    public void FormatAccounting_AbbreviatesBigAmountsAndBracketsNegatives(long amount, string expected)
     {
         CultureInfo previous = CultureInfo.CurrentCulture;
         CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
@@ -84,16 +94,16 @@ public sealed class UecTests
         UecBalanceEvaluator evaluator = new(new UecSessionTracker());
 
         TelemetryEvaluation start = Evaluate(evaluator, 10_000, TimeSpan.Zero);
-        TelemetryEvaluation gain = Evaluate(evaluator, 12_500, TimeSpan.FromSeconds(1));
+        TelemetryEvaluation gain = Evaluate(evaluator, 12_000, TimeSpan.FromSeconds(1));
         TelemetryEvaluation loss = Evaluate(evaluator, 9_000, TimeSpan.FromSeconds(2));
 
-        start.Text.Split('\n').Should().Equal(10_000.ToString("N0", CultureInfo.CurrentCulture), "0");
+        start.Text.Split('\n').Should().Equal("10k", "0");
         start.LineColors.Should().BeNull();
 
-        gain.Text.Split('\n')[1].Should().Be(2_500.ToString("N0", CultureInfo.CurrentCulture));
+        gain.Text.Split('\n')[1].Should().Be("2k");
         gain.LineColors.Should().Equal(null, UecBalanceEvaluator.GainColor);
 
-        loss.Text.Split('\n')[1].Should().Be($"({1_000.ToString("N0", CultureInfo.CurrentCulture)})");
+        loss.Text.Split('\n')[1].Should().Be("(1k)");
         loss.LineColors.Should().Equal(null, UecBalanceEvaluator.LossColor);
     }
 

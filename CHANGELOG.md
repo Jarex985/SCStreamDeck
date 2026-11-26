@@ -15,6 +15,14 @@ Notes:
 
 ---
 
+## v1.2.0.2 - Minor Release
+
+### Features / Improvements
+
+- `UEC Tracker` key: the balance and the session change are abbreviated so the text fits the key at a bigger font size: `1.5k` from 1,000 (up to one decimal), `1.25m` from 1,000,000 and `1.25b` from 1,000,000,000 (up to two decimals). Losses stay in brackets, for example `(12k)`.
+
+---
+
 ## v1.2.0.1 - Minor Release
 
 ### Features / Improvements

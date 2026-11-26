@@ -27,12 +27,42 @@ public static partial class TelemetryTextFormatter
     }
 
     /// <summary>
-    ///     Accounting style without currency symbol or decimals: 1,234 and (1,234) for negatives.
+    ///     Accounting style without currency symbol: 999 and (999) for negatives, abbreviated from 1,000 on
+    ///     (see <see cref="FormatCompact" />).
     /// </summary>
     public static string FormatAccounting(long amount) =>
-        amount < 0
-            ? $"({(-(decimal)amount).ToString("N0", CultureInfo.CurrentCulture)})"
-            : amount.ToString("N0", CultureInfo.CurrentCulture);
+        amount < 0 ? $"({FormatCompact(-(decimal)amount)})" : FormatCompact(amount);
+
+    /// <summary>
+    ///     Keeps big amounts short for the small key: 999, 1.5k (up to one decimal), 1.25m and 1.25b (up to two
+    ///     decimals). Trailing zeros are dropped and rounding that reaches the next unit moves up (999,999 is 1m).
+    /// </summary>
+    public static string FormatCompact(decimal amount)
+    {
+        decimal magnitude = Math.Abs(amount);
+        string sign = amount < 0 ? "-" : string.Empty;
+        if (magnitude < 1_000m)
+        {
+            return sign + magnitude.ToString("N0", CultureInfo.CurrentCulture);
+        }
+
+        (decimal Divisor, string Suffix, int Decimals)[] units = [(1_000m, "k", 1), (1_000_000m, "m", 2), (1_000_000_000m, "b", 2)];
+        int index = 0;
+        while (index < units.Length - 1 && magnitude >= units[index + 1].Divisor)
+        {
+            index++;
+        }
+
+        decimal scaled = Math.Round(magnitude / units[index].Divisor, units[index].Decimals, MidpointRounding.AwayFromZero);
+        if (scaled >= 1_000m && index < units.Length - 1)
+        {
+            index++;
+            scaled = Math.Round(magnitude / units[index].Divisor, units[index].Decimals, MidpointRounding.AwayFromZero);
+        }
+
+        string digits = scaled.ToString(units[index].Decimals == 1 ? "0.#" : "0.##", CultureInfo.CurrentCulture);
+        return sign + digits + units[index].Suffix;
+    }
 
     /// <summary>
     ///     Replaces {label} and {value}; with <paramref name="fieldValue" /> also {value:attribute.path} tokens,

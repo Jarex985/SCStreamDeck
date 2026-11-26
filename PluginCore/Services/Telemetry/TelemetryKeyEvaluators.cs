@@ -149,7 +149,7 @@ public sealed class UecBalanceEvaluator(UecSessionTracker tracker) : ITelemetryK
 
         TelemetryRuleMatch match = TelemetryRuleEvaluator.EvaluateWithPrimary(display, balanceValue, Resolve);
 
-        string balanceText = reading is { } rb ? rb.Balance.ToString("N0", CultureInfo.CurrentCulture) : TelemetryTextFormatter.NoDataText;
+        string balanceText = reading is { } rb ? TelemetryTextFormatter.FormatCompact(rb.Balance) : TelemetryTextFormatter.NoDataText;
         string changeText = reading is { } rc ? TelemetryTextFormatter.FormatAccounting(rc.Change) : TelemetryTextFormatter.NoDataText;
         string label = string.IsNullOrWhiteSpace(display.Label) ? DefaultLabel : display.Label;
         string template = (string.IsNullOrEmpty(match.Rule.Text) ? DefaultTemplate : match.Rule.Text)
