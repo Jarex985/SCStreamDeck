@@ -5,9 +5,10 @@ namespace SCStreamDeck.Services.Telemetry;
 /// <summary>
 ///     Outcome of evaluating a key: the rule that applies and the text to draw. <paramref name="LineColors" />
 ///     optionally overrides the text color of individual lines (null entries keep the rule's text color).
+///     <paramref name="Disabled" /> marks a key that is currently unusable: pressing it does nothing.
 /// </summary>
 public readonly record struct TelemetryEvaluation(
-    TelemetryRuleMatch Match, string Text, IReadOnlyList<string?>? LineColors = null);
+    TelemetryRuleMatch Match, string Text, IReadOnlyList<string?>? LineColors = null, bool Disabled = false);
 
 /// <summary>
 ///     Implemented by evaluators whose key does something of its own when pressed (before any rule action runs).
@@ -204,7 +205,9 @@ public abstract class TravelEvaluatorBase(TravelTracker tracker) : ITelemetryKey
 
     protected abstract string DefaultLabel { get; }
 
-    protected abstract string DefaultText(TravelState state);
+    /// <summary>Picks the rule that styles the key, whether the key is unusable, and the text used when the rule has none.</summary>
+    protected abstract (TelemetryRuleMatch Match, bool Disabled, string DefaultText) ChooseLook(
+        TelemetryDisplaySettings display, TravelReading reading, Func<string, TelemetryValue?> resolve);
 
     public TelemetryEvaluation Evaluate(
         TelemetryDisplaySettings display, TelemetrySnapshot? snapshot, TelemetrySchema schema, DateTime nowUtc)
@@ -231,12 +234,12 @@ public abstract class TravelEvaluatorBase(TravelTracker tracker) : ITelemetryKey
             _ => snapshot != null && snapshot.TryGetValue(path, out TelemetryValue other) ? other : null
         };
 
-        TelemetryRuleMatch match = TelemetryRuleEvaluator.EvaluateWithPrimary(display, null, Resolve);
+        (TelemetryRuleMatch match, bool disabled, string defaultText) = ChooseLook(display, reading, Resolve);
 
         string elapsed = started ? TelemetryTextFormatter.FormatMinutes(reading.Elapsed) : TelemetryTextFormatter.NoDataText;
         string distance = started ? TelemetryTextFormatter.FormatDistance(reading.Meters) : TelemetryTextFormatter.NoDataText;
         string label = string.IsNullOrWhiteSpace(display.Label) ? DefaultLabel : display.Label;
-        string template = string.IsNullOrEmpty(match.Rule.Text) ? DefaultText(reading.State) : match.Rule.Text;
+        string template = string.IsNullOrEmpty(match.Rule.Text) ? defaultText : match.Rule.Text;
 
         Dictionary<string, string> tokens = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -247,7 +250,7 @@ public abstract class TravelEvaluatorBase(TravelTracker tracker) : ITelemetryKey
             path => TelemetryTextFormatter.FormatValue(Resolve(path), display.Decimals),
             tokens);
 
-        return new TelemetryEvaluation(match, text);
+        return new TelemetryEvaluation(match, text, Disabled: disabled);
     }
 
     private static string StateName(TravelState state) => state switch
@@ -259,21 +262,33 @@ public abstract class TravelEvaluatorBase(TravelTracker tracker) : ITelemetryKey
 }
 
 /// <summary>
-///     Travel Timer key: pressing it starts the measurement, stops it (the values freeze) or, after a stop, starts a
-///     new one. Its default text is the action the next press performs.
+///     Travel Timer key with three looks instead of rules: <b>Start</b> (shown while a measurement can be started,
+///     also after a stop), <b>Stop</b> (while one is running) and <b>Unavailable</b>, which replaces them while one of
+///     the rules matches. An unavailable key does nothing when pressed. Otherwise pressing starts or stops the
+///     measurement; after a stop it starts a new one.
 /// </summary>
 public sealed class TravelToggleEvaluator(TravelTracker tracker) : TravelEvaluatorBase(tracker), ITelemetryKeyPressHandler
 {
+    public const string UnavailableText = "Unavailable";
+
     protected override string DefaultLabel => "Travel";
 
     public void OnKeyPressed() => Tracker.Toggle(DateTime.UtcNow);
 
-    protected override string DefaultText(TravelState state) => state switch
+    protected override (TelemetryRuleMatch Match, bool Disabled, string DefaultText) ChooseLook(
+        TelemetryDisplaySettings display, TravelReading reading, Func<string, TelemetryValue?> resolve)
     {
-        TravelState.Running => "Stop",
-        TravelState.Stopped => "Restart",
-        _ => "Start"
-    };
+        TelemetryRuleMatch unavailable = TelemetryRuleEvaluator.EvaluateWithPrimary(display, null, resolve);
+        if (unavailable.Index >= 0)
+        {
+            return (unavailable, true, UnavailableText);
+        }
+
+        // The look indexes follow the rules so the sound of a look plays once when it becomes the active one.
+        return reading.State == TravelState.Running
+            ? (new TelemetryRuleMatch(display.StopRule ?? new TelemetryRule(), display.Rules.Count + 1, true), false, "Stop")
+            : (new TelemetryRuleMatch(display.StartRule ?? new TelemetryRule(), display.Rules.Count, true), false, "Start");
+    }
 }
 
 /// <summary>
@@ -284,7 +299,9 @@ public sealed class TravelDisplayEvaluator(TravelTracker tracker) : TravelEvalua
 {
     protected override string DefaultLabel => "Travel";
 
-    protected override string DefaultText(TravelState state) => "{elapsed}\n{distance}";
+    protected override (TelemetryRuleMatch Match, bool Disabled, string DefaultText) ChooseLook(
+        TelemetryDisplaySettings display, TravelReading reading, Func<string, TelemetryValue?> resolve) =>
+        (TelemetryRuleEvaluator.EvaluateWithPrimary(display, null, resolve), false, "{elapsed}\n{distance}");
 }
 
 /// <summary>

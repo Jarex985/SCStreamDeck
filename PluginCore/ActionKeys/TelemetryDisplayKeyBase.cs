@@ -94,6 +94,13 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
     {
         try
         {
+            // The rule that was active when the key was pressed decides what runs, even if the press changes it.
+            (TelemetryRuleMatch match, _, bool disabled) = EvaluateCurrent();
+            if (disabled)
+            {
+                return;
+            }
+
             bool handled = false;
             if (_evaluator is ITelemetryKeyPressHandler pressHandler)
             {
@@ -103,8 +110,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
                 Refresh(true);
             }
 
-            IReadOnlyList<TelemetryPressAction> actions =
-                EvaluateCurrent().Match is { HasData: true } match ? match.Rule.GetPressActions() : [];
+            IReadOnlyList<TelemetryPressAction> actions = match is { HasData: true } ? match.Rule.GetPressActions() : [];
             if (actions.Count == 0)
             {
                 return;
@@ -220,6 +226,8 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
             TelemetryDisplaySettings settings = json.ToObject<TelemetryDisplaySettings>() ?? new TelemetryDisplaySettings();
             settings.Rules ??= [];
             settings.DefaultRule ??= new TelemetryRule();
+            settings.StartRule ??= new TelemetryRule();
+            settings.StopRule ??= new TelemetryRule();
             return settings;
         }
         catch (Exception ex) when (ex is JsonException or InvalidCastException or FormatException)
@@ -274,7 +282,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
         }
     }
 
-    private (TelemetryRuleMatch Match, TelemetryRenderModel Model) EvaluateCurrent()
+    private (TelemetryRuleMatch Match, TelemetryRenderModel Model, bool Disabled) EvaluateCurrent()
     {
         TelemetryDisplaySettings display;
         lock (_gate)
@@ -290,14 +298,14 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
 
         return (match, new TelemetryRenderModel(
             evaluation.Text, appearance.ImagePath, appearance.TextColor, appearance.BackgroundColor,
-            LineColors: evaluation.LineColors));
+            LineColors: evaluation.LineColors), evaluation.Disabled);
     }
 
     private void Refresh(bool force)
     {
         try
         {
-            (TelemetryRuleMatch match, TelemetryRenderModel model) = EvaluateCurrent();
+            (TelemetryRuleMatch match, TelemetryRenderModel model, _) = EvaluateCurrent();
 
             string? sound = _transitions.OnEvaluated(match);
             if (sound != null)

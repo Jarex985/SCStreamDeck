@@ -184,4 +184,10 @@ public sealed class TelemetryDisplaySettings
 
     /// <summary>Used when no rule matches (and while there is no data).</summary>
     [JsonProperty("defaultRule")] public TelemetryRule DefaultRule { get; set; } = new();
+
+    /// <summary>Travel Timer key: look and press actions while a measurement can be started.</summary>
+    [JsonProperty("startRule")] public TelemetryRule StartRule { get; set; } = new();
+
+    /// <summary>Travel Timer key: look and press actions while a measurement is running and can be stopped.</summary>
+    [JsonProperty("stopRule")] public TelemetryRule StopRule { get; set; } = new();
 }

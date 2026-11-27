@@ -15,6 +15,15 @@ Notes:
 
 ---
 
+## v1.3.0.1 - Minor Release
+
+### Features / Improvements
+
+- `Travel Timer` key: instead of rules and a default look it now has three looks, **Start**, **Stop** and **Unavailable**, each with text, image, colors, format template, flash and sound (Start and Stop also have press actions). The Unavailable rules (conditions on any attribute) decide when the key is unavailable: it then shows the matching rule's look and does nothing when pressed. Rules saved on the key before this version are read as Unavailable rules, so remove them.
+- Telemetry keys run the press actions of the rule that was active when the key was pressed, even if the press changes the rule (this also applies to the `UEC Tracker` reset).
+
+---
+
 ## v1.3.0.0 - Minor Release
 
 ### Features / Improvements

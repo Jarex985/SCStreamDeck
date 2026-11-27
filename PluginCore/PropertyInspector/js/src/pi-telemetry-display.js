@@ -19,6 +19,9 @@
   // Travel pages: no attribute picker; rules can test the measurement. 'timer' (start/stop key) or 'display'.
   const TRAVEL = globalThis.SCPI_TELEMETRY_TRAVEL || null;
 
+  // Travel Timer page: Start and Stop looks plus rules that make the key unavailable instead of a default look.
+  const TIMER = TRAVEL === 'timer';
+
   // #region State
 
   const OPS_NUMBER = [
@@ -41,7 +44,9 @@
     decimals: null,
     rules: [],
     templates: [],
-    defaultRule: {op: 'always'}
+    defaultRule: {op: 'always'},
+    startRule: {op: 'always'},
+    stopRule: {op: 'always'}
   };
 
   let fields = [];
@@ -91,6 +96,10 @@
   function saveRules() {
     save('rules', state.rules);
     save('defaultRule', state.defaultRule);
+    if (TIMER) {
+      save('startRule', state.startRule);
+      save('stopRule', state.stopRule);
+    }
   }
 
   // #endregion
@@ -327,6 +336,23 @@
 
   function renderRules() {
     const list = document.getElementById('rulesList');
+    if (TIMER) {
+      const start = document.getElementById('startRule');
+      const stop = document.getElementById('stopRule');
+      if (!list || !start || !stop) {
+        return;
+      }
+
+      list.replaceChildren(...state.rules.map((rule, index) => renderRuleCard(rule, index, false)));
+      start.replaceChildren(renderRuleCard(state.startRule, -1, true, {
+        id: 'start', title: 'Start (shown while a measurement can be started; pressing starts it)', placeholder: 'Start'
+      }));
+      stop.replaceChildren(renderRuleCard(state.stopRule, -1, true, {
+        id: 'stop', title: 'Stop (shown while measuring; pressing stops it)', placeholder: 'Stop'
+      }));
+      return;
+    }
+
     const defaults = document.getElementById('defaultRule');
     if (!list || !defaults) {
       return;
@@ -336,9 +362,15 @@
     defaults.replaceChildren(renderRuleCard(state.defaultRule, -1, true));
   }
 
-  function renderRuleCard(rule, index, isDefault) {
-    const idPrefix = isDefault ? 'rule-default' : `rule-${index}`;
-    const title = isDefault ? 'Default (no rule matches / no data)' : `Rule ${index + 1}`;
+  // `section` (Travel Timer Start/Stop looks) is a card without conditions that still has sound and press actions.
+  function renderRuleCard(rule, index, isDefault, section = null) {
+    const idPrefix = section ? `rule-${section.id}` : isDefault ? 'rule-default' : `rule-${index}`;
+    const title = section ? section.title : isDefault ? 'Default (no rule matches / no data)'
+      : TIMER ? `Unavailable when (rule ${index + 1})` : `Rule ${index + 1}`;
+    const showSound = !isDefault || !!section;
+    // Pressing an unavailable key does nothing, so its rules have no press actions.
+    const showPress = !(TIMER && !section);
+    const textPlaceholder = section?.placeholder || (TIMER ? 'Unavailable' : null);
 
     const header = el('div', {class: 'pi-rule__header'}, [el('span', {class: 'pi-rule__title', text: title})]);
     if (!isDefault) {
@@ -362,11 +394,11 @@
       card.appendChild(row('When', ADVANCED ? renderConditions(rule) : renderCondition(rule)));
     }
 
-    card.appendChild(row('Text', textInput(rule.text, TRAVEL === 'timer' ? 'Start' : TRAVEL ? '{elapsed}\\n{distance}' : UEC ? '{value}\\n{change}' : '{label}\\n{value}', (v) => {
+    card.appendChild(row('Text', textInput(rule.text, textPlaceholder || (TRAVEL ? '{elapsed}\\n{distance}' : UEC ? '{value}\\n{change}' : '{label}\\n{value}'), (v) => {
       rule.text = v;
       saveRules();
-    }), TRAVEL === 'timer'
-      ? 'Use {state}, {elapsed} (min), {distance}, {label} or {value:attribute.path}; \\n starts a new line. Empty = Start, Stop or Restart, depending on the state.'
+    }), TIMER
+      ? `Use {state}, {elapsed} (min), {distance}, {label} or {value:attribute.path}; \\n starts a new line. Empty = ${textPlaceholder}.`
       : TRAVEL
       ? 'Use {elapsed} (min), {distance} (m, then km), {state}, {label} or {value:attribute.path}; \\n starts a new line. Empty = "{elapsed}\\n{distance}".'
       : UEC
@@ -382,7 +414,7 @@
       'data-placeholder': 'No image', 'data-select-title': 'Select image', 'data-clear-title': 'Clear image'
     })));
 
-    if (!isDefault) {
+    if (showSound) {
       card.appendChild(row('Sound', el('div', {
         class: 'pi-file-picker', id: `${idPrefix}-sound`, 'data-accept': '.wav,.mp3',
         'data-placeholder': 'No sound', 'data-select-title': 'Select audio file', 'data-clear-title': 'Clear audio file'
@@ -398,12 +430,14 @@
       saveRules();
     }, 'number'), 'Show the content for this many ms, then hide it for the same time, repeating. Minimum 250. Empty = no flashing.'));
     card.appendChild(row('Flashes', flashTargetSelect(rule, saveRules), 'Which part blinks while flashing. Background and Everything switch to black while off.'));
-    card.appendChild(row('Press', renderPressAction(rule, idPrefix),
-      ADVANCED ? 'Actions run, in order, when the key is pressed while this rule is active.'
-        : 'Action run when the key is pressed while this rule is active.'));
+    if (showPress) {
+      card.appendChild(row('Press', renderPressAction(rule, idPrefix),
+        ADVANCED ? 'Actions run, in order, when the key is pressed while this rule is active.'
+          : 'Action run when the key is pressed while this rule is active.'));
+    }
 
     queueMicrotask(() => {
-      if (!isDefault) {
+      if (showSound) {
         SCPI?.ui?.filePicker?.createFilePicker?.({
           rootId: `${idPrefix}-sound`,
           placeholderText: 'No sound',
@@ -952,6 +986,18 @@
     state.defaultRule.op = 'always';
     renderRules();
   });
+  if (TIMER) {
+    useSetting('startRule', (v) => {
+      state.startRule = v && typeof v === 'object' ? v : {op: 'always'};
+      state.startRule.op = 'always';
+      renderRules();
+    });
+    useSetting('stopRule', (v) => {
+      state.stopRule = v && typeof v === 'object' ? v : {op: 'always'};
+      state.stopRule.op = 'always';
+      renderRules();
+    });
+  }
 
   SCPI?.ui?.filePicker?.createFilePicker?.({
     rootId: 'audioFilePicker',

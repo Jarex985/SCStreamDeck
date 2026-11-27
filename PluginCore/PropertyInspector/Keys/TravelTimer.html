@@ -190,17 +190,31 @@
     </div>
 
     <div class="pi-section">
-      <div class="pi-page-title">Rules (first match wins)</div>
-      <div id="rulesList"></div>
-      <div class="pi-button-row">
-        <button class="pi-button" id="addRule" type="button">Add rule</button>
+      <div class="pi-page-title">Start</div>
+      <div id="startRule"></div>
+      <div class="pi-telemetry-note">
+        The look while a measurement can be started (also after a stop). Pressing the key starts a new measurement.
       </div>
     </div>
 
     <div class="pi-section">
-      <div id="defaultRule"></div>
+      <div class="pi-page-title">Stop</div>
+      <div id="stopRule"></div>
       <div class="pi-telemetry-note">
-        The look of the key is the Default section unless a rule matches. Pressing the key always starts or stops the measurement; rule press actions run as well.
+        The look while a measurement is running. Pressing the key stops it and freezes the values.
+      </div>
+    </div>
+
+    <div class="pi-section">
+      <div class="pi-page-title">Unavailable (first matching rule wins)</div>
+      <div id="rulesList"></div>
+      <div class="pi-button-row">
+        <button class="pi-button" id="addRule" type="button">Add rule</button>
+      </div>
+      <div class="pi-telemetry-note">
+        While any of these rules matches, the key takes the look of that rule and does nothing when pressed, so you
+        can limit when it is shown and usable (for example while the ship is moving or you are not seated).
+        Without rules the key is always available.
       </div>
     </div>
 

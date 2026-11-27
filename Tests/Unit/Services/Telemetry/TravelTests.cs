@@ -162,8 +162,56 @@ public sealed class TravelTests
         WithInvariantCulture(() => Evaluate(display, TimeSpan.FromSeconds(30)).Text).Should().Be("0.5 min\n3.00 km");
 
         tracker.Toggle(s_t0.AddSeconds(30), 100);
-        Evaluate(timer, TimeSpan.FromMinutes(5)).Text.Should().Be("Restart");
+        Evaluate(timer, TimeSpan.FromMinutes(5)).Text.Should().Be("Start");
         WithInvariantCulture(() => Evaluate(display, TimeSpan.FromMinutes(5)).Text).Should().Be("0.5 min\n3.00 km");
+    }
+
+    [Fact]
+    public void Timer_UsesTheStartStopAndUnavailableLooks()
+    {
+        using TravelTracker tracker = NewTracker();
+        TravelToggleEvaluator timer = new(tracker);
+        TelemetryDisplaySettings settings = Newtonsoft.Json.JsonConvert.DeserializeObject<TelemetryDisplaySettings>(
+            """
+            {"rules":[{"conditions":[{"fieldPath":"vehicle.state.flight.instruments.speed","op":"gt","value":"10"}],
+                       "text":"MOVING","soundPath":"u.wav"}],
+             "startRule":{"text":"GO","textColor":"#00FF00"},
+             "stopRule":{"text":"HALT {elapsed}","soundPath":"s.wav"}}
+            """)!;
+
+        TelemetryEvaluation At(TelemetrySnapshot? snapshot, double seconds) =>
+            timer.Evaluate(settings, snapshot, TelemetrySchema.Bundled, s_t0.AddSeconds(seconds));
+
+        TelemetryEvaluation start = At(Speed(0), 0);
+        start.Text.Should().Be("GO");
+        start.Disabled.Should().BeFalse();
+        start.Match.Rule.TextColor.Should().Be("#00FF00");
+
+        tracker.Toggle(s_t0, 0);
+        TelemetryEvaluation stop = At(Speed(0), 30);
+        stop.Text.Should().StartWith("HALT ");
+        stop.Disabled.Should().BeFalse();
+        stop.Match.Rule.SoundPath.Should().Be("s.wav");
+        stop.Match.Index.Should().NotBe(start.Match.Index);
+
+        TelemetryEvaluation unavailable = At(Speed(50), 30);
+        unavailable.Text.Should().Be("MOVING");
+        unavailable.Disabled.Should().BeTrue();
+        unavailable.Match.Index.Should().Be(0);
+    }
+
+    [Fact]
+    public void Timer_UnavailableLookDefaultsToUnavailableText()
+    {
+        using TravelTracker tracker = NewTracker();
+        TelemetryDisplaySettings settings = Newtonsoft.Json.JsonConvert.DeserializeObject<TelemetryDisplaySettings>(
+            """{"rules":[{"conditions":[{"fieldPath":"travel.state","op":"eq","value":"IDLE"}]}]}""")!;
+
+        TelemetryEvaluation result = new TravelToggleEvaluator(tracker)
+            .Evaluate(settings, null, TelemetrySchema.Bundled, s_t0);
+
+        result.Disabled.Should().BeTrue();
+        result.Text.Should().Be("Unavailable");
     }
 
     [Fact]
