@@ -81,11 +81,19 @@ Use `Deceleration` to see how far you will still travel, and how long it will ta
 
 1. Drag `Deceleration` onto a key and open the Property Inspector.
 2. Pick a numeric attribute (for example `Vehicle State Flight Instruments › Speed`).
-3. Set the **Window** (ms, default 1000): the key compares the value now with the value one window ago. A longer window gives a steadier estimate, a shorter one reacts faster.
+3. Set the **Estimate** mode (see below) and, for the live rate, the **Window** (ms, default 1000): the key compares the value now with the value one window ago. A longer window gives a steadier estimate, a shorter one reacts faster.
 4. Choose what to **Show**: units and time, units only, or time only. **Divide by** changes the order of magnitude of the units (1000 turns meters into kilometers; pick a preset or type your own) and **Unit** is the suffix shown after them, for example `km`. **Round units** / **Round time** round to a multiple in the displayed unit (for example 0.5 shows 2.0 km instead of 1.96 km, 50 shows 1,950 m instead of 1,963 m); empty keeps one decimal.
 5. Rules work like those of `Advanced Telemetry Display`: each rule combines conditions (all / any) on **any attributes** and on the estimate itself (`Estimate (units)` in the displayed unit, `Estimate (time, s)`). Example: "Estimate (units) is less than 2 AND Is Landed is Off" turns the key red when you are braking within 2 km of standing still while flying. A condition on the estimate is false while there is no estimate. Rules, images, colors, flash, sounds and several press actions per rule work as on the advanced key. Texts can use `{units}`, `{time}`, `{value}` (the selected output), `{label}` and `{value:attribute.path}` for any attribute. Rules saved earlier with a single comparison are converted to a condition on the estimate when you open the settings.
 
-The estimate assumes the value keeps dropping at the rate seen over the window: time = value / rate and units = value² / (2 × rate). It needs one full window of history first, and while the value is not clearly decreasing (constant, increasing, already zero, or no data) the key shows `—` and uses the Default section.
+The **Estimate** option decides how the value is estimated. For the ship's speed the default (`Automatic`, same as `Recorded runs`) uses the deceleration your ship actually showed:
+
+1. Press the key. It shows `Armed`; the plugin waits until the speed starts falling from a steady speed of at least 20 m/s.
+2. Release the throttle and let the ship slow to a stop. The key shows `REC` and the speed, and `Saved` with the number of runs for this ship when the speed reaches zero.
+3. From then on the key shows the distance and time to stop from the current speed, using the recorded runs of the same ship and master mode (SCM and NAV decelerate differently) at about the same atmospheric density; densities between two recorded ones are interpolated. Record runs at different speeds and in atmosphere to improve it. Newer runs weigh more, which follows changes in cargo or loadout. A leading `~` means the estimate goes beyond the recorded speeds or densities.
+
+A run is discarded when the speed rises again, you boost, land or change ship, the speed stops falling for 10 seconds, or you press the key again while armed or recording (that press only cancels and does not run the rule's press action; the press that arms the recording still runs it). Without a recorded run for the current ship the key shows `—`. Profiles are stored in `%APPDATA%\SCStreamDeck\deceleration-profiles.json`, so they survive plugin updates.
+
+**Live rate** (and any attribute other than speed) assumes the value keeps dropping at the rate seen over the window: time = value / rate and units = value² / (2 × rate). It needs one full window of history first, and while the value is not clearly decreasing (constant, increasing, already zero, or no data) the key shows `—` and uses the Default section.
 
 ## UEC Tracker Key
 

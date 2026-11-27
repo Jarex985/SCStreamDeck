@@ -16,6 +16,9 @@ public readonly record struct TelemetryEvaluation(
 public interface ITelemetryKeyPressHandler
 {
     void OnKeyPressed();
+
+    /// <summary>True when the last press was fully handled here, so the active rule's press actions do not run.</summary>
+    bool ConsumesPress => false;
 }
 
 /// <summary>
@@ -38,10 +41,20 @@ public interface ITelemetryKeyEvaluator
 ///     Deceleration key: estimates cumulative units and time until a numeric attribute (for example speed) reaches
 ///     zero from its reduction over a window. Rules compare the estimate (time when only time is shown, otherwise
 ///     units); the Default section applies while there is no estimate (not decelerating, no data, window not covered).
+///     For ship speed the estimate comes by default from the deceleration recorded for the current ship and the
+///     atmospheric density: pressing the key arms a recording, and releasing the throttle until the ship stops saves
+///     the run. Pressing while armed or recording cancels it.
 /// </summary>
-public sealed class DecelerationEvaluator : ITelemetryKeyEvaluator
+public sealed class DecelerationEvaluator(DecelerationProfileService? profiles = null)
+    : ITelemetryKeyEvaluator, ITelemetryKeyPressHandler, ITelemetryKeyTimeDriven
 {
     public const string Placeholder = "—";
+
+    /// <summary>How long the result of a recording stays on the key.</summary>
+    public static readonly TimeSpan OutcomeDisplay = TimeSpan.FromSeconds(4);
+
+    private volatile bool _recordedMode;
+    private volatile bool _consumesPress;
 
     /// <summary>Pseudo attributes rules can test: the estimate in the displayed unit, and the time in seconds.</summary>
     public const string UnitsPath = "deceleration.units";
@@ -49,6 +62,28 @@ public sealed class DecelerationEvaluator : ITelemetryKeyEvaluator
     public const string TimePath = "deceleration.time";
 
     private readonly DecelerationEstimator _estimator = new();
+
+    public bool ConsumesPress => _consumesPress;
+
+    public void OnKeyPressed()
+    {
+        _consumesPress = false;
+        if (profiles == null || !_recordedMode)
+        {
+            return;
+        }
+
+        DateTime now = DateTime.UtcNow;
+        if (profiles.Status(now).Phase == DecelerationRecordingPhase.Idle)
+        {
+            profiles.Arm(now);
+        }
+        else
+        {
+            profiles.Cancel(now);
+            _consumesPress = true;
+        }
+    }
 
     public TelemetryEvaluation Evaluate(
         TelemetryDisplaySettings display, TelemetrySnapshot? snapshot, TelemetrySchema schema, DateTime nowUtc)
@@ -61,6 +96,7 @@ public sealed class DecelerationEvaluator : ITelemetryKeyEvaluator
         if (field is not { Kind: TelemetryValueKind.Number })
         {
             _estimator.Reset();
+            _recordedMode = false;
             return new TelemetryEvaluation(TelemetryRuleEvaluator.Evaluate(display, null), "Select\nnumeric\nattribute");
         }
 
@@ -69,7 +105,21 @@ public sealed class DecelerationEvaluator : ITelemetryKeyEvaluator
             ? read.Number
             : null;
 
-        DecelerationEstimate? estimate = _estimator.Update(nowUtc, current, options.Window);
+        bool recorded = UsesRecordedProfile(options, field);
+        _recordedMode = recorded;
+
+        DecelerationEstimate? estimate;
+        string? statusText = null;
+        if (recorded)
+        {
+            _estimator.Reset();
+            estimate = ProfileEstimateFor(snapshot, current);
+            statusText = RecordingText(snapshot, nowUtc);
+        }
+        else
+        {
+            estimate = _estimator.Update(nowUtc, current, options.Window);
+        }
 
         // Units are shown (and compared by rules) in the chosen order of magnitude, e.g. km instead of m.
         double divisor = options.EffectiveUnitsDivisor;
@@ -88,8 +138,10 @@ public sealed class DecelerationEvaluator : ITelemetryKeyEvaluator
 
         TelemetryRuleMatch match = TelemetryRuleEvaluator.EvaluateWithPrimary(display, ruleValue, Resolve);
 
-        string units = estimate is { } u ? UnitsText(u.Units / divisor, options) : Placeholder;
-        string time = estimate is { } t ? $"{TelemetryTextFormatter.FormatRounded(t.TimeSeconds, options.TimeRounding)} s" : Placeholder;
+        string units = estimate is { } u ? UnitsText(u.Units / divisor, options, u.Approximate) : Placeholder;
+        string time = estimate is { } t
+            ? $"{(t.Approximate ? "~" : string.Empty)}{TelemetryTextFormatter.FormatRounded(t.TimeSeconds, options.TimeRounding)} s"
+            : Placeholder;
         string value = output == TelemetryDecelerationSettings.OutputTime ? time : units;
         string label = string.IsNullOrWhiteSpace(display.Label) ? field.Label : display.Label;
 
@@ -100,12 +152,65 @@ public sealed class DecelerationEvaluator : ITelemetryKeyEvaluator
         Dictionary<string, string> tokens = new(StringComparer.OrdinalIgnoreCase) { ["units"] = units, ["time"] = time };
         return new TelemetryEvaluation(
             match,
-            TelemetryTextFormatter.Apply(template, label, value, path => TelemetryTextFormatter.FormatValue(Resolve(path), display.Decimals), tokens));
+            statusText ?? TelemetryTextFormatter.Apply(template, label, value, path => TelemetryTextFormatter.FormatValue(Resolve(path), display.Decimals), tokens));
     }
 
-    private static string UnitsText(double units, TelemetryDecelerationSettings options)
+    // Ship speed uses the recorded profile unless the key was set to extrapolate live.
+    private bool UsesRecordedProfile(TelemetryDecelerationSettings options, TelemetryField field)
     {
-        string text = TelemetryTextFormatter.FormatRounded(units, options.UnitsRounding);
+        if (profiles == null || field.Path != DecelerationProfileService.SpeedPath)
+        {
+            return false;
+        }
+
+        return !string.Equals(options.Mode, TelemetryDecelerationSettings.ModeLive, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private DecelerationEstimate? ProfileEstimateFor(TelemetrySnapshot? snapshot, double? speed)
+    {
+        if (speed is not { } current || current < DecelerationRunRecorder.StopSpeed || snapshot == null)
+        {
+            return null;
+        }
+
+        double density = snapshot.TryGetValue(DecelerationProfileService.DensityPath, out TelemetryValue d) &&
+                         d.Kind == TelemetryValueKind.Number
+            ? d.Number
+            : 0;
+        return profiles!.Estimate(DecelerationProfileService.ShipKey(snapshot), current, density) is { } estimate
+            ? new DecelerationEstimate(estimate.Units, estimate.TimeSeconds, estimate.Approximate)
+            : null;
+    }
+
+    // While arming or recording, and briefly afterwards, the key reports on the recording instead of the estimate.
+    private string? RecordingText(TelemetrySnapshot? snapshot, DateTime nowUtc)
+    {
+        DecelerationRecordingStatus status = profiles!.Status(nowUtc);
+        switch (status.Phase)
+        {
+            case DecelerationRecordingPhase.Armed:
+                return "Armed\nrelease\nthrottle";
+            case DecelerationRecordingPhase.Recording:
+                return $"REC\n{status.Speed.ToString("0", CultureInfo.InvariantCulture)}";
+        }
+
+        if (status.Outcome == DecelerationRunOutcome.None || nowUtc - status.OutcomeAt > OutcomeDisplay)
+        {
+            return null;
+        }
+
+        if (status.Outcome == DecelerationRunOutcome.Discarded)
+        {
+            return $"Discarded\n{status.Reason}";
+        }
+
+        int runs = profiles.RunCount(DecelerationProfileService.ShipKey(snapshot));
+        return $"Saved\n{runs} run{(runs == 1 ? string.Empty : "s")}";
+    }
+
+    private static string UnitsText(double units, TelemetryDecelerationSettings options, bool approximate)
+    {
+        string text = (approximate ? "~" : string.Empty) + TelemetryTextFormatter.FormatRounded(units, options.UnitsRounding);
         return string.IsNullOrWhiteSpace(options.Unit) ? text : $"{text} {options.Unit.Trim()}";
     }
 }

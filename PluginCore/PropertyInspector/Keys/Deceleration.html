@@ -184,7 +184,15 @@
           </div>
         </div>
         <div class="pi-picker-row">
-          <div class="pi-picker-label" title="Observation period over which the reduction is measured (200 - 30000 ms). Empty = 1000.">Window (ms)</div>
+          <div class="pi-picker-label" title="Recorded: for ship speed, estimate from the deceleration recorded for the current ship and atmospheric density (press the key, then release the throttle until the ship stops). Live: extrapolate the reduction seen over the window. Default: recorded for ship speed, live for other attributes.">Estimate</div>
+          <select aria-label="Estimate mode" class="pi-rule__select" id="decelMode" style="flex:1">
+            <option value="">Automatic</option>
+            <option value="recorded">Recorded runs</option>
+            <option value="live">Live rate</option>
+          </select>
+        </div>
+        <div class="pi-picker-row">
+          <div class="pi-picker-label" title="Observation period over which the reduction is measured (200 - 30000 ms). Empty = 1000. Used by the live rate.">Window (ms)</div>
           <div class="pi-dropdown">
             <div class="pi-dropdown__input-row">
               <div class="pi-dropdown__input-wrapper">
@@ -249,7 +257,15 @@
         </div>
       </div>
       <div class="pi-telemetry-note">
-        Assumes the value keeps dropping at the rate seen over the window: time = value / rate, units = value&sup2; / (2 &times; rate).
+        <b>Recorded runs</b> (ship speed): the key learns how your ship slows down, per ship, master mode and atmospheric density, and shows
+        the distance and time it would need to stop if you released the throttle now. Press the key to start a recording, then release the
+        throttle and let the ship stop; the run is saved when the speed reaches zero. Boosting, landing, accelerating again or pressing the key
+        again discards the run (pressing while recording does not run the rule's press action). Record more runs, at different speeds and in
+        atmosphere, to improve it; newer runs weigh more. Without a recorded run the key shows &mdash;, and a leading ~ marks an estimate
+        beyond the recorded speeds or densities. Profiles are stored in %APPDATA%\SCStreamDeck\deceleration-profiles.json.
+      </div>
+      <div class="pi-telemetry-note">
+        <b>Live rate</b>: assumes the value keeps dropping at the rate seen over the window: time = value / rate, units = value&sup2; / (2 &times; rate).
         For ship speed in m/s the units are meters. Without a clear reduction the key shows the Default look with &mdash;.
         Rules can test the estimate ("Estimate (units)" / "Estimate (time, s)") together with any other attributes.
       </div>

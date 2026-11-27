@@ -54,6 +54,7 @@ public static class ServiceConfiguration
         services.AddSingleton<TelemetryFlagService>();
         services.AddSingleton<UecSessionTracker>();
         services.AddSingleton<TravelTracker>();
+        services.AddSingleton<DecelerationProfileService>();
         services.AddSingleton<TelemetryDebugRecorder>();
         services.AddSingleton<ITelemetryStreamSource, GrpcTelemetryStreamSource>();
         services.AddSingleton<TelemetryService>();

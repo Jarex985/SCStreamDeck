@@ -3,7 +3,7 @@ namespace SCStreamDeck.Services.Telemetry;
 /// <summary>
 ///     Estimated remaining distance (cumulative units) and time until the value reaches zero.
 /// </summary>
-public readonly record struct DecelerationEstimate(double Units, double TimeSeconds);
+public readonly record struct DecelerationEstimate(double Units, double TimeSeconds, bool Approximate = false);
 
 /// <summary>
 ///     Estimates, from the reduction of a value over an observation window, how many cumulative units

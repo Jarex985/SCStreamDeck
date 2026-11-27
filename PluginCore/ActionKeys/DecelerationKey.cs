@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using BarRaider.SdTools;
+using SCStreamDeck.Infrastructure;
 using SCStreamDeck.Services.Telemetry;
 
 namespace SCStreamDeck.ActionKeys;
@@ -12,4 +13,4 @@ namespace SCStreamDeck.ActionKeys;
 [SuppressMessage("ReSharper", "UnusedType.Global", Justification = "Stream Deck action instantiated via SDK reflection")]
 [PluginActionId("com.jarex985.scstreamdeck.deceleration")]
 public sealed class DecelerationKey(SDConnection connection, InitialPayload payload)
-    : TelemetryDisplayKeyBase(connection, payload, new DecelerationEvaluator());
+    : TelemetryDisplayKeyBase(connection, payload, new DecelerationEvaluator(ServiceLocator.GetService<DecelerationProfileService>()));

@@ -142,9 +142,19 @@ public sealed class TelemetryDecelerationSettings
     public const string OutputTime = "time";
     public const string OutputBoth = "both";
 
+    public const string ModeRecorded = "recorded";
+    public const string ModeLive = "live";
+
     public const int DefaultWindowMs = 1000;
     public const int MinWindowMs = 200;
     public const int MaxWindowMs = 30_000;
+
+    /// <summary>
+    ///     <see cref="ModeRecorded" /> estimates ship speed from the deceleration recorded for the current ship;
+    ///     <see cref="ModeLive" /> extrapolates the reduction seen over the window. Empty = recorded for ship speed,
+    ///     live for any other attribute.
+    /// </summary>
+    [JsonProperty("mode")] public string? Mode { get; set; }
 
     /// <summary>Observation period over which the reduction is measured.</summary>
     [JsonProperty("windowMs")] public int? WindowMs { get; set; }

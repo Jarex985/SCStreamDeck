@@ -237,6 +237,7 @@
   const decelInputs = {
     windowMs: document.getElementById('decelWindow'),
     output: document.getElementById('decelOutput'),
+    mode: document.getElementById('decelMode'),
     unitsRounding: document.getElementById('decelUnitsRounding'),
     unitsDivisor: document.getElementById('decelDivisor'),
     timeRounding: document.getElementById('decelTimeRounding'),
@@ -252,6 +253,7 @@
     state.deceleration = {
       windowMs: readNumber(decelInputs.windowMs, true),
       output: decelInputs.output?.value || 'both',
+      mode: decelInputs.mode?.value || null,
       unitsRounding: readNumber(decelInputs.unitsRounding, false),
       unitsDivisor: readNumber(decelInputs.unitsDivisor, false),
       timeRounding: readNumber(decelInputs.timeRounding, false),
@@ -265,6 +267,7 @@
     state.deceleration = d;
     if (decelInputs.windowMs) decelInputs.windowMs.value = d.windowMs ?? '';
     if (decelInputs.output) decelInputs.output.value = d.output || 'both';
+    if (decelInputs.mode) decelInputs.mode.value = d.mode || '';
     if (decelInputs.unitsRounding) decelInputs.unitsRounding.value = d.unitsRounding ?? '';
     if (decelInputs.unitsDivisor) decelInputs.unitsDivisor.value = d.unitsDivisor ?? '';
     if (decelInputs.timeRounding) decelInputs.timeRounding.value = d.timeRounding ?? '';

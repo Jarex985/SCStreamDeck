@@ -15,6 +15,14 @@ Notes:
 
 ---
 
+## v1.5.0.0 - Minor Release
+
+### Features / Improvements
+
+- `Deceleration` key: for the ship's speed it now **learns how your ship slows down** and shows the distance and time it would need to stop if you released the throttle now, taking the atmospheric density into account. Press the key, then release the throttle and let the ship stop to record a run; runs are kept per ship and master mode (SCM / NAV) in `%APPDATA%\SCStreamDeck\deceleration-profiles.json`, and newer runs weigh more. A leading `~` marks an estimate beyond the recorded speeds or densities. Without a recorded run the key shows `—`. The new **Estimate** option switches back to the previous live-rate extrapolation (`Live rate`), which is still used for attributes other than speed.
+
+---
+
 ## v1.4.0.0 - Minor Release
 
 ### Features / Improvements

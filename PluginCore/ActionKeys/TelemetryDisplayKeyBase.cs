@@ -111,6 +111,10 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
                 PlayClickSoundIfConfigured();
                 handled = true;
                 Refresh(true);
+                if (pressHandler.ConsumesPress)
+                {
+                    return;
+                }
             }
 
             IReadOnlyList<TelemetryPressAction> actions = match.Rule.GetPressActions();
