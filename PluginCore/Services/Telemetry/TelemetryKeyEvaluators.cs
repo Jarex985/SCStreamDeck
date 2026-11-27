@@ -18,6 +18,12 @@ public interface ITelemetryKeyPressHandler
 }
 
 /// <summary>
+///     Implemented by evaluators whose text changes with the clock, so the key is refreshed every tick even when no
+///     telemetry arrives.
+/// </summary>
+public interface ITelemetryKeyTimeDriven;
+
+/// <summary>
 ///     Turns the current telemetry and a key's settings into the active rule and key text. One instance per key
 ///     (implementations may keep state, e.g. a sample history).
 /// </summary>
@@ -177,6 +183,108 @@ public sealed class UecBalanceEvaluator(UecSessionTracker tracker) : ITelemetryK
     private static bool ShowsChange(string line) =>
         line.Contains("{change}", StringComparison.OrdinalIgnoreCase) ||
         line.Contains($"{{value:{ChangePath}}}", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>
+///     Shared by the travel keys: evaluates rules against the measurement and fills the tokens {state}, {elapsed}
+///     (minutes and tenths) and {distance} (m, then km). Rules can test the pseudo attributes <see cref="StatePath" />,
+///     <see cref="MinutesPath" /> and <see cref="MetersPath" /> besides any telemetry attribute.
+/// </summary>
+public abstract class TravelEvaluatorBase(TravelTracker tracker) : ITelemetryKeyEvaluator, ITelemetryKeyTimeDriven
+{
+    public const string StatePath = "travel.state";
+    public const string MinutesPath = "travel.minutes";
+    public const string MetersPath = "travel.meters";
+
+    public const string StateIdle = "IDLE";
+    public const string StateRunning = "RUNNING";
+    public const string StateStopped = "STOPPED";
+
+    protected TravelTracker Tracker { get; } = tracker ?? throw new ArgumentNullException(nameof(tracker));
+
+    protected abstract string DefaultLabel { get; }
+
+    protected abstract string DefaultText(TravelState state);
+
+    public TelemetryEvaluation Evaluate(
+        TelemetryDisplaySettings display, TelemetrySnapshot? snapshot, TelemetrySchema schema, DateTime nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(display);
+
+        TravelReading reading = Tracker.Read(nowUtc);
+        bool started = reading.State != TravelState.Idle;
+
+        TelemetryValue stateValue = new(
+            TelemetryValueKind.Enum, Text: StateName(reading.State), DisplayText: reading.State.ToString());
+        TelemetryValue? minutesValue = started
+            ? new TelemetryValue(TelemetryValueKind.Number, reading.Elapsed.TotalMinutes)
+            : null;
+        TelemetryValue? metersValue = started
+            ? new TelemetryValue(TelemetryValueKind.Number, reading.Meters)
+            : null;
+
+        TelemetryValue? Resolve(string path) => path switch
+        {
+            StatePath => stateValue,
+            MinutesPath => minutesValue,
+            MetersPath => metersValue,
+            _ => snapshot != null && snapshot.TryGetValue(path, out TelemetryValue other) ? other : null
+        };
+
+        TelemetryRuleMatch match = TelemetryRuleEvaluator.EvaluateWithPrimary(display, null, Resolve);
+
+        string elapsed = started ? TelemetryTextFormatter.FormatMinutes(reading.Elapsed) : TelemetryTextFormatter.NoDataText;
+        string distance = started ? TelemetryTextFormatter.FormatDistance(reading.Meters) : TelemetryTextFormatter.NoDataText;
+        string label = string.IsNullOrWhiteSpace(display.Label) ? DefaultLabel : display.Label;
+        string template = string.IsNullOrEmpty(match.Rule.Text) ? DefaultText(reading.State) : match.Rule.Text;
+
+        Dictionary<string, string> tokens = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["elapsed"] = elapsed, ["distance"] = distance, ["state"] = reading.State.ToString()
+        };
+        string text = TelemetryTextFormatter.Apply(
+            template, label, elapsed,
+            path => TelemetryTextFormatter.FormatValue(Resolve(path), display.Decimals),
+            tokens);
+
+        return new TelemetryEvaluation(match, text);
+    }
+
+    private static string StateName(TravelState state) => state switch
+    {
+        TravelState.Running => StateRunning,
+        TravelState.Stopped => StateStopped,
+        _ => StateIdle
+    };
+}
+
+/// <summary>
+///     Travel Timer key: pressing it starts the measurement, stops it (the values freeze) or, after a stop, starts a
+///     new one. Its default text is the action the next press performs.
+/// </summary>
+public sealed class TravelToggleEvaluator(TravelTracker tracker) : TravelEvaluatorBase(tracker), ITelemetryKeyPressHandler
+{
+    protected override string DefaultLabel => "Travel";
+
+    public void OnKeyPressed() => Tracker.Toggle(DateTime.UtcNow);
+
+    protected override string DefaultText(TravelState state) => state switch
+    {
+        TravelState.Running => "Stop",
+        TravelState.Stopped => "Restart",
+        _ => "Start"
+    };
+}
+
+/// <summary>
+///     Travel Display key: shows the elapsed minutes and the estimated distance of the measurement. Pressing it
+///     only runs the active rule's press actions.
+/// </summary>
+public sealed class TravelDisplayEvaluator(TravelTracker tracker) : TravelEvaluatorBase(tracker)
+{
+    protected override string DefaultLabel => "Travel";
+
+    protected override string DefaultText(TravelState state) => "{elapsed}\n{distance}";
 }
 
 /// <summary>

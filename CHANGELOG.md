@@ -15,6 +15,15 @@ Notes:
 
 ---
 
+## v1.3.0.0 - Minor Release
+
+### Features / Improvements
+
+- New `Travel Timer` key: press to start measuring, press again to stop (the values freeze), press once more to reset and start a new measurement. Rules, images, flash, sounds and format templates work as on the other telemetry keys and can test the state.
+- New `Travel Display` key: shows the elapsed time in minutes and tenths of a minute and the estimated distance travelled, in meters and in kilometers from 1 km. The distance integrates the ship's speed over time (trapezoid rule) while the measurement runs, also when the keys are not on the visible page.
+
+---
+
 ## v1.2.0.2 - Minor Release
 
 ### Features / Improvements

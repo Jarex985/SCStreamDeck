@@ -16,6 +16,9 @@
   // UEC tracker page: no attribute picker; rules can test the balance and the session change (set by UecTracker.html).
   const UEC = globalThis.SCPI_TELEMETRY_UEC === true;
 
+  // Travel pages: no attribute picker; rules can test the measurement. 'timer' (start/stop key) or 'display'.
+  const TRAVEL = globalThis.SCPI_TELEMETRY_TRAVEL || null;
+
   // #region State
 
   const OPS_NUMBER = [
@@ -52,6 +55,16 @@
   // Pseudo attribute of the UEC tracker: gain (positive) or loss (negative) since the session started.
   const UEC_FIELDS = [
     {path: 'uec.change', label: 'Session change', group: 'UEC', kind: 'Number', isInteger: true, enumValues: null}
+  ];
+
+  // Pseudo attributes of the travel measurement (resolved by the plugin).
+  const TRAVEL_FIELDS = [
+    {
+      path: 'travel.state', label: 'State', group: 'Travel', kind: 'Enum', isInteger: false,
+      enumValues: [{name: 'IDLE', label: 'Idle'}, {name: 'RUNNING', label: 'Running'}, {name: 'STOPPED', label: 'Stopped'}]
+    },
+    {path: 'travel.minutes', label: 'Elapsed (min)', group: 'Travel', kind: 'Number', isInteger: false, enumValues: null},
+    {path: 'travel.meters', label: 'Distance (m)', group: 'Travel', kind: 'Number', isInteger: false, enumValues: null}
   ];
   let functionOptions = [];
   let functionsLoaded = null;
@@ -173,7 +186,7 @@
     const real = Array.isArray(list) ? list : [];
     // Condition editors can test any attribute (and, on the deceleration page, the estimate itself);
     // the primary attribute of the deceleration key must be numeric.
-    fields = DECEL ? real.concat(DECEL_FIELDS) : UEC ? real.concat(UEC_FIELDS) : real;
+    fields = DECEL ? real.concat(DECEL_FIELDS) : UEC ? real.concat(UEC_FIELDS) : TRAVEL ? real.concat(TRAVEL_FIELDS) : real;
     const primary = DECEL ? real.filter((f) => String(f.kind).toLowerCase() === 'number') : real;
     fieldDropdown?.setItems?.(primary.map((f) => ({
       value: f.path,
@@ -349,10 +362,14 @@
       card.appendChild(row('When', ADVANCED ? renderConditions(rule) : renderCondition(rule)));
     }
 
-    card.appendChild(row('Text', textInput(rule.text, UEC ? '{value}\\n{change}' : '{label}\\n{value}', (v) => {
+    card.appendChild(row('Text', textInput(rule.text, TRAVEL === 'timer' ? 'Start' : TRAVEL ? '{elapsed}\\n{distance}' : UEC ? '{value}\\n{change}' : '{label}\\n{value}', (v) => {
       rule.text = v;
       saveRules();
-    }), UEC
+    }), TRAVEL === 'timer'
+      ? 'Use {state}, {elapsed} (min), {distance}, {label} or {value:attribute.path}; \\n starts a new line. Empty = Start, Stop or Restart, depending on the state.'
+      : TRAVEL
+      ? 'Use {elapsed} (min), {distance} (m, then km), {state}, {label} or {value:attribute.path}; \\n starts a new line. Empty = "{elapsed}\\n{distance}".'
+      : UEC
       ? 'Use {value} (balance), {change} (earned/lost), {label} or {value:attribute.path}; \\n starts a new line. Empty = "{value}\\n{change}".'
       : DECEL
       ? 'Use {units}, {time}, {value} (the selected output), {label} or {value:attribute.path}; \\n starts a new line. Empty = the default for the chosen output.'

@@ -97,9 +97,20 @@ Use `UEC Tracker` to watch your in-game UEC balance and how much you earned or l
 
 The key needs the game's telemetry server to be enabled and shows `—` while no balance is received.
 
+## Travel Timer and Travel Display Keys
+
+Use `Travel Timer` and `Travel Display` to measure how long something takes and how far you travelled meanwhile, for example to record a trip or to find the distance needed for a smooth approach, departure or maneuver in a tight space.
+
+1. Drag `Travel Timer` onto a key. Press it to **start** measuring (default text `Start`, then `Stop`), press it again to **stop**: the values freeze. After a stop the key says `Restart`; pressing it resets the values and starts a new measurement.
+2. Drag `Travel Display` onto another key. It shows the **elapsed time in minutes and tenths of a minute** (`3.4 min`) and the **estimated distance** in whole meters (`850 m`), switching to kilometers with two decimals from 1 km (`1.26 km`). It shows `—` until a measurement was started. The default text is `{elapsed}\n{distance}`.
+3. The distance is the ship's speed (`Vehicle State Flight Instruments › Speed`) integrated over time: every telemetry update adds the average of the previous and the current speed multiplied by the time between them (trapezoid rule). That is more exact than multiplying the latest speed by the time, and because speed is a magnitude it follows the path you flew (turns and back-and-forth moves add up) rather than the straight line between start and end. The measurement keeps counting while the keys are not on the visible page. Time without speed (you left the seat, or the game stopped sending telemetry) is not counted, so the distance can then be lower than the real one; the elapsed time always keeps running until you stop.
+4. Rules, images, colors, flash, sounds, press actions and **format templates** work as on `Advanced Telemetry Display` on both keys. Rules can test `Travel › State` (Idle, Running, Stopped), `Travel › Elapsed (min)` and `Travel › Distance (m)`, besides any telemetry attribute. Texts can use `{elapsed}`, `{distance}`, `{state}`, `{label}` and `{value:attribute.path}`. All travel keys share one measurement.
+
+Both keys need the game's telemetry server to be enabled.
+
 ## Format templates
 
-All telemetry keys (`Telemetry Display`, `Advanced Telemetry Display`, `Deceleration`, `UEC Tracker`) have a **Format templates** section. A template is a named look that bundles **text color, background color, image and flash interval**, for example a `warning` template with yellow text on red that flashes every 500 ms.
+All telemetry keys (`Telemetry Display`, `Advanced Telemetry Display`, `Deceleration`, `UEC Tracker`, `Travel Timer`, `Travel Display`) have a **Format templates** section. A template is a named look that bundles **text color, background color, image and flash interval**, for example a `warning` template with yellow text on red that flashes every 500 ms.
 
 1. Click **New template**, give it a name and set colors, image and flash.
 2. In any rule (or the Default section) pick it in the **Template** row.

@@ -84,7 +84,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
 
     public override void OnTick()
     {
-        if (_dirty)
+        if (_dirty || _evaluator is ITelemetryKeyTimeDriven)
         {
             Refresh(false);
         }

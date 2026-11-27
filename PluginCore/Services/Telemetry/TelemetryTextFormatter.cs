@@ -34,6 +34,23 @@ public static partial class TelemetryTextFormatter
         amount < 0 ? $"({FormatCompact(-(decimal)amount)})" : FormatCompact(amount);
 
     /// <summary>
+    ///     Elapsed time in minutes and tenths of a minute, for example "3.4 min".
+    /// </summary>
+    public static string FormatMinutes(TimeSpan elapsed) =>
+        $"{Math.Round(elapsed.TotalMinutes, 1, MidpointRounding.AwayFromZero).ToString("N1", CultureInfo.CurrentCulture)} min";
+
+    /// <summary>
+    ///     Distance in whole meters below 1 km ("850 m") and in kilometers with two decimals from there ("1.25 km").
+    /// </summary>
+    public static string FormatDistance(double meters)
+    {
+        double rounded = Math.Round(meters, MidpointRounding.AwayFromZero);
+        return rounded < 1_000
+            ? $"{rounded.ToString("N0", CultureInfo.CurrentCulture)} m"
+            : $"{(meters / 1_000).ToString("N2", CultureInfo.CurrentCulture)} km";
+    }
+
+    /// <summary>
     ///     Keeps big amounts short for the small key: 999, 1.5k (up to one decimal), 1.25m and 1.25b (up to two
     ///     decimals). Trailing zeros are dropped and rounding that reaches the next unit moves up (999,999 is 1m).
     /// </summary>
