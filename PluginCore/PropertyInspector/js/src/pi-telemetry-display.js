@@ -16,11 +16,8 @@
   // UEC tracker page: no attribute picker; rules can test the balance and the session change (set by UecTracker.html).
   const UEC = globalThis.SCPI_TELEMETRY_UEC === true;
 
-  // Travel pages: no attribute picker; rules can test the measurement. 'timer' (start/stop key) or 'display'.
-  const TRAVEL = globalThis.SCPI_TELEMETRY_TRAVEL || null;
-
-  // Travel Timer page: Start and Stop looks plus rules that make the key unavailable instead of a default look.
-  const TIMER = TRAVEL === 'timer';
+  // Travel page: no attribute picker; rules can test the measurement (set by Travel.html).
+  const TRAVEL = globalThis.SCPI_TELEMETRY_TRAVEL === true;
 
   // #region State
 
@@ -47,12 +44,20 @@
     flags: [],
     defaultRule: {op: 'always'},
     startRule: {op: 'always'},
-    stopRule: {op: 'always'},
+    runningRule: {op: 'always'},
+    stoppedRule: {op: 'always'},
     armedRule: {op: 'always'},
     recordingRule: {op: 'always'},
     savedRule: {op: 'always'},
     discardedRule: {op: 'always'}
   };
+
+  // Travel page: the looks of the measurement states, shown unless an Unavailable rule matches. They keep press actions.
+  const TRAVEL_LOOKS = [
+    {key: 'startRule', id: 'start', title: 'Start (no measurement yet; pressing starts one)', placeholder: 'Start'},
+    {key: 'runningRule', id: 'running', title: 'Running (pressing stops the measurement)', placeholder: '{elapsed}\\n{distance}'},
+    {key: 'stoppedRule', id: 'stopped', title: 'Stopped (frozen values; pressing starts a new measurement)', placeholder: '{elapsed}\\n{distance}'}
+  ];
 
   // Deceleration page: looks of the recording states (no conditions and no press actions; the rules keep the press).
   const DECEL_STATES = [
@@ -124,9 +129,8 @@
   function saveRules() {
     save('rules', state.rules);
     save('defaultRule', state.defaultRule);
-    if (TIMER) {
-      save('startRule', state.startRule);
-      save('stopRule', state.stopRule);
+    if (TRAVEL) {
+      TRAVEL_LOOKS.forEach((s) => save(s.key, state[s.key]));
     }
     if (DECEL) {
       DECEL_STATES.forEach((s) => save(s.key, state[s.key]));
@@ -314,26 +318,15 @@
   function renderRules() {
     const list = document.getElementById('rulesList');
     if (TRAVEL) {
-      const start = document.getElementById(TIMER ? 'startRule' : 'defaultRule');
-      const stop = document.getElementById('stopRule');
-      if (!list || !start || (TIMER && !stop)) {
+      const looks = TRAVEL_LOOKS.map((s) => ({s, host: document.getElementById(s.key)}));
+      if (!list || looks.some((l) => !l.host)) {
         return;
       }
 
       list.replaceChildren(...state.rules.map((rule, index) => renderRuleCard(rule, index, false)));
-      if (!TIMER) {
-        start.replaceChildren(renderRuleCard(state.defaultRule, -1, true, {
-          id: 'display', title: 'Display (shown while the key is available)', placeholder: '{elapsed}\\n{distance}'
-        }));
-        return;
-      }
-
-      start.replaceChildren(renderRuleCard(state.startRule, -1, true, {
-        id: 'start', title: 'Start (shown while a measurement can be started; pressing starts it)', placeholder: 'Start'
-      }));
-      stop.replaceChildren(renderRuleCard(state.stopRule, -1, true, {
-        id: 'stop', title: 'Stop (shown while measuring; pressing stops it)', placeholder: 'Stop'
-      }));
+      looks.forEach(({s, host}) => host.replaceChildren(renderRuleCard(state[s.key], -1, true, {
+        id: s.id, title: s.title, placeholder: s.placeholder
+      })));
       return;
     }
 
@@ -359,7 +352,7 @@
     }
   }
 
-  // `section` (Travel Start/Stop/Display looks) is a card without conditions that still has sound and press actions.
+  // `section` (Travel looks) is a card without conditions that still has sound and press actions.
   function renderRuleCard(rule, index, isDefault, section = null) {
     const idPrefix = section ? `rule-${section.id}` : isDefault ? 'rule-default' : `rule-${index}`;
     const title = section ? section.title : isDefault ? 'Default (no rule matches / no data)'
@@ -947,16 +940,13 @@
       });
     });
   }
-  if (TIMER) {
-    useSetting('startRule', (v) => {
-      state.startRule = v && typeof v === 'object' ? v : {op: 'always'};
-      state.startRule.op = 'always';
-      renderRules();
-    });
-    useSetting('stopRule', (v) => {
-      state.stopRule = v && typeof v === 'object' ? v : {op: 'always'};
-      state.stopRule.op = 'always';
-      renderRules();
+  if (TRAVEL) {
+    TRAVEL_LOOKS.forEach((s) => {
+      useSetting(s.key, (v) => {
+        state[s.key] = v && typeof v === 'object' ? v : {op: 'always'};
+        state[s.key].op = 'always';
+        renderRules();
+      });
     });
   }
 

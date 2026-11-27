@@ -139,18 +139,17 @@ public sealed class TravelTests
         WithInvariantCulture(() => TelemetryTextFormatter.FormatDistance(meters)).Should().Be(expected);
 
     [Fact]
-    public void Evaluators_ShowStateAndMeasurementAndToggleOnPress()
+    public void Evaluator_ShowsTheLookOfTheMeasurementState()
     {
         using TravelTracker tracker = NewTracker();
-        TravelToggleEvaluator timer = new(tracker);
-        TravelDisplayEvaluator display = new(tracker);
+        TravelEvaluator travel = new(tracker);
         TelemetryDisplaySettings settings = new();
 
-        TelemetryEvaluation Evaluate(ITelemetryKeyEvaluator evaluator, TimeSpan at) =>
-            evaluator.Evaluate(settings, null, TelemetrySchema.Bundled, s_t0 + at);
+        TelemetryEvaluation Evaluate(TimeSpan at) =>
+            travel.Evaluate(settings, null, TelemetrySchema.Bundled, s_t0 + at);
 
-        Evaluate(timer, TimeSpan.Zero).Text.Should().Be("Start");
-        Evaluate(display, TimeSpan.Zero).Text.Should().Be($"{TelemetryTextFormatter.NoDataText}\n{TelemetryTextFormatter.NoDataText}");
+        TelemetryEvaluation idle = Evaluate(TimeSpan.Zero);
+        idle.Text.Should().Be("Start");
 
         tracker.Toggle(s_t0, 100);
         for (int second = 5; second <= 30; second += 5)
@@ -158,29 +157,32 @@ public sealed class TravelTests
             tracker.Observe(100, s_t0.AddSeconds(second));
         }
 
-        Evaluate(timer, TimeSpan.FromSeconds(30)).Text.Should().Be("Stop");
-        WithInvariantCulture(() => Evaluate(display, TimeSpan.FromSeconds(30)).Text).Should().Be("0.5 min\n3.00 km");
+        TelemetryEvaluation running = Evaluate(TimeSpan.FromSeconds(30));
+        WithInvariantCulture(() => running.Text).Should().Be("0.5 min\n3.00 km");
 
         tracker.Toggle(s_t0.AddSeconds(30), 100);
-        Evaluate(timer, TimeSpan.FromMinutes(5)).Text.Should().Be("Start");
-        WithInvariantCulture(() => Evaluate(display, TimeSpan.FromMinutes(5)).Text).Should().Be("0.5 min\n3.00 km");
+        TelemetryEvaluation stopped = Evaluate(TimeSpan.FromMinutes(5));
+        WithInvariantCulture(() => stopped.Text).Should().Be("0.5 min\n3.00 km");
+
+        new[] { idle.Match.Index, running.Match.Index, stopped.Match.Index }.Should().OnlyHaveUniqueItems();
     }
 
     [Fact]
-    public void Timer_UsesTheStartStopAndUnavailableLooks()
+    public void Evaluator_UsesTheStartRunningStoppedAndUnavailableLooks()
     {
         using TravelTracker tracker = NewTracker();
-        TravelToggleEvaluator timer = new(tracker);
+        TravelEvaluator travel = new(tracker);
         TelemetryDisplaySettings settings = Newtonsoft.Json.JsonConvert.DeserializeObject<TelemetryDisplaySettings>(
             """
             {"rules":[{"conditions":[{"fieldPath":"vehicle.state.flight.instruments.speed","op":"gt","value":"10"}],
                        "text":"MOVING","soundPath":"u.wav"}],
              "startRule":{"text":"GO","textColor":"#00FF00"},
-             "stopRule":{"text":"HALT {elapsed}","soundPath":"s.wav"}}
+             "runningRule":{"text":"HALT {elapsed}","soundPath":"s.wav"},
+             "stoppedRule":{"text":"DONE {distance}"}}
             """)!;
 
         TelemetryEvaluation At(TelemetrySnapshot? snapshot, double seconds) =>
-            timer.Evaluate(settings, snapshot, TelemetrySchema.Bundled, s_t0.AddSeconds(seconds));
+            travel.Evaluate(settings, snapshot, TelemetrySchema.Bundled, s_t0.AddSeconds(seconds));
 
         TelemetryEvaluation start = At(Speed(0), 0);
         start.Text.Should().Be("GO");
@@ -188,26 +190,32 @@ public sealed class TravelTests
         start.Match.Rule.TextColor.Should().Be("#00FF00");
 
         tracker.Toggle(s_t0, 0);
-        TelemetryEvaluation stop = At(Speed(0), 30);
-        stop.Text.Should().StartWith("HALT ");
-        stop.Disabled.Should().BeFalse();
-        stop.Match.Rule.SoundPath.Should().Be("s.wav");
-        stop.Match.Index.Should().NotBe(start.Match.Index);
+        TelemetryEvaluation running = At(Speed(0), 30);
+        running.Text.Should().StartWith("HALT ");
+        running.Disabled.Should().BeFalse();
+        running.Match.Rule.SoundPath.Should().Be("s.wav");
+        running.Match.Index.Should().NotBe(start.Match.Index);
 
         TelemetryEvaluation unavailable = At(Speed(50), 30);
         unavailable.Text.Should().Be("MOVING");
         unavailable.Disabled.Should().BeTrue();
         unavailable.Match.Index.Should().Be(0);
+
+        tracker.Toggle(s_t0.AddSeconds(30), 0);
+        TelemetryEvaluation stopped = At(Speed(0), 40);
+        stopped.Text.Should().StartWith("DONE ");
+        stopped.Disabled.Should().BeFalse();
+        stopped.Match.Index.Should().NotBe(running.Match.Index);
     }
 
     [Fact]
-    public void Timer_UnavailableLookDefaultsToUnavailableText()
+    public void Evaluator_UnavailableLookDefaultsToUnavailableText()
     {
         using TravelTracker tracker = NewTracker();
         TelemetryDisplaySettings settings = Newtonsoft.Json.JsonConvert.DeserializeObject<TelemetryDisplaySettings>(
             """{"rules":[{"conditions":[{"fieldPath":"travel.state","op":"eq","value":"IDLE"}]}]}""")!;
 
-        TelemetryEvaluation result = new TravelToggleEvaluator(tracker)
+        TelemetryEvaluation result = new TravelEvaluator(tracker)
             .Evaluate(settings, null, TelemetrySchema.Bundled, s_t0);
 
         result.Disabled.Should().BeTrue();
@@ -215,39 +223,10 @@ public sealed class TravelTests
     }
 
     [Fact]
-    public void Display_UsesItsLookUntilAnUnavailableRuleMatches()
+    public void Evaluator_RulesCanTestTheStateAndTheMeasurement()
     {
         using TravelTracker tracker = NewTracker();
-        TravelDisplayEvaluator display = new(tracker);
-        TelemetryDisplaySettings settings = Newtonsoft.Json.JsonConvert.DeserializeObject<TelemetryDisplaySettings>(
-            """
-            {"rules":[{"conditions":[{"fieldPath":"travel.state","op":"eq","value":"STOPPED"}],"text":"DONE"}],
-             "defaultRule":{"text":"{distance}","textColor":"#00FF00","soundPath":"d.wav"}}
-            """)!;
-
-        TelemetryEvaluation At(double seconds) =>
-            display.Evaluate(settings, null, TelemetrySchema.Bundled, s_t0.AddSeconds(seconds));
-
-        TelemetryEvaluation idle = At(0);
-        idle.Disabled.Should().BeFalse();
-        idle.Text.Should().Be(TelemetryTextFormatter.NoDataText);
-        idle.Match.Rule.TextColor.Should().Be("#00FF00");
-        idle.Match.Index.Should().Be(1);
-
-        tracker.Toggle(s_t0, 0);
-        At(1).Disabled.Should().BeFalse();
-
-        tracker.Toggle(s_t0.AddSeconds(2), 0);
-        TelemetryEvaluation stopped = At(3);
-        stopped.Disabled.Should().BeTrue();
-        stopped.Text.Should().Be("DONE");
-    }
-
-    [Fact]
-    public void Evaluators_RulesCanTestTheStateAndTheMeasurement()
-    {
-        using TravelTracker tracker = NewTracker();
-        TravelDisplayEvaluator display = new(tracker);
+        TravelEvaluator display = new(tracker);
         TelemetryDisplaySettings settings = Newtonsoft.Json.JsonConvert.DeserializeObject<TelemetryDisplaySettings>(
             """
             {"rules":[{"conditions":[{"fieldPath":"travel.state","op":"eq","value":"RUNNING"},

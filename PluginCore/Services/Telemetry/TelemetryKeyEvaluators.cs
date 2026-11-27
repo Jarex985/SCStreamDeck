@@ -324,11 +324,17 @@ public sealed class UecBalanceEvaluator(UecSessionTracker tracker) : ITelemetryK
 }
 
 /// <summary>
-///     Shared by the travel keys: evaluates rules against the measurement and fills the tokens {state}, {elapsed}
-///     (minutes and tenths) and {distance} (m, then km). Rules can test the pseudo attributes <see cref="StatePath" />,
-///     <see cref="MinutesPath" /> and <see cref="MetersPath" /> besides any telemetry attribute.
+///     Travel key: measures the elapsed time and the estimated distance and shows them, like the Deceleration key
+///     both shows its estimate and reacts to being pressed. It has three looks instead of rules: <b>Start</b> (no
+///     measurement yet; pressing starts one), <b>Running</b> (elapsed minutes in tenths and distance, m then km;
+///     pressing stops it) and <b>Stopped</b> (the frozen values; pressing starts a new measurement). The
+///     <b>Unavailable</b> rules replace the looks while one of them matches; an unavailable key does nothing when
+///     pressed. Texts can use {state}, {elapsed} and {distance}; rules can test the pseudo attributes
+///     <see cref="StatePath" />, <see cref="MinutesPath" /> and <see cref="MetersPath" /> besides any telemetry
+///     attribute.
 /// </summary>
-public abstract class TravelEvaluatorBase(TravelTracker tracker) : ITelemetryKeyEvaluator, ITelemetryKeyTimeDriven
+public sealed class TravelEvaluator(TravelTracker tracker)
+    : ITelemetryKeyEvaluator, ITelemetryKeyTimeDriven, ITelemetryKeyPressHandler
 {
     public const string StatePath = "travel.state";
     public const string MinutesPath = "travel.minutes";
@@ -340,18 +346,25 @@ public abstract class TravelEvaluatorBase(TravelTracker tracker) : ITelemetryKey
 
     public const string UnavailableText = "Unavailable";
 
-    protected TravelTracker Tracker { get; } = tracker ?? throw new ArgumentNullException(nameof(tracker));
+    private const string DefaultLabel = "Travel";
+    private const string MeasurementText = "{elapsed}\n{distance}";
 
-    protected abstract string DefaultLabel { get; }
+    private TravelTracker Tracker { get; } = tracker ?? throw new ArgumentNullException(nameof(tracker));
 
-    /// <summary>
-    ///     The look of the key while it is available: its rule, the offset of its index behind the unavailable rules
-    ///     (so the sound of a look plays once when it becomes the active one) and the text used when it has none.
-    /// </summary>
-    protected abstract (TelemetryRule Rule, int IndexOffset, string DefaultText) AvailableLook(
-        TelemetryDisplaySettings display, TravelReading reading);
+    public void OnKeyPressed() => Tracker.Toggle(DateTime.UtcNow);
 
-    private (TelemetryRuleMatch Match, bool Disabled, string DefaultText) ChooseLook(
+    // The offset of a look's index behind the unavailable rules makes the sound of a look play once when it becomes
+    // the active one.
+    private static (TelemetryRule Rule, int IndexOffset, string DefaultText) AvailableLook(
+        TelemetryDisplaySettings display, TravelReading reading) =>
+        reading.State switch
+        {
+            TravelState.Running => (display.RunningRule, 1, MeasurementText),
+            TravelState.Stopped => (display.StoppedRule, 2, MeasurementText),
+            _ => (display.StartRule, 0, "Start")
+        };
+
+    private static (TelemetryRuleMatch Match, bool Disabled, string DefaultText) ChooseLook(
         TelemetryDisplaySettings display, TravelReading reading, Func<string, TelemetryValue?> resolve)
     {
         // The rules say when the key is unavailable: the first matching one gives its look.
@@ -415,39 +428,6 @@ public abstract class TravelEvaluatorBase(TravelTracker tracker) : ITelemetryKey
         TravelState.Stopped => StateStopped,
         _ => StateIdle
     };
-}
-
-/// <summary>
-///     Travel Timer key with three looks instead of rules: <b>Start</b> (shown while a measurement can be started,
-///     also after a stop), <b>Stop</b> (while one is running) and <b>Unavailable</b>, which replaces them while one of
-///     the rules matches. An unavailable key does nothing when pressed. Otherwise pressing starts or stops the
-///     measurement; after a stop it starts a new one.
-/// </summary>
-public sealed class TravelToggleEvaluator(TravelTracker tracker) : TravelEvaluatorBase(tracker), ITelemetryKeyPressHandler
-{
-    protected override string DefaultLabel => "Travel";
-
-    public void OnKeyPressed() => Tracker.Toggle(DateTime.UtcNow);
-
-    protected override (TelemetryRule Rule, int IndexOffset, string DefaultText) AvailableLook(
-        TelemetryDisplaySettings display, TravelReading reading) =>
-        reading.State == TravelState.Running
-            ? (display.StopRule, 1, "Stop")
-            : (display.StartRule, 0, "Start");
-}
-
-/// <summary>
-///     Travel Display key: shows the elapsed minutes and the estimated distance of the measurement with one look
-///     and, like the Travel Timer, an <b>Unavailable</b> look chosen by rules. Pressing it only runs the press actions
-///     of the look (nothing while unavailable).
-/// </summary>
-public sealed class TravelDisplayEvaluator(TravelTracker tracker) : TravelEvaluatorBase(tracker)
-{
-    protected override string DefaultLabel => "Travel";
-
-    protected override (TelemetryRule Rule, int IndexOffset, string DefaultText) AvailableLook(
-        TelemetryDisplaySettings display, TravelReading reading) =>
-        (display.DefaultRule, 0, "{elapsed}\n{distance}");
 }
 
 /// <summary>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>Star Citizen Stream Deck Plugin PI - Travel Display</title>
+  <title>Star Citizen Stream Deck Plugin PI - Travel Timer</title>
   <link href="../css/base.css" rel="stylesheet">
   <link id="pi-theme-styles" rel="stylesheet">
   <style>
@@ -153,7 +153,7 @@
   <script defer src="../js/sc-components.js"></script>
   <script>
     // No attribute picker; rules hold conditions on any attribute and on the measurement ("travel.*").
-    globalThis.SCPI_TELEMETRY_TRAVEL = 'display';
+    globalThis.SCPI_TELEMETRY_TRAVEL = true;
     globalThis.SCPI_TELEMETRY_ADVANCED = true;
   </script>
   <script defer src="../js/pi-telemetry-display.js"></script>
@@ -163,10 +163,10 @@
   <div class="pi-panel">
     <div class="pi-section">
       <div class="pi-telemetry-note">
-        Shows the elapsed time in minutes and tenths of a minute and the estimated distance (meters, then
-        kilometers from 1 km) of the measurement started with the Travel Timer key. The values freeze when the
-        measurement is stopped. The distance is estimated from the ship's speed, so it follows the path flown.
-        The game's telemetry server must be enabled.
+        Press the key to start measuring the elapsed time and the estimated distance travelled (the speed is
+        integrated over time), press again to stop: the values freeze. Pressing once more starts a new measurement.
+        The key shows the values itself. Rules can test the state (Idle, Running, Stopped), the elapsed
+        minutes and the distance in meters. The game's telemetry server must be enabled.
       </div>
 
       <div class="pi-picker-grid">
@@ -184,14 +184,32 @@
     </div>
 
     <div class="pi-section">
-      <div class="pi-telemetry-note">Format templates (text color, background color, image and flash) and flags are created on the <b>Config</b> key; pick them per look below.</div>
+      <div class="pi-telemetry-note">Format templates (text color, background color, image and flash) and flags are created on the <b>Config</b> key; pick them per rule or look below.</div>
     </div>
 
     <div class="pi-section">
-      <div class="pi-page-title">Display</div>
-      <div id="defaultRule"></div>
+      <div class="pi-page-title">Start</div>
+      <div id="startRule"></div>
       <div class="pi-telemetry-note">
-        The look of the key while it is available. Pressing the key only runs the press actions of this look.
+        The look while no measurement was started yet. Pressing the key starts one.
+      </div>
+    </div>
+
+    <div class="pi-section">
+      <div class="pi-page-title">Running</div>
+      <div id="runningRule"></div>
+      <div class="pi-telemetry-note">
+        The look while a measurement is running, normally showing the elapsed time and the distance. Pressing the
+        key stops it and freezes the values.
+      </div>
+    </div>
+
+    <div class="pi-section">
+      <div class="pi-page-title">Stopped</div>
+      <div id="stoppedRule"></div>
+      <div class="pi-telemetry-note">
+        The look while the frozen values of a stopped measurement are shown. Pressing the key starts a new
+        measurement.
       </div>
     </div>
 
@@ -203,8 +221,8 @@
       </div>
       <div class="pi-telemetry-note">
         While any of these rules matches, the key takes the look of that rule and does nothing when pressed, so you
-        can limit when it is shown and usable (for example only while you are seated). Without rules the key is
-        always available.
+        can limit when it is shown and usable (for example while the ship is moving or you are not seated).
+        Without rules the key is always available.
       </div>
     </div>
 

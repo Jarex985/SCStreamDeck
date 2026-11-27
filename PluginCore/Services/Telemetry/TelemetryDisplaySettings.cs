@@ -222,9 +222,12 @@ public sealed class TelemetryDisplaySettings
     /// <summary>Deceleration key: look shortly after a run was discarded.</summary>
     [JsonProperty("discardedRule")] public TelemetryRule DiscardedRule { get; set; } = new();
 
-    /// <summary>Travel Timer key: look and press actions while a measurement can be started.</summary>
+    /// <summary>Travel key: look and press actions while no measurement was started yet.</summary>
     [JsonProperty("startRule")] public TelemetryRule StartRule { get; set; } = new();
 
-    /// <summary>Travel Timer key: look and press actions while a measurement is running and can be stopped.</summary>
-    [JsonProperty("stopRule")] public TelemetryRule StopRule { get; set; } = new();
+    /// <summary>Travel key: look and press actions while a measurement is running and can be stopped.</summary>
+    [JsonProperty("runningRule")] public TelemetryRule RunningRule { get; set; } = new();
+
+    /// <summary>Travel key: look and press actions while the values of a stopped measurement are shown.</summary>
+    [JsonProperty("stoppedRule")] public TelemetryRule StoppedRule { get; set; } = new();
 }

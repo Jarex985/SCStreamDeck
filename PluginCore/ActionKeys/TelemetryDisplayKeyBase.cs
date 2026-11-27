@@ -247,7 +247,8 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
             settings.Rules ??= [];
             settings.DefaultRule ??= new TelemetryRule();
             settings.StartRule ??= new TelemetryRule();
-            settings.StopRule ??= new TelemetryRule();
+            settings.RunningRule ??= new TelemetryRule();
+            settings.StoppedRule ??= new TelemetryRule();
             settings.ArmedRule ??= new TelemetryRule();
             settings.RecordingRule ??= new TelemetryRule();
             settings.SavedRule ??= new TelemetryRule();

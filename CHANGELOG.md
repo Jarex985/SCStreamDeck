@@ -15,6 +15,16 @@ Notes:
 
 ---
 
+## v1.5.2.0 - Patch Release
+
+### Features / Improvements
+
+- The `Travel Timer` and `Travel Display` keys are now **one `Travel` key** that works like the `Deceleration` key: it shows the result and reacts to being pressed. It has the looks **Start** (no measurement yet; pressing starts one), **Running** (elapsed minutes and distance; pressing stops it), **Stopped** (the frozen values; pressing starts a new measurement) and the **Unavailable** rules, each with text, image, sound, format template, colors, flash and press actions.
+
+> **Warning:** `Travel Display` keys already placed are no longer available; replace them with the `Travel` key. On existing `Travel Timer` keys (now `Travel`) the Start look is kept, but the old Stop look is gone: set the new **Running** and **Stopped** looks.
+
+---
+
 ## v1.5.1.0 - Patch Release
 
 ### Features / Improvements

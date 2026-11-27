@@ -98,7 +98,7 @@
     },
     {
       "Icon": "Images/icon",
-      "Name": "Travel Timer",
+      "Name": "Travel",
       "States": [
         {
           "Image": "PropertyInspector/svg/key",
@@ -107,24 +107,9 @@
         }
       ],
       "SupportedInMultiActions": false,
-      "Tooltip": "Starts and stops a travel measurement (elapsed time and estimated distance); has Start, Stop and Unavailable looks",
+      "Tooltip": "Press to start and stop a travel measurement; shows the elapsed minutes and the estimated distance; has Start, Running, Stopped and Unavailable looks",
       "UUID": "com.jarex985.scstreamdeck.traveltimer",
-      "PropertyInspectorPath": "PropertyInspector/Keys/TravelTimer.html"
-    },
-    {
-      "Icon": "Images/icon",
-      "Name": "Travel Display",
-      "States": [
-        {
-          "Image": "PropertyInspector/svg/key",
-          "TitleAlignment": "middle",
-          "FontSize": 12
-        }
-      ],
-      "SupportedInMultiActions": false,
-      "Tooltip": "Shows the elapsed minutes and the estimated distance of the Travel Timer measurement; has Display and Unavailable looks",
-      "UUID": "com.jarex985.scstreamdeck.traveldisplay",
-      "PropertyInspectorPath": "PropertyInspector/Keys/TravelDisplay.html"
+      "PropertyInspectorPath": "PropertyInspector/Keys/Travel.html"
     },
     {
       "Icon": "Images/icon",
@@ -181,7 +166,7 @@
   "Description": "Plugin that provides bindable actions for Star Citizen via Stream Deck.\nThis Plugin is not endorsed by or affiliated with the Cloud Imperium or Roberts Space Industries group of companies. All game content and materials are copyright Cloud Imperium Rights LLC and Cloud Imperium Rights Ltd.. Star Citizen®,Squadron 42®, Roberts Space Industries®, and Cloud Imperium® are registered trademarks of Cloud Imperium Rights LLC. All rights reserved.",
   "Icon": "Images/pluginIcon",
   "URL": "https://github.com/Jarex985/SCStreamDeck",
-  "Version": "1.5.1.0",
+  "Version": "1.5.2.0",
   "CodePath": "com.jarex985.scstreamdeck.exe",
   "Category": "Star Citizen Stream Deck",
   "CategoryIcon": "Images/categoryIcon",

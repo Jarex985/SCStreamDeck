@@ -108,25 +108,25 @@ Use `UEC Tracker` to watch your in-game UEC balance and how much you earned or l
 
 The key needs the game's telemetry server to be enabled and shows `—` while no balance is received.
 
-## Travel Timer and Travel Display Keys
+## Travel Key
 
-Use `Travel Timer` and `Travel Display` to measure how long something takes and how far you travelled meanwhile, for example to record a trip or to find the distance needed for a smooth approach, departure or maneuver in a tight space.
+Use `Travel` to measure how long something takes and how far you travelled meanwhile, for example to record a trip or to find the distance needed for a smooth approach, departure or maneuver in a tight space. Like `Deceleration`, one key both shows the result and reacts to being pressed.
 
-1. Drag `Travel Timer` onto a key. It has three looks, each with its own text, image, colors, **format template**, flash and sound (and extra press actions for Start and Stop):
-    - **Start**: shown while a measurement can be started (default text `Start`, also after a stop). Pressing the key resets the values and starts a measurement.
-    - **Stop**: shown while measuring (default text `Stop`). Pressing the key stops it and the values freeze.
+1. Drag `Travel` onto a key. It has three looks, each with its own text, image, colors, **format template**, flash, sound and extra press actions:
+    - **Start**: shown while no measurement was started yet (default text `Start`). Pressing the key starts a measurement.
+    - **Running**: shown while measuring (default text `{elapsed}\n{distance}`). It shows the **elapsed time in minutes and tenths of a minute** (`3.4 min`) and the **estimated distance** in whole meters (`850 m`), switching to kilometers with two decimals from 1 km (`1.26 km`). Pressing the key stops the measurement and the values freeze.
+    - **Stopped**: shown with the frozen values after a stop (default text `{elapsed}\n{distance}`). Pressing the key starts a new measurement.
     - **Unavailable**: a list of rules (conditions on any attribute, like `Advanced Telemetry Display`; default text `Unavailable`). While one of them matches, the key shows that rule's look and does nothing when pressed, so you decide when the key is shown and usable, for example "Speed is greater than 10". Without rules the key is always available. Be aware that an unavailable key cannot stop a running measurement either.
-2. Drag `Travel Display` onto another key. It shows the **elapsed time in minutes and tenths of a minute** (`3.4 min`) and the **estimated distance** in whole meters (`850 m`), switching to kilometers with two decimals from 1 km (`1.26 km`). It shows `—` until a measurement was started. Like the timer it has a **Display** look (default text `{elapsed}\n{distance}`, with image, colors, format template, flash, sound and press actions) and an **Unavailable** list of rules: while one matches, the key shows that rule's look and does nothing when pressed.
-3. The distance is the ship's speed (`Vehicle State Flight Instruments › Speed`) integrated over time: every telemetry update adds the average of the previous and the current speed multiplied by the time between them (trapezoid rule). That is more exact than multiplying the latest speed by the time, and because speed is a magnitude it follows the path you flew (turns and back-and-forth moves add up) rather than the straight line between start and end. The measurement keeps counting while the keys are not on the visible page. Time without speed (you left the seat, or the game stopped sending telemetry) is not counted, so the distance can then be lower than the real one; the elapsed time always keeps running until you stop.
-4. Conditions in the Unavailable rules of both keys can test `Travel › State` (Idle, Running, Stopped), `Travel › Elapsed (min)` and `Travel › Distance (m)`, besides any telemetry attribute. Texts can use `{elapsed}`, `{distance}`, `{state}`, `{label}` and `{value:attribute.path}`. All travel keys share one measurement.
+2. The distance is the ship's speed (`Vehicle State Flight Instruments › Speed`) integrated over time: every telemetry update adds the average of the previous and the current speed multiplied by the time between them (trapezoid rule). That is more exact than multiplying the latest speed by the time, and because speed is a magnitude it follows the path you flew (turns and back-and-forth moves add up) rather than the straight line between start and end. The measurement keeps counting while the key is not on the visible page. Time without speed (you left the seat, or the game stopped sending telemetry) is not counted, so the distance can then be lower than the real one; the elapsed time always keeps running until you stop.
+3. Conditions in the Unavailable rules can test `Travel › State` (Idle, Running, Stopped), `Travel › Elapsed (min)` and `Travel › Distance (m)`, besides any telemetry attribute. Texts can use `{elapsed}`, `{distance}`, `{state}`, `{label}` and `{value:attribute.path}`.
 
-Both keys need the game's telemetry server to be enabled.
+The key needs the game's telemetry server to be enabled.
 
 ## Config Key and format templates
 
 Use the `Config` key to create what the telemetry keys share. Drag `Config` onto any key (it does nothing when pressed) and open its Property Inspector; it has two sections: **Flags** (see [Flags](#flags)) and **Format templates**. Templates are no longer edited on the telemetry keys themselves, which only pick them.
 
-All telemetry keys (`Telemetry Display`, `Advanced Telemetry Display`, `Deceleration`, `UEC Tracker`, `Travel Timer`, `Travel Display`) can use a template. A template is a named look that bundles **text color, background color, image and flash interval**, for example a `warning` template with yellow text on red that flashes every 500 ms.
+All telemetry keys (`Telemetry Display`, `Advanced Telemetry Display`, `Deceleration`, `UEC Tracker`, `Travel`) can use a template. A template is a named look that bundles **text color, background color, image and flash interval**, for example a `warning` template with yellow text on red that flashes every 500 ms.
 
 1. On the `Config` key click **New template**, give it a name and set colors, image and flash.
 2. On a telemetry key, in any rule (or the Default section), pick it in the **Template** row.
