@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Star Citizen Stream Deck Plugin PI - Config</title>
+  <link href="../css/base.css" rel="stylesheet">
+  <link id="pi-theme-styles" rel="stylesheet">
+  <style>
+    .pi-rule__condition,
+    .pi-rule__colors {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .pi-rule__select {
+      background: var(--color-bg-elevated);
+      color: var(--color-text-primary);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      height: 32px;
+      padding: 0 var(--space-sm);
+      max-width: 100%;
+    }
+
+    .pi-rule__hint {
+      color: var(--color-text-tertiary);
+      font-size: var(--font-size-sm);
+    }
+
+    .pi-rule__color-group {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+
+    .pi-rule__color {
+      width: 32px;
+      height: 28px;
+      padding: 0;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background: transparent;
+    }
+
+    .pi-telemetry-note {
+      color: var(--color-text-tertiary);
+      font-size: var(--font-size-sm);
+      margin-top: var(--space-sm);
+    }
+  </style>
+  <script src="../js/sc-preload.js"></script>
+  <script defer src="../js/sdpi-components.js"></script>
+  <script defer src="../js/sc-components.js"></script>
+  <script defer src="../js/pi-config.js"></script>
+</head>
+<body>
+<div class="pi-container">
+  <div class="pi-panel">
+    <div class="pi-page-title">Config</div>
+
+    <div class="pi-section">
+      <div class="pi-section__header">Flags</div>
+      <div class="pi-telemetry-note">
+        A flag is an on/off switch shared by the telemetry keys. A rule of an Advanced Telemetry Display can test it in
+        its conditions and switch it when the rule becomes active, and a key can switch or toggle it when pressed.
+        Use it for example as a master warning or to remember that the preflight check is done. Flag values are not
+        saved: they return to their starting value when the plugin restarts.
+      </div>
+      <div id="flags"></div>
+    </div>
+
+    <div class="pi-section">
+      <div class="pi-section__header">Format templates</div>
+      <div class="pi-telemetry-note">
+        A template bundles text color, background color, image and flash. Pick it per rule on the telemetry keys;
+        changing a template updates every rule that uses it.
+      </div>
+      <div id="templates"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

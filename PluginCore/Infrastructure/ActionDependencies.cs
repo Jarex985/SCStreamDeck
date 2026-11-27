@@ -1,6 +1,7 @@
 using SCStreamDeck.Services.Audio;
 using SCStreamDeck.Services.Core;
 using SCStreamDeck.Services.Keybinding;
+using SCStreamDeck.Services.Telemetry;
 using SCStreamDeck.Services.UI;
 
 namespace SCStreamDeck.Infrastructure;
@@ -22,7 +23,31 @@ internal static class ActionDependencies
         ServiceLocator.GetService<StateService>(),
         ServiceLocator.GetService<ThemeService>(),
         ServiceLocator.GetService<IKeybindingsJsonCache>());
+
+    public static TelemetryKeyDependencies ForTelemetryDisplayKey() => new(
+        ServiceLocator.GetService<TelemetryService>(),
+        ServiceLocator.GetService<ITelemetrySchemaProvider>(),
+        ServiceLocator.GetService<TelemetryTemplateService>(),
+        ServiceLocator.GetService<TelemetryFlagService>());
+
+    public static ConfigKeyDependencies ForConfigKey() => new(
+        ServiceLocator.GetService<TelemetryTemplateService>(),
+        ServiceLocator.GetService<TelemetryFlagService>());
+
+    public static TelemetryDebugKeyDependencies ForTelemetryDebugKey() => new(
+        ServiceLocator.GetService<TelemetryService>(),
+        ServiceLocator.GetService<TelemetryDebugRecorder>());
 }
+
+internal sealed record TelemetryDebugKeyDependencies(TelemetryService Telemetry, TelemetryDebugRecorder Recorder);
+
+internal sealed record ConfigKeyDependencies(TelemetryTemplateService Templates, TelemetryFlagService Flags);
+
+internal sealed record TelemetryKeyDependencies(
+    TelemetryService Telemetry,
+    ITelemetrySchemaProvider Schemas,
+    TelemetryTemplateService Templates,
+    TelemetryFlagService Flags);
 
 internal sealed record SCActionBaseDependencies(
     InitializationService InitializationService,

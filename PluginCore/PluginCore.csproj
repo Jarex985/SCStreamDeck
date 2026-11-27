@@ -46,6 +46,12 @@
     <PackageReference Include="NAudio" Version="2.2.1"/>
     <ProjectReference Include="..\InputSimulatorPlus\WindowsInput\WindowsInput.csproj"/>
     <PackageReference Include="CommandLineParser" Version="2.9.1"/>
+    <PackageReference Include="Google.Protobuf" Version="3.31.1"/>
+    <PackageReference Include="Grpc.Net.Client" Version="2.71.0"/>
+    <PackageReference Include="Grpc.Tools" Version="2.72.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.101">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -59,6 +65,11 @@
     <PackageReference Include="StreamDeck-Tools" Version="6.3.2"/>
     <PackageReference Include="System.Drawing.Common" Version="10.0.1"/>
     <PackageReference Include="ZstdSharp.Port" Version="0.8.7"/>
+  </ItemGroup>
+
+  <!-- Star Citizen local telemetry API (see Protos/README.md) -->
+  <ItemGroup>
+    <Protobuf Include="Protos\sc_telemetry_v1.proto" GrpcServices="None"/>
   </ItemGroup>
 
   <!-- Manifest & Property Inspector -->

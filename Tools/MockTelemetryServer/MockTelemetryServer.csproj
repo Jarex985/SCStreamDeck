@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MockTelemetryServer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" Version="2.71.0"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Same proto the plugin compiles; generates the server base class here. -->
+    <Protobuf Include="..\..\PluginCore\Protos\sc_telemetry_v1.proto" GrpcServices="Server" Link="Protos\sc_telemetry_v1.proto"/>
+  </ItemGroup>
+</Project>

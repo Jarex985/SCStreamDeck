@@ -15,6 +15,98 @@ Notes:
 
 ---
 
+## v1.5.2.0 - Patch Release
+
+### Features / Improvements
+
+- The `Travel Timer` and `Travel Display` keys are now **one `Travel` key** that works like the `Deceleration` key: it shows the result and reacts to being pressed. It has the looks **Start** (no measurement yet; pressing starts one), **Running** (elapsed minutes and distance; pressing stops it), **Stopped** (the frozen values; pressing starts a new measurement) and the **Unavailable** rules, each with text, image, sound, format template, colors, flash and press actions.
+
+> **Warning:** `Travel Display` keys already placed are no longer available; replace them with the `Travel` key. On existing `Travel Timer` keys (now `Travel`) the Start look is kept, but the old Stop look is gone: set the new **Running** and **Stopped** looks.
+
+---
+
+## v1.5.1.0 - Patch Release
+
+### Features / Improvements
+
+- `Deceleration` key: the recording states **Armed**, **Recording**, **Saved** and **Discarded** each have their own look in the Property Inspector (text, image, sound, format template, colors, flash and flags to set). The text can use `{state}`, `{speed}`, `{runs}` and `{reason}`. Pressing the key during these states still runs the press action of the rule that would otherwise apply.
+
+---
+
+## v1.5.0.0 - Minor Release
+
+### Features / Improvements
+
+- `Deceleration` key: for the ship's speed it now **learns how your ship slows down** and shows the distance and time it would need to stop if you released the throttle now, taking the atmospheric density into account. Press the key, then release the throttle and let the ship stop to record a run; runs are kept per ship and master mode (SCM / NAV) in `%APPDATA%\SCStreamDeck\deceleration-profiles.json`, and newer runs weigh more. A leading `~` marks an estimate beyond the recorded speeds or densities. Without a recorded run the key shows `—`. The new **Estimate** option switches back to the previous live-rate extrapolation (`Live rate`), which is still used for attributes other than speed.
+
+---
+
+## v1.4.0.0 - Minor Release
+
+### Features / Improvements
+
+- New `Config` key: its Property Inspector is where the settings shared by the telemetry keys are created. All **format template** creation, editing and deletion moved there; the telemetry keys now only pick a template per rule. Existing templates are kept.
+- **Flags**: create named on/off switches on the `Config` key (with a starting value; values return to it when the plugin restarts). Rule conditions can test them (`Flags › <name>`), a rule can switch flags once when it becomes active (**Sets flags**), and the press actions of `Advanced Telemetry Display` rules can set a flag on, off or toggle it (also without telemetry). Use them for example as a master warning or a "preflight check done" switch. A copy of the flags is kept in `%APPDATA%\SCStreamDeck\telemetry-flags.json` and restored like the templates.
+
+---
+
+## v1.3.0.2 - Minor Release
+
+### Features / Improvements
+
+- `Travel Display` key: like the Travel Timer it now has one **Display** look and an **Unavailable** list of rules instead of rules and a default look. While an Unavailable rule matches, the key shows that rule's look and does nothing when pressed. The look has text, image, colors, format template, flash, sound and press actions. Rules saved on the key before this version are read as Unavailable rules, so remove them.
+
+---
+
+## v1.3.0.1 - Minor Release
+
+### Features / Improvements
+
+- `Travel Timer` key: instead of rules and a default look it now has three looks, **Start**, **Stop** and **Unavailable**, each with text, image, colors, format template, flash and sound (Start and Stop also have press actions). The Unavailable rules (conditions on any attribute) decide when the key is unavailable: it then shows the matching rule's look and does nothing when pressed. Rules saved on the key before this version are read as Unavailable rules, so remove them.
+- Telemetry keys run the press actions of the rule that was active when the key was pressed, even if the press changes the rule (this also applies to the `UEC Tracker` reset).
+
+---
+
+## v1.3.0.0 - Minor Release
+
+### Features / Improvements
+
+- New `Travel Timer` key: press to start measuring, press again to stop (the values freeze), press once more to reset and start a new measurement. Rules, images, flash, sounds and format templates work as on the other telemetry keys and can test the state.
+- New `Travel Display` key: shows the elapsed time in minutes and tenths of a minute and the estimated distance travelled, in meters and in kilometers from 1 km. The distance integrates the ship's speed over time (trapezoid rule) while the measurement runs, also when the keys are not on the visible page.
+
+---
+
+## v1.2.0.2 - Minor Release
+
+### Features / Improvements
+
+- `UEC Tracker` key: the balance and the session change are abbreviated so the text fits the key at a bigger font size: `1.5k` from 1,000 (up to one decimal), `1.25m` from 1,000,000 and `1.25b` from 1,000,000,000 (up to two decimals). Losses stay in brackets, for example `(12k)`.
+
+---
+
+## v1.2.0.1 - Minor Release
+
+### Features / Improvements
+
+- New `UEC Tracker` key: shows your in-game UEC balance with the amount earned (green) or lost (red, in brackets) since the session started on a second line. Press the key to restart the count. Rules and format templates work as on the other telemetry keys.
+
+---
+
+## v1.2.0.0 - Minor Release
+
+### Features / Improvements
+
+- Format templates are also copied to `%APPDATA%\SCStreamDeck\telemetry-format-templates.json` and restored when Stream Deck loses the plugin's global settings, for example after installing the plugin again.
+- New `Telemetry Debug` key: toggles a capture of the raw telemetry stream to `telemetry-debug.log` next to the plugin log, with field numbers, names from the protocol, unknown or mismatching fields flagged, the fields the game did not send, and a summary of attributes never sent. Use it when an attribute does not show up.
+- Flashing rules and templates have a new **Flashes** option: **Text** (default; only the text blinks), **Background + image** (the text stays while the background and image blink to black) or **Everything**. Rules that flashed before now blink only the text; image and background stay.
+- New format templates for the telemetry keys: a named bundle of text color, background color, image and flash interval that rules can use, shared by all telemetry keys.
+- New `Deceleration` key: estimates the cumulative units (for ship speed: meters) and the time until a numeric attribute reaches zero from its reduction over a configurable window, with rounding and rule-based looks.
+- The `Telemetry Display` keys read the available attributes from the installed game (`StarCitizen.exe`) instead of a built-in list, so they always match the game version; the built-in list remains as a fallback. The protocol that was read is exported next to the plugin log (`telemetry-protocol.proto` / `.desc`).
+- New `Advanced Telemetry Display` key: rules combine conditions on several attributes (all / any), for example "landed AND hydrogen fuel low", texts can print any attribute with `{value:attribute.path}`, and each rule can run several press actions in order (with optional delays), which allows one key to act as a state-dependent toggle.
+- New `Telemetry Display` key: shows any value from Star Citizen's local gRPC telemetry API and changes text, image and colors through ordered rules; each rule can optionally flash its text/image, play a sound when it becomes active and run a keybinding when the key is pressed.
+
+---
+
 ## v1.1.3.0 - Patch Release
 
 ### Features / Improvements

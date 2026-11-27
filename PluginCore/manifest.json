@@ -38,6 +38,113 @@
     },
     {
       "Icon": "Images/icon",
+      "Name": "Telemetry Display",
+      "States": [
+        {
+          "Image": "PropertyInspector/svg/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "Shows a live Star Citizen telemetry value with rule-based text, images and press actions",
+      "UUID": "com.jarex985.scstreamdeck.telemetrydisplay",
+      "PropertyInspectorPath": "PropertyInspector/Keys/TelemetryDisplay.html"
+    },
+    {
+      "Icon": "Images/icon",
+      "Name": "Advanced Telemetry Display",
+      "States": [
+        {
+          "Image": "PropertyInspector/svg/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "Combines several telemetry attributes (AND / OR) to drive text, images, sounds and press actions",
+      "UUID": "com.jarex985.scstreamdeck.telemetryadvanced",
+      "PropertyInspectorPath": "PropertyInspector/Keys/AdvancedTelemetryDisplay.html"
+    },
+    {
+      "Icon": "Images/icon",
+      "Name": "Deceleration",
+      "States": [
+        {
+          "Image": "PropertyInspector/svg/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "Estimates the distance and time until a telemetry value (for example speed) reaches zero",
+      "UUID": "com.jarex985.scstreamdeck.deceleration",
+      "PropertyInspectorPath": "PropertyInspector/Keys/Deceleration.html"
+    },
+    {
+      "Icon": "Images/icon",
+      "Name": "UEC Tracker",
+      "States": [
+        {
+          "Image": "PropertyInspector/svg/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "Shows your UEC balance and the amount earned or lost this session; press to reset the count",
+      "UUID": "com.jarex985.scstreamdeck.uectracker",
+      "PropertyInspectorPath": "PropertyInspector/Keys/UecTracker.html"
+    },
+    {
+      "Icon": "Images/icon",
+      "Name": "Travel",
+      "States": [
+        {
+          "Image": "PropertyInspector/svg/key",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "Press to start and stop a travel measurement; shows the elapsed minutes and the estimated distance; has Start, Running, Stopped and Unavailable looks",
+      "UUID": "com.jarex985.scstreamdeck.traveltimer",
+      "PropertyInspectorPath": "PropertyInspector/Keys/Travel.html"
+    },
+    {
+      "Icon": "Images/icon",
+      "Name": "Telemetry Debug",
+      "States": [
+        {
+          "Image": "PropertyInspector/svg/key",
+          "Title": "Debug",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "Toggles a raw capture of the game's telemetry stream to telemetry-debug.log for troubleshooting",
+      "UUID": "com.jarex985.scstreamdeck.telemetrydebug",
+      "PropertyInspectorPath": "PropertyInspector/Keys/TelemetryDebug.html"
+    },
+    {
+      "Icon": "Images/icon",
+      "Name": "Config",
+      "States": [
+        {
+          "Image": "PropertyInspector/svg/key",
+          "Title": "Config",
+          "TitleAlignment": "middle",
+          "FontSize": 12
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "Creates the flags and format templates (colors, image, flash) shared by the telemetry keys",
+      "UUID": "com.jarex985.scstreamdeck.config",
+      "PropertyInspectorPath": "PropertyInspector/Keys/Config.html"
+    },
+    {
+      "Icon": "Images/icon",
       "Name": "Control Panel",
       "States": [
         {
@@ -59,7 +166,7 @@
   "Description": "Plugin that provides bindable actions for Star Citizen via Stream Deck.\nThis Plugin is not endorsed by or affiliated with the Cloud Imperium or Roberts Space Industries group of companies. All game content and materials are copyright Cloud Imperium Rights LLC and Cloud Imperium Rights Ltd.. Star Citizen®,Squadron 42®, Roberts Space Industries®, and Cloud Imperium® are registered trademarks of Cloud Imperium Rights LLC. All rights reserved.",
   "Icon": "Images/pluginIcon",
   "URL": "https://github.com/Jarex985/SCStreamDeck",
-  "Version": "1.1.3.0",
+  "Version": "1.5.2.0",
   "CodePath": "com.jarex985.scstreamdeck.exe",
   "Category": "Star Citizen Stream Deck",
   "CategoryIcon": "Images/categoryIcon",

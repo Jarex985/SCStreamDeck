@@ -5,6 +5,7 @@ using SCStreamDeck.Services.Core;
 using SCStreamDeck.Services.Data;
 using SCStreamDeck.Services.Installation;
 using SCStreamDeck.Services.Keybinding;
+using SCStreamDeck.Services.Telemetry;
 using SCStreamDeck.Services.UI;
 using WindowsInput;
 
@@ -47,6 +48,16 @@ public static class ServiceConfiguration
         services.AddSingleton<KeybindingService>();
         services.AddSingleton<ActionMapsWatcherService>();
         services.AddSingleton<InitializationService>();
+
+        services.AddSingleton<ITelemetrySchemaProvider, TelemetrySchemaProvider>();
+        services.AddSingleton<TelemetryTemplateService>();
+        services.AddSingleton<TelemetryFlagService>();
+        services.AddSingleton<UecSessionTracker>();
+        services.AddSingleton<TravelTracker>();
+        services.AddSingleton<DecelerationProfileService>();
+        services.AddSingleton<TelemetryDebugRecorder>();
+        services.AddSingleton<ITelemetryStreamSource, GrpcTelemetryStreamSource>();
+        services.AddSingleton<TelemetryService>();
     }
 
     /// <summary>

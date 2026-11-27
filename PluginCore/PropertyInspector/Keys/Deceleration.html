@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Star Citizen Stream Deck Plugin PI - Deceleration</title>
+  <link href="../css/base.css" rel="stylesheet">
+  <link id="pi-theme-styles" rel="stylesheet">
+  <style>
+    .pi-rule {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-bg-card);
+      padding: var(--space-sm);
+      margin-bottom: var(--space-sm);
+    }
+
+    .pi-rule__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-sm);
+    }
+
+    .pi-rule__title {
+      color: var(--color-primary);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .pi-rule__actions {
+      display: flex;
+      gap: var(--space-xs);
+    }
+
+    .pi-rule__condition,
+    .pi-rule__colors,
+    .pi-rule__press-current {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .pi-rule__press {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+      flex: 1;
+      min-width: 0;
+    }
+
+    .pi-rule__function {
+      color: var(--color-text-secondary);
+      font-size: var(--font-size-sm);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .pi-rule__value {
+      flex: 1;
+      min-width: 60px;
+    }
+
+    .pi-rule__select {
+      background: var(--color-bg-elevated);
+      color: var(--color-text-primary);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      height: 32px;
+      padding: 0 var(--space-sm);
+      max-width: 100%;
+    }
+
+    .pi-rule__hint {
+      color: var(--color-text-tertiary);
+      font-size: var(--font-size-sm);
+    }
+
+    .pi-rule__color-group {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+
+    .pi-rule__color {
+      width: 32px;
+      height: 28px;
+      padding: 0;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background: transparent;
+    }
+
+    .pi-rule__conditions {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      flex: 1;
+      min-width: 0;
+    }
+
+    .pi-rule__condition-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+      padding: var(--space-xs);
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-sm);
+    }
+
+    .pi-rule__actions-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      flex: 1;
+      min-width: 0;
+    }
+
+    .pi-rule__action {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+      padding: var(--space-xs);
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-sm);
+    }
+
+    .pi-rule__action-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+
+    .pi-rule__attribute {
+      flex: 1 1 100%;
+    }
+
+    .pi-telemetry-note {
+      color: var(--color-text-tertiary);
+      font-size: var(--font-size-sm);
+      margin-top: var(--space-sm);
+    }
+
+    #decimalsInput::-webkit-outer-spin-button,
+    #decimalsInput::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  </style>
+  <script src="../js/sc-preload.js"></script>
+  <script defer src="../js/sdpi-components.js"></script>
+  <script defer src="../js/sc-components.js"></script>
+  <script>
+    // Numeric source attribute with the deceleration estimate options; rules combine conditions on any
+    // attributes and on the estimate itself (like the advanced key).
+    globalThis.SCPI_TELEMETRY_DECELERATION = true;
+    globalThis.SCPI_TELEMETRY_ADVANCED = true;
+  </script>
+  <script defer src="../js/pi-telemetry-display.js"></script>
+</head>
+<body>
+<div class="pi-container">
+  <div class="pi-panel">
+    <div class="pi-section">
+      <div class="pi-dropdown" data-placeholder="Search a numeric attribute (e.g. speed)..." id="fieldDropdown"></div>
+      <div class="pi-content-box" id="fieldCurrent">No attribute selected</div>
+
+      <div class="pi-picker-grid">
+        <div class="pi-picker-row">
+          <div class="pi-picker-label" title="Replaces {label}. Empty uses the attribute name.">Label</div>
+          <div class="pi-dropdown">
+            <div class="pi-dropdown__input-row">
+              <div class="pi-dropdown__input-wrapper">
+                <input aria-label="Label" id="labelInput" placeholder="Attribute name" type="text">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pi-picker-row">
+          <div class="pi-picker-label" title="Recorded: for ship speed, estimate from the deceleration recorded for the current ship and atmospheric density (press the key, then release the throttle until the ship stops). Live: extrapolate the reduction seen over the window. Default: recorded for ship speed, live for other attributes.">Estimate</div>
+          <select aria-label="Estimate mode" class="pi-rule__select" id="decelMode" style="flex:1">
+            <option value="">Automatic</option>
+            <option value="recorded">Recorded runs</option>
+            <option value="live">Live rate</option>
+          </select>
+        </div>
+        <div class="pi-picker-row">
+          <div class="pi-picker-label" title="Observation period over which the reduction is measured (200 - 30000 ms). Empty = 1000. Used by the live rate.">Window (ms)</div>
+          <div class="pi-dropdown">
+            <div class="pi-dropdown__input-row">
+              <div class="pi-dropdown__input-wrapper">
+                <input aria-label="Window" id="decelWindow" max="30000" min="200" placeholder="1000" step="100" type="number">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pi-picker-row">
+          <div class="pi-picker-label" title="What the key shows. Legacy rules without conditions compare time when only time is shown, otherwise the units.">Show</div>
+          <select aria-label="Output" class="pi-rule__select" id="decelOutput" style="flex:1">
+            <option value="both">Units and time</option>
+            <option value="units">Units only</option>
+            <option value="time">Time only</option>
+          </select>
+        </div>
+        <div class="pi-picker-row">
+          <div class="pi-picker-label" title="Divide the units by this to change the order of magnitude, e.g. 1000 to show kilometers when the attribute is in meters. Empty = 1.">Divide by</div>
+          <div class="pi-dropdown">
+            <div class="pi-dropdown__input-row">
+              <div class="pi-dropdown__input-wrapper">
+                <input aria-label="Divide units by" id="decelDivisor" list="decelDivisorPresets" min="0" placeholder="1" step="any" type="number">
+                <datalist id="decelDivisorPresets">
+                  <option value="1">m &rarr; m</option>
+                  <option value="1000">m &rarr; km</option>
+                  <option value="1000000">m &rarr; Mm</option>
+                  <option value="0.001">km &rarr; m</option>
+                </datalist>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pi-picker-row">
+          <div class="pi-picker-label" title="Round the cumulative units (after dividing) to a multiple of this value, e.g. 0.5 for half a kilometer. Empty = one decimal.">Round units</div>
+          <div class="pi-dropdown">
+            <div class="pi-dropdown__input-row">
+              <div class="pi-dropdown__input-wrapper">
+                <input aria-label="Round units to" id="decelUnitsRounding" min="0" placeholder="1 decimal" step="any" type="number">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pi-picker-row">
+          <div class="pi-picker-label" title="Round the time (seconds) to a multiple of this value. Empty = one decimal.">Round time</div>
+          <div class="pi-dropdown">
+            <div class="pi-dropdown__input-row">
+              <div class="pi-dropdown__input-wrapper">
+                <input aria-label="Round time to" id="decelTimeRounding" min="0" placeholder="1 decimal" step="any" type="number">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pi-picker-row">
+          <div class="pi-picker-label" title="Suffix shown after the cumulative units, e.g. m.">Unit</div>
+          <div class="pi-dropdown">
+            <div class="pi-dropdown__input-row">
+              <div class="pi-dropdown__input-wrapper">
+                <input aria-label="Unit" id="decelUnit" maxlength="8" placeholder="m" type="text">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pi-telemetry-note">
+        <b>Recorded runs</b> (ship speed): the key learns how your ship slows down, per ship, master mode and atmospheric density, and shows
+        the distance and time it would need to stop if you released the throttle now. Press the key to start a recording, then release the
+        throttle and let the ship stop; the run is saved when the speed reaches zero. Boosting, landing, accelerating again or pressing the key
+        again discards the run (pressing while recording does not run the rule's press action). Record more runs, at different speeds and in
+        atmosphere, to improve it; newer runs weigh more. Without a recorded run the key shows &mdash;, and a leading ~ marks an estimate
+        beyond the recorded speeds or densities. Profiles are stored in %APPDATA%\SCStreamDeck\deceleration-profiles.json.
+      </div>
+      <div class="pi-telemetry-note">
+        <b>Live rate</b>: assumes the value keeps dropping at the rate seen over the window: time = value / rate, units = value&sup2; / (2 &times; rate).
+        For ship speed in m/s the units are meters. Without a clear reduction the key shows the Default look with &mdash;.
+        Rules can test the estimate ("Estimate (units)" / "Estimate (time, s)") together with any other attributes.
+      </div>
+    </div>
+
+    <div class="pi-section">
+      <div class="pi-telemetry-note">Format templates (text color, background color, image and flash) and flags are created on the <b>Config</b> key; pick them per rule below.</div>
+    </div>
+
+    <div class="pi-section">
+      <div class="pi-page-title">Rules (first match wins)</div>
+      <div id="rulesList"></div>
+      <div class="pi-button-row">
+        <button class="pi-button" id="addRule" type="button">Add rule</button>
+      </div>
+    </div>
+
+    <div class="pi-section">
+      <div id="defaultRule"></div>
+      <div class="pi-telemetry-note">
+        Press actions only run while telemetry data is available. The game's telemetry server must be enabled.
+      </div>
+    </div>
+
+    <div class="pi-section">
+      <div class="pi-page-title">Recording states</div>
+      <div class="pi-telemetry-note">
+        Looks (text, image, sound, template, colors, flash) for the <b>Recorded runs</b> mode while a run is being recorded. They replace the rules and the Default look for that time; pressing the key still runs the press action of the rule that would apply.
+      </div>
+    </div>
+    <div class="pi-section">
+      <div id="armedRule"></div>
+    </div>
+    <div class="pi-section">
+      <div id="recordingRule"></div>
+    </div>
+    <div class="pi-section">
+      <div id="savedRule"></div>
+    </div>
+    <div class="pi-section">
+      <div id="discardedRule"></div>
+    </div>
+
+    <div class="pi-section audio-file-section">
+      <div class="pi-picker-row">
+        <div class="pi-picker-label" title="Played when a press action runs.">Press sound</div>
+        <div class="pi-file-picker"
+             data-accept=".wav,.mp3"
+             data-clear-title="Clear audio file"
+             data-placeholder="No file selected"
+             data-select-title="Select audio file"
+             id="audioFilePicker"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

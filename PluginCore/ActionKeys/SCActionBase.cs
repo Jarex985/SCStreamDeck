@@ -94,6 +94,26 @@ public abstract class SCActionBase : KeyAndEncoderBase
         }
     }
 
+    /// <summary>
+    ///     Plays an arbitrary sound file; missing files are ignored.
+    /// </summary>
+    protected void PlaySoundFile(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return;
+        }
+
+        try
+        {
+            AudioPlayerService.Play(path);
+        }
+        catch (Exception ex)
+        {
+            Log.Err($"[{GetType().Name}] Audio playback error: {ex.Message}", ex);
+        }
+    }
+
     #endregion
 
     #region Fields and Properties
