@@ -22,7 +22,13 @@ public sealed class TelemetryRuleTransitionTracker
     /// <summary>
     ///     Returns the sound to play when an explicit rule with data just became active; otherwise null.
     /// </summary>
-    public string? OnEvaluated(TelemetryRuleMatch match)
+    public string? OnEvaluated(TelemetryRuleMatch match) => OnEvaluated(match, out _);
+
+    /// <summary>
+    ///     Like <see cref="OnEvaluated(TelemetryRuleMatch)" />; <paramref name="entered" /> also tells when the
+    ///     default rule just took over (with data), so its flags can be applied.
+    /// </summary>
+    public string? OnEvaluated(TelemetryRuleMatch match, out bool entered)
     {
         lock (_gate)
         {
@@ -31,7 +37,8 @@ public sealed class TelemetryRuleTransitionTracker
             _activeIndex = match.Index;
             _hasBaseline = true;
 
-            if (!hadBaseline || previous == match.Index || match.Index < 0 || !match.HasData)
+            entered = hadBaseline && previous != match.Index && match.HasData;
+            if (!entered || match.Index < 0)
             {
                 return null;
             }

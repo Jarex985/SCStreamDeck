@@ -50,6 +50,7 @@ internal static class Program
         BuildPageScript(jsSrc, jsOut, "pi-control-panel.js");
         BuildPageScript(jsSrc, jsOut, "pi-function-key.js");
         BuildPageScript(jsSrc, jsOut, "pi-telemetry-display.js");
+        BuildPageScript(jsSrc, jsOut, "pi-config.js");
         BuildCss(cssSrc, cssOut);
     }
 
@@ -58,6 +59,7 @@ internal static class Program
         string[] inputs =
         [
             "sc-common.js",
+            "sc-form.js",
             "sc-bus.js",
             "sc-dropdown.js",
             "sc-file-picker.js",

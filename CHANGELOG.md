@@ -15,6 +15,15 @@ Notes:
 
 ---
 
+## v1.4.0.0 - Minor Release
+
+### Features / Improvements
+
+- New `Config` key: its Property Inspector is where the settings shared by the telemetry keys are created. All **format template** creation, editing and deletion moved there; the telemetry keys now only pick a template per rule. Existing templates are kept.
+- **Flags**: create named on/off switches on the `Config` key (with a starting value; values return to it when the plugin restarts). Rule conditions can test them (`Flags › <name>`), a rule can switch flags once when it becomes active (**Sets flags**), and the press actions of `Advanced Telemetry Display` rules can set a flag on, off or toggle it (also without telemetry). Use them for example as a master warning or a "preflight check done" switch. A copy of the flags is kept in `%APPDATA%\SCStreamDeck\telemetry-flags.json` and restored like the templates.
+
+---
+
 ## v1.3.0.2 - Minor Release
 
 ### Features / Improvements

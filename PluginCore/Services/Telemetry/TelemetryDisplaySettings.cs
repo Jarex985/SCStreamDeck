@@ -12,6 +12,16 @@ public sealed class TelemetryPressAction
     /// <summary>Star Citizen action name (as used in defaultProfile.xml).</summary>
     [JsonProperty("function")] public string? Function { get; set; }
 
+    /// <summary>
+    ///     Id of a flag to change instead of running a Star Citizen action; <see cref="FlagMode" /> says how.
+    /// </summary>
+    [JsonProperty("flag")] public string? Flag { get; set; }
+
+    /// <summary><see cref="TelemetryFlagMode.On" />, <see cref="TelemetryFlagMode.Off" /> or <see cref="TelemetryFlagMode.Toggle" /> (default).</summary>
+    [JsonProperty("flagMode")] public string? FlagMode { get; set; }
+
+    [JsonIgnore] public bool IsFlagAction => !string.IsNullOrWhiteSpace(Flag);
+
     /// <summary>Wait this many milliseconds before running this action.</summary>
     [JsonProperty("delayMs")] public int? DelayMs { get; set; }
 
@@ -94,7 +104,7 @@ public sealed class TelemetryRule
     public IReadOnlyList<TelemetryPressAction> GetPressActions()
     {
         List<TelemetryPressAction> configured = (Actions ?? [])
-            .Where(a => a != null && !string.IsNullOrWhiteSpace(a.Function))
+            .Where(a => a != null && (a.IsFlagAction || !string.IsNullOrWhiteSpace(a.Function)))
             .ToList();
 
         if (configured.Count > 0)
@@ -104,6 +114,11 @@ public sealed class TelemetryRule
 
         return string.IsNullOrWhiteSpace(Function) ? [] : [new TelemetryPressAction { Function = Function }];
     }
+
+    /// <summary>
+    ///     Flags to change when this rule becomes the active one (like <see cref="SoundPath" />, once per activation).
+    /// </summary>
+    [JsonProperty("setFlags")] public List<TelemetryFlagAssignment>? SetFlags { get; set; }
 
     /// <summary>Optional sound file (.wav/.mp3) played once when this rule becomes the active one.</summary>
     [JsonProperty("soundPath")] public string? SoundPath { get; set; }

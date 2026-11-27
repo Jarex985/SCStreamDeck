@@ -44,12 +44,28 @@
     decimals: null,
     rules: [],
     templates: [],
+    flags: [],
     defaultRule: {op: 'always'},
     startRule: {op: 'always'},
     stopRule: {op: 'always'}
   };
 
+  // Attributes the plugin reports plus the pseudo attributes of this page; flags are added for conditions.
+  let baseFields = [];
   let fields = [];
+
+  function flagName(flag) {
+    return String(flag?.name || '').trim() || '(unnamed)';
+  }
+
+  function rebuildFields() {
+    const flagFields = ADVANCED
+      ? state.flags.map((f) => ({
+        path: `flag.${f.id}`, label: flagName(f), group: 'Flags', kind: 'Boolean', isInteger: false, enumValues: null
+      }))
+      : [];
+    fields = baseFields.concat(flagFields);
+  }
 
   // Pseudo attributes of the deceleration estimate that rules can test (resolved by the plugin).
   const DECEL_FIELDS = [
@@ -106,26 +122,7 @@
 
   // #region Helpers
 
-  function el(tag, props = {}, children = []) {
-    const node = document.createElement(tag);
-    for (const [name, value] of Object.entries(props)) {
-      if (name === 'class') {
-        node.className = value;
-      } else if (name === 'text') {
-        node.textContent = value;
-      } else if (name.startsWith('on')) {
-        node.addEventListener(name.slice(2).toLowerCase(), value);
-      } else if (value !== undefined && value !== null) {
-        node.setAttribute(name, value);
-      }
-    }
-    for (const child of [].concat(children)) {
-      if (child) {
-        node.appendChild(child);
-      }
-    }
-    return node;
-  }
+  const {el, row, textInput, selectInput, flashTargetSelect} = SCPI.ui.form;
 
   function currentField(path = state.fieldPath) {
     return fields.find((f) => f.path === path) || null;
@@ -133,45 +130,6 @@
 
   function fieldKind(path = state.fieldPath) {
     return String(currentField(path)?.kind || '').toLowerCase();
-  }
-
-  function row(label, content, title) {
-    return el('div', {class: 'pi-picker-row'}, [
-      el('div', {class: 'pi-picker-label', text: label, title}),
-      content
-    ]);
-  }
-
-  function textInput(value, placeholder, onInput, type = 'text') {
-    const input = el('input', {type, placeholder: placeholder || '', 'aria-label': placeholder || ''});
-    input.value = value ?? '';
-    input.addEventListener('input', () => onInput(input.value));
-    return el('div', {class: 'pi-dropdown'}, [
-      el('div', {class: 'pi-dropdown__input-row'}, [
-        el('div', {class: 'pi-dropdown__input-wrapper'}, [input])
-      ])
-    ]);
-  }
-
-  function selectInput(options, value, onChange, cls = 'pi-rule__select') {
-    const select = el('select', {class: cls});
-    for (const [optValue, optText] of options) {
-      select.appendChild(el('option', {value: optValue, text: optText}));
-    }
-    select.value = options.some(([v]) => v === value) ? value : options[0]?.[0] ?? '';
-    select.addEventListener('change', () => onChange(select.value));
-    return select;
-  }
-
-  function flashTargetSelect(target, save) {
-    return selectInput([
-      ['text', 'Text'],
-      ['background', 'Background + image'],
-      ['everything', 'Everything']
-    ], target.flashTarget || 'text', (v) => {
-      target.flashTarget = v;
-      save();
-    }, 'pi-rule__select');
   }
 
   // #endregion
@@ -195,7 +153,8 @@
     const real = Array.isArray(list) ? list : [];
     // Condition editors can test any attribute (and, on the deceleration page, the estimate itself);
     // the primary attribute of the deceleration key must be numeric.
-    fields = DECEL ? real.concat(DECEL_FIELDS) : UEC ? real.concat(UEC_FIELDS) : TRAVEL ? real.concat(TRAVEL_FIELDS) : real;
+    baseFields = DECEL ? real.concat(DECEL_FIELDS) : UEC ? real.concat(UEC_FIELDS) : TRAVEL ? real.concat(TRAVEL_FIELDS) : real;
+    rebuildFields();
     const primary = DECEL ? real.filter((f) => String(f.kind).toLowerCase() === 'number') : real;
     fieldDropdown?.setItems?.(primary.map((f) => ({
       value: f.path,
@@ -427,7 +386,7 @@
     }
 
     card.appendChild(row('Template', templateSelect(rule),
-      'Colors, image and flash from a shared format template. Anything set on this rule itself overrides the template.'));
+      'Colors, image and flash from a shared format template made on the Config key. Anything set on this rule itself overrides the template.'));
     card.appendChild(row('Colors', renderColors(rule)));
     card.appendChild(row('Flash', textInput(rule.flashMs, 'off (ms)', (v) => {
       const parsed = parseInt(v, 10);
@@ -435,6 +394,8 @@
       saveRules();
     }, 'number'), 'Show the content for this many ms, then hide it for the same time, repeating. Minimum 250. Empty = no flashing.'));
     card.appendChild(row('Flashes', flashTargetSelect(rule, saveRules), 'Which part blinks while flashing. Background and Everything switch to black while off.'));
+    card.appendChild(row('Sets flags', renderSetFlags(rule),
+      'Flags to switch on or off once when this rule becomes active. Flags are created on the Config key.'));
     if (showPress) {
       card.appendChild(row('Press', renderPressAction(rule, idPrefix),
         ADVANCED ? 'Actions run, in order, when the key is pressed while this rule is active.'
@@ -466,6 +427,53 @@
     });
 
     return card;
+  }
+
+  function flagSelect(value, onChange) {
+    return selectInput([['', 'Select flag...'], ...state.flags.map((f) => [f.id, flagName(f)])], value || '',
+      onChange, 'pi-rule__select pi-rule__attribute');
+  }
+
+  // Flags a rule switches when it becomes the active one (applied by the plugin once per activation).
+  function renderSetFlags(rule) {
+    const wrap = el('div', {class: 'pi-rule__actions-list'});
+
+    if (state.flags.length === 0 && !(rule.setFlags || []).length) {
+      wrap.appendChild(el('span', {class: 'pi-rule__hint', text: 'No flags yet. Create them on the Config key.'}));
+      return wrap;
+    }
+
+    (rule.setFlags || []).forEach((assignment, index) => {
+      const line = el('div', {class: 'pi-rule__condition-row'});
+      line.appendChild(flagSelect(assignment.flag, (id) => {
+        assignment.flag = id || null;
+        saveRules();
+      }));
+      line.appendChild(selectInput([['true', 'On'], ['false', 'Off']], String(assignment.value !== false), (v) => {
+        assignment.value = v === 'true';
+        saveRules();
+      }));
+      line.appendChild(el('button', {
+        class: 'file-picker-clear', type: 'button', title: 'Remove flag', text: 'X',
+        onClick: () => {
+          rule.setFlags.splice(index, 1);
+          saveRules();
+          renderRules();
+        }
+      }));
+      wrap.appendChild(line);
+    });
+
+    wrap.appendChild(el('button', {
+      class: 'pi-button', type: 'button', text: 'Add flag',
+      onClick: () => {
+        rule.setFlags = (rule.setFlags || []).concat({flag: null, value: true});
+        saveRules();
+        renderRules();
+      }
+    }));
+
+    return wrap;
   }
 
   function renderCondition(rule) {
@@ -600,33 +608,7 @@
   }
 
   function renderColors(rule, onChange = saveRules) {
-    function colorControl(key, caption) {
-      const input = el('input', {type: 'color', class: 'pi-rule__color', title: caption});
-      input.value = rule[key] || (key === 'textColor' ? '#ffffff' : '#000000');
-      const clear = el('button', {
-        class: 'file-picker-clear', type: 'button', title: `Reset ${caption.toLowerCase()}`, text: 'X',
-        onClick: () => {
-          rule[key] = null;
-          input.value = key === 'textColor' ? '#ffffff' : '#000000';
-          status.textContent = 'auto';
-          onChange();
-        }
-      });
-      const status = el('span', {class: 'pi-rule__hint', text: rule[key] ? '' : 'auto'});
-      input.addEventListener('input', () => {
-        rule[key] = input.value;
-        status.textContent = '';
-        onChange();
-      });
-      return el('div', {class: 'pi-rule__color-group'}, [
-        el('span', {class: 'pi-rule__hint', text: caption}), input, clear, status
-      ]);
-    }
-
-    return el('div', {class: 'pi-rule__colors'}, [
-      colorControl('textColor', 'Text'),
-      colorControl('backgroundColor', 'Back')
-    ]);
+    return SCPI.ui.form.colors(rule, onChange);
   }
 
   function renderPressAction(rule, idPrefix) {
@@ -674,7 +656,17 @@
       ]);
 
       line.appendChild(header);
-      line.appendChild(renderFunctionPicker(action, `${idPrefix}-action-${index}`, () => saveRules(), false));
+      const isFlag = action.flag !== undefined && action.flag !== null;
+      line.appendChild(selectInput([['function', 'Star Citizen action'], ['flag', 'Flag']], isFlag ? 'flag' : 'function', (kind) => {
+        action.function = null;
+        action.flag = kind === 'flag' ? '' : null;
+        action.flagMode = kind === 'flag' ? 'toggle' : null;
+        saveRules();
+        renderRules();
+      }));
+      line.appendChild(isFlag
+        ? renderFlagAction(action)
+        : renderFunctionPicker(action, `${idPrefix}-action-${index}`, () => saveRules(), false));
       wrap.appendChild(line);
     });
 
@@ -689,10 +681,24 @@
 
     wrap.appendChild(el('span', {
       class: 'pi-rule__hint',
-      text: 'Actions run in order when the key is pressed (a single action without delay can be held).'
+      text: 'Actions run in order when the key is pressed (a single action without delay can be held). Flag actions also work without telemetry.'
     }));
 
     return wrap;
+  }
+
+  // An action that switches a flag on or off, or toggles it.
+  function renderFlagAction(action) {
+    return el('div', {class: 'pi-rule__condition-row'}, [
+      flagSelect(action.flag, (id) => {
+        action.flag = id;
+        saveRules();
+      }),
+      selectInput([['toggle', 'Toggle'], ['on', 'Set on'], ['off', 'Set off']], action.flagMode || 'toggle', (mode) => {
+        action.flagMode = mode;
+        saveRules();
+      })
+    ]);
   }
 
   function moveAction(rule, index, delta) {
@@ -825,17 +831,7 @@
 
   // #endregion
 
-  // #region Format templates (shared by all telemetry keys through the plugin's global settings)
-
-  let selectedTemplateId = '';
-
-  function saveTemplates() {
-    setTemplates?.(JSON.parse(JSON.stringify(state.templates)));
-  }
-
-  function newTemplateId() {
-    return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-  }
+  // #region Format templates and flags (created on the Config key; kept in the plugin's global settings)
 
   function templateName(template) {
     return String(template?.name || '').trim() || '(unnamed)';
@@ -849,116 +845,36 @@
     }, 'pi-rule__select pi-rule__template');
   }
 
-  function renderTemplates() {
-    const host = document.getElementById('templates');
-    if (!host) {
+  // Reads one list of the plugin's global settings and calls `onList` now and whenever it changes.
+  function watchGlobalList(key, onList) {
+    if (!globalThis.SDPIComponents?.useGlobalSettings) {
       return;
     }
 
-    if (!state.templates.some((t) => t.id === selectedTemplateId)) {
-      selectedTemplateId = state.templates[0]?.id || '';
-    }
-    const selected = state.templates.find((t) => t.id === selectedTemplateId);
-
-    const toolbar = el('div', {class: 'pi-rule__condition'}, []);
-    if (state.templates.length > 0) {
-      toolbar.appendChild(selectInput(
-        state.templates.map((t) => [t.id, templateName(t)]), selectedTemplateId, (id) => {
-          selectedTemplateId = id;
-          renderTemplates();
-        }, 'pi-rule__select pi-rule__template'));
-    }
-    toolbar.appendChild(el('button', {
-      class: 'pi-button', type: 'button', text: 'New template',
-      onClick: () => {
-        const template = {id: newTemplateId(), name: `Template ${state.templates.length + 1}`};
-        state.templates.push(template);
-        selectedTemplateId = template.id;
-        saveTemplates();
-        renderTemplates();
-        renderRules();
+    let last = null;
+    const apply = (value) => {
+      const next = Array.isArray(value) ? value : [];
+      const json = JSON.stringify(next);
+      if (json !== last) {
+        last = json;
+        onList(next);
       }
-    }));
+    };
 
-    const children = [toolbar];
-
-    if (selected) {
-      toolbar.appendChild(el('button', {
-        class: 'file-picker-clear', type: 'button', title: 'Delete this template', text: 'X',
-        onClick: () => {
-          state.templates = state.templates.filter((t) => t.id !== selected.id);
-          saveTemplates();
-          renderTemplates();
-          renderRules();
-        }
-      }));
-
-      children.push(row('Name', textInput(selected.name, 'Template name', (v) => {
-        selected.name = v;
-        saveTemplates();
-      })));
-      children.push(row('Colors', renderColors(selected, saveTemplates)));
-      children.push(row('Image', el('div', {
-        class: 'pi-file-picker', id: 'template-image', 'data-accept': '.png,.jpg,.jpeg,.bmp,.gif',
-        'data-placeholder': 'No image', 'data-select-title': 'Select image', 'data-clear-title': 'Clear image'
-      })));
-      children.push(row('Flash', textInput(selected.flashMs, 'off (ms)', (v) => {
-        const parsed = parseInt(v, 10);
-        selected.flashMs = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-        saveTemplates();
-      }, 'number'), 'Show then hide for this many ms each (minimum 250). Empty = no flashing.'));
-      children.push(row('Flashes', flashTargetSelect(selected, saveTemplates),
-        'Which part blinks while flashing. Background and Everything switch to black while off.'));
-    } else {
-      children.push(el('span', {
-        class: 'pi-rule__hint', text: 'No templates yet. A template bundles colors, image and flash so rules can share one look.'
-      }));
-    }
-
-    host.replaceChildren(...children);
-
-    if (selected) {
-      queueMicrotask(() => {
-        SCPI?.ui?.filePicker?.createFilePicker?.({
-          rootId: 'template-image',
-          placeholderText: 'No image',
-          initialValue: selected.imagePath || '',
-          onValueChanged: (path) => {
-            selected.imagePath = path || null;
-            saveTemplates();
-          }
-        });
-      });
-    }
-  }
-
-  // Name edits are applied when the field loses focus so the rule selects are not rebuilt on every keystroke.
-  document.getElementById('templates')?.addEventListener('change', (event) => {
-    if (event.target?.matches?.('input[type="text"]')) {
-      renderRules();
-    }
-  });
-
-  let setTemplates = null;
-  if (globalThis.SDPIComponents?.useGlobalSettings) {
-    const [getTemplates, set] = globalThis.SDPIComponents.useGlobalSettings(
-      'formatTemplates',
-      (value) => {
-        const next = Array.isArray(value) ? value : [];
-        if (JSON.stringify(next) !== JSON.stringify(state.templates)) {
-          state.templates = next;
-          renderTemplates();
-          renderRules();
-        }
-      });
-    setTemplates = set;
-    Promise.resolve(getTemplates()).then((value) => {
-      state.templates = Array.isArray(value) ? value : [];
-      renderTemplates();
-      renderRules();
-    }).catch(() => {
+    const [get] = globalThis.SDPIComponents.useGlobalSettings(key, apply);
+    Promise.resolve(get()).then(apply).catch(() => {
     });
   }
+
+  watchGlobalList('formatTemplates', (list) => {
+    state.templates = list;
+    renderRules();
+  });
+  watchGlobalList('flags', (list) => {
+    state.flags = list;
+    rebuildFields();
+    renderRules();
+  });
 
   // #endregion
 
@@ -1011,7 +927,6 @@
   });
 
   SCPI?.util?.onDocumentReady?.(() => {
-    renderTemplates();
     renderRules();
     SCPI?.bus?.sendOnce?.('pi.connected', 'propertyInspectorConnected');
   });

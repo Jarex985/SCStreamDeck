@@ -88,8 +88,11 @@ public static class TelemetryRuleEvaluator
             }
         }
 
+        // Flags always have a value, so they say nothing about whether telemetry arrives.
         bool anyData = primary.HasValue ||
-                       settings.Rules.Any(r => r?.Conditions != null && r.Conditions.Any(c => get(c?.FieldPath).HasValue));
+                       settings.Rules.Any(r => r?.Conditions != null && r.Conditions.Any(c =>
+                           c?.FieldPath != null && !c.FieldPath.StartsWith(TelemetryFlagService.PathPrefix, StringComparison.Ordinal) &&
+                           get(c.FieldPath).HasValue));
         return new TelemetryRuleMatch(fallback, -1, anyData);
     }
 

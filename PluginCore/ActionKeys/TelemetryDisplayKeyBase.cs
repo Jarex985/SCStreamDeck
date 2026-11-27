@@ -30,6 +30,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
     private readonly TelemetryService _telemetry;
     private readonly ITelemetrySchemaProvider _schemas;
     private readonly TelemetryTemplateService _templates;
+    private readonly TelemetryFlagService _flags;
     private readonly IDisposable _subscription;
 
     private TelemetryDisplaySettings _display;
@@ -54,6 +55,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
         _telemetry = deps.Telemetry;
         _schemas = deps.Schemas;
         _templates = deps.Templates;
+        _flags = deps.Flags;
         _display = ParseSettings(payload.Settings);
         _flashTimer = new Timer(_ => Refresh(false), null, Timeout.Infinite, Timeout.Infinite);
 
@@ -61,6 +63,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
         Connection.OnSendToPlugin += OnSendToPlugin;
         _schemas.Changed += OnSchemaChanged;
         _templates.Changed += OnTemplatesChanged;
+        _flags.Changed += OnFlagsChanged;
         _schemas.EnsureRefreshStarted();
         RequestGlobalSettings();
 
@@ -110,7 +113,13 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
                 Refresh(true);
             }
 
-            IReadOnlyList<TelemetryPressAction> actions = match is { HasData: true } ? match.Rule.GetPressActions() : [];
+            IReadOnlyList<TelemetryPressAction> actions = match.Rule.GetPressActions();
+            if (!match.HasData)
+            {
+                // Without telemetry only flags can change; Star Citizen actions need the game.
+                actions = actions.Where(a => a.IsFlagAction).ToList();
+            }
+
             if (actions.Count == 0)
             {
                 return;
@@ -121,7 +130,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
                 PlayClickSoundIfConfigured();
             }
 
-            if (actions is [{ DelayMs: null or <= 0 } single])
+            if (actions is [{ DelayMs: null or <= 0, IsFlagAction: false } single])
             {
                 // One immediate action behaves like Adaptive Key: key down now, key up when released (holds work).
                 Interlocked.Exchange(ref _pressedFunction, single.Function);
@@ -173,6 +182,12 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
                     await Task.Delay(action.EffectiveDelayMs, token).ConfigureAwait(false);
                 }
 
+                if (action.IsFlagAction)
+                {
+                    _flags.Apply(action);
+                    continue;
+                }
+
                 // Each step is a short tap so activation modes that need a release (tap, release-triggered) fire.
                 await ExecuteAsync(action.Function!, true).ConfigureAwait(false);
                 await Task.Delay(s_tapDuration, token).ConfigureAwait(false);
@@ -199,6 +214,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
         _subscription.Dispose();
         _schemas.Changed -= OnSchemaChanged;
         _templates.Changed -= OnTemplatesChanged;
+        _flags.Changed -= OnFlagsChanged;
         Connection.OnPropertyInspectorDidAppear -= OnPropertyInspectorDidAppear;
         Connection.OnSendToPlugin -= OnSendToPlugin;
 
@@ -261,23 +277,25 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
 
     private void OnTemplatesChanged() => Refresh(false);
 
-    // Format templates live in the plugin's global settings, shared by all telemetry keys.
+    private void OnFlagsChanged() => Refresh(false);
+
+    // Format templates and flags live in the plugin's global settings, shared by all telemetry keys.
     [ExcludeFromCodeCoverage]
     public override void ReceivedGlobalSettings(ReceivedGlobalSettingsPayload payload)
     {
         ArgumentNullException.ThrowIfNull(payload);
 
-        JObject? restored = _templates.ApplyGlobalSettings(payload.Settings);
+        JObject? restored = TelemetryGlobalSettings.Apply(_templates, _flags, payload.Settings);
         if (restored != null)
         {
-            // Stream Deck lost the templates (for example after reinstalling the plugin); give them back.
+            // Stream Deck lost the lists (for example after reinstalling the plugin); give them back.
             try
             {
                 _ = Connection.SetGlobalSettingsAsync(restored);
             }
             catch (Exception ex)
             {
-                Log.Err($"[{nameof(TelemetryDisplayKeyBase)}] Failed to restore format templates: {ex.Message}", ex);
+                Log.Err($"[{nameof(TelemetryDisplayKeyBase)}] Failed to restore the format templates and flags: {ex.Message}", ex);
             }
         }
     }
@@ -291,7 +309,7 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
         }
 
         TelemetryEvaluation evaluation =
-            _evaluator.Evaluate(display, _telemetry.Snapshot, _schemas.Current, DateTime.UtcNow);
+            _evaluator.Evaluate(display, _flags.Overlay(_telemetry.Snapshot), _schemas.Current, DateTime.UtcNow);
         TelemetryRuleMatch match = evaluation.Match;
 
         TelemetryRuleAppearance appearance = _templates.Resolve(match.Rule);
@@ -307,10 +325,18 @@ public abstract class TelemetryDisplayKeyBase : SCActionBase
         {
             (TelemetryRuleMatch match, TelemetryRenderModel model, _) = EvaluateCurrent();
 
-            string? sound = _transitions.OnEvaluated(match);
+            string? sound = _transitions.OnEvaluated(match, out bool entered);
             if (sound != null)
             {
                 _ = Task.Run(() => PlaySoundFile(sound));
+            }
+
+            if (entered && _flags.Apply(match.Rule.SetFlags))
+            {
+                // The flags changed what the rules match; evaluate again with them. The change notification has
+                // already refreshed the keys that use flags, this one included.
+                Refresh(force);
+                return;
             }
 
             lock (_gate)

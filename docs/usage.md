@@ -68,7 +68,8 @@ It has the same text, image, color, flash, sound and press-action options as `Te
 3. Add a Rule and build its **When** part: choose `All of these (AND)` or `Any of these (OR)`, then add conditions. Each condition has its own attribute, operator and value (for example `Is Landed` is `On`, `Hydrogen Fuel` is less than `20`).
 4. In a rule's Text you can print any attribute with `{value:attribute.path}`, for example `REFUEL\n{value:vehicle.state.flight.instruments.hydrogen_fuel}`.
 5. Rules are checked in order and the first one that matches wins. A condition on an attribute that has no data (for example ship values while you are on foot) is false, so such a rule does not match. The Default section applies when no rule matches.
-6. Each rule (and the Default section) has a **Press** list: add one or more actions, optionally with a delay in ms before each one. When you press the key, the actions of the rule that is active at that moment run in order. A single action without a delay behaves like `Adaptive Key` (it is held while you hold the key); with several actions or a delay, each step is a short tap. Pressing again while a sequence is still running is ignored.
+6. Each rule (and the Default section) has a **Press** list: add one or more actions, optionally with a delay in ms before each one. When you press the key, the actions of the rule that is active at that moment run in order. A single action without a delay behaves like `Adaptive Key` (it is held while you hold the key); with several actions or a delay, each step is a short tap. Pressing again while a sequence is still running is ignored. An action can also switch a [flag](#flags) instead of running a Star Citizen action.
+7. A rule can also switch [flags](#flags) when it becomes active (**Sets flags**), and its conditions can test them.
 
 Example toggle on one key: Rule 1 = `Gear` is `Deployed` shows "Gear DOWN" and presses the landing gear action; the Default section shows "Gear UP" and presses the same action, so the key always shows and does the right thing.
 
@@ -111,17 +112,35 @@ Use `Travel Timer` and `Travel Display` to measure how long something takes and 
 
 Both keys need the game's telemetry server to be enabled.
 
-## Format templates
+## Config Key and format templates
 
-All telemetry keys (`Telemetry Display`, `Advanced Telemetry Display`, `Deceleration`, `UEC Tracker`, `Travel Timer`, `Travel Display`) have a **Format templates** section. A template is a named look that bundles **text color, background color, image and flash interval**, for example a `warning` template with yellow text on red that flashes every 500 ms.
+Use the `Config` key to create what the telemetry keys share. Drag `Config` onto any key (it does nothing when pressed) and open its Property Inspector; it has two sections: **Flags** (see [Flags](#flags)) and **Format templates**. Templates are no longer edited on the telemetry keys themselves, which only pick them.
 
-1. Click **New template**, give it a name and set colors, image and flash.
-2. In any rule (or the Default section) pick it in the **Template** row.
+All telemetry keys (`Telemetry Display`, `Advanced Telemetry Display`, `Deceleration`, `UEC Tracker`, `Travel Timer`, `Travel Display`) can use a template. A template is a named look that bundles **text color, background color, image and flash interval**, for example a `warning` template with yellow text on red that flashes every 500 ms.
+
+1. On the `Config` key click **New template**, give it a name and set colors, image and flash.
+2. On a telemetry key, in any rule (or the Default section), pick it in the **Template** row.
 3. Change the template once and every rule using it, on every telemetry key, follows.
 
-Anything you set on the rule itself (its own colors, image or flash) overrides the template, so a rule can use a template and still differ in one detail. Templates are shared by all telemetry keys (they are stored in the plugin's global settings, not in the key, so they are not part of an exported profile). Deleting a template makes rules that used it fall back to their own settings.
+Anything you set on the rule itself (its own colors, image or flash) overrides the template, so a rule can use a template and still differ in one detail. Templates are shared by all telemetry keys (they are stored in the plugin's global settings, not in the key, so they are not part of an exported profile). Deleting a template makes rules that used it fall back to their own settings. Templates you made before this version are still there; only the place to edit them moved.
 
-Stream Deck can lose the plugin's global settings when the plugin is installed again, so the plugin also keeps a copy of the templates in `%APPDATA%\SCStreamDeck\telemetry-format-templates.json` and restores it when a telemetry key finds no templates at all. If you delete every template on purpose, the copy is emptied too and nothing is restored.
+Stream Deck can lose the plugin's global settings when the plugin is installed again, so the plugin also keeps a copy of the templates in `%APPDATA%\SCStreamDeck\telemetry-format-templates.json` and restores it when a `Config` or telemetry key finds no templates at all. If you delete every template on purpose, the copy is emptied too and nothing is restored.
+
+## Flags
+
+A flag is a named on/off switch shared by all telemetry keys, for example a **master warning** or **preflight check done**. Rules can test a flag, rules can switch it, and a key press can switch it.
+
+1. On the `Config` key click **New flag**, give it a name and choose its **Starts** value (On/Off). Flags are stored in the plugin's global settings (a copy is kept in `%APPDATA%\SCStreamDeck\telemetry-flags.json`, restored like the templates). The values themselves are not saved: every flag returns to its Starts value when the plugin restarts.
+2. **Test a flag**: in the conditions of an `Advanced Telemetry Display` rule (also on `Deceleration`, `UEC Tracker` and the travel keys) pick the attribute `Flags › <name>` and compare it with On or Off. A flag always has a value, so such a rule works without telemetry.
+3. **Switch a flag from a rule**: each rule (and the Default section) has a **Sets flags** row. Add a flag and choose On or Off; it is applied **once each time that rule becomes the active one** (like its sound; not when the key first appears or you edit the settings; the Default section only while telemetry data is available). Rules are only evaluated while the key is on the visible Stream Deck page.
+4. **Switch a flag when the key is pressed**: in the **Press** list of an `Advanced Telemetry Display` rule add an action, change its type from `Star Citizen action` to `Flag`, pick the flag and choose Toggle, Set on or Set off. Flag actions also work without telemetry and can be mixed with Star Citizen actions and delays in one list.
+
+Example master warning: create the flags `Master warn` and `Preflight`.
+
+- On the key that watches fuel, add a rule "Hydrogen Fuel is less than 20" and, in **Sets flags**, `Master warn` On.
+- Put an `Advanced Telemetry Display` named MASTER WARN on the same page. Rule 1: condition `Flags › Master warn` is `On`, red template with Flash `500` and a sound; **Press**: Flag `Master warn` Set off (this acknowledges the warning). The Default section shows nothing special.
+
+Example preflight switch: an `Advanced Telemetry Display` with Rule 1: `Flags › Preflight` is `On`, text `PREFLIGHT\nDONE` in green; the Default section shows `PREFLIGHT\nTODO` in amber. Both have a **Press** action: Flag `Preflight` Toggle. Another rule, "Speed is greater than 10" with **Sets flags** `Preflight` Off, makes the switch fall back to TODO once you take off, so it asks for the next flight's check.
 
 ## Telemetry Debug Key
 

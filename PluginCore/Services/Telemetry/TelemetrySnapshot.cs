@@ -15,6 +15,18 @@ public sealed class TelemetrySnapshot(IReadOnlyDictionary<string, IReadOnlyDicti
     public bool HasPart(string name) => Parts.ContainsKey(name);
 
     /// <summary>
+    ///     A copy with one more (or replaced) part.
+    /// </summary>
+    public TelemetrySnapshot WithPart(string name, IReadOnlyDictionary<string, TelemetryValue> values)
+    {
+        Dictionary<string, IReadOnlyDictionary<string, TelemetryValue>> copy = new(Parts, StringComparer.Ordinal)
+        {
+            [name] = values
+        };
+        return new TelemetrySnapshot(copy);
+    }
+
+    /// <summary>
     ///     Reads the value of <paramref name="path" /> (for example <c>actor.vitals.pressure</c>). False when the part
     ///     or the attribute is absent.
     /// </summary>
