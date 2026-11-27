@@ -185,22 +185,28 @@
 
     <div class="pi-section">
       <div class="pi-page-title">Format templates</div>
-      <div class="pi-telemetry-note">Shared by all telemetry keys. A template bundles text color, background color, image and flash; pick it per rule below.</div>
+      <div class="pi-telemetry-note">Shared by all telemetry keys. A template bundles text color, background color, image and flash; pick it per look below.</div>
       <div id="templates"></div>
     </div>
 
     <div class="pi-section">
-      <div class="pi-page-title">Rules (first match wins)</div>
-      <div id="rulesList"></div>
-      <div class="pi-button-row">
-        <button class="pi-button" id="addRule" type="button">Add rule</button>
+      <div class="pi-page-title">Display</div>
+      <div id="defaultRule"></div>
+      <div class="pi-telemetry-note">
+        The look of the key while it is available. Pressing the key only runs the press actions of this look.
       </div>
     </div>
 
     <div class="pi-section">
-      <div id="defaultRule"></div>
+      <div class="pi-page-title">Unavailable (first matching rule wins)</div>
+      <div id="rulesList"></div>
+      <div class="pi-button-row">
+        <button class="pi-button" id="addRule" type="button">Add rule</button>
+      </div>
       <div class="pi-telemetry-note">
-        The look of the key is the Default section unless a rule matches. Pressing the key only runs the press actions of the active rule.
+        While any of these rules matches, the key takes the look of that rule and does nothing when pressed, so you
+        can limit when it is shown and usable (for example only while you are seated). Without rules the key is
+        always available.
       </div>
     </div>
 

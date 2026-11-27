@@ -201,13 +201,32 @@ public abstract class TravelEvaluatorBase(TravelTracker tracker) : ITelemetryKey
     public const string StateRunning = "RUNNING";
     public const string StateStopped = "STOPPED";
 
+    public const string UnavailableText = "Unavailable";
+
     protected TravelTracker Tracker { get; } = tracker ?? throw new ArgumentNullException(nameof(tracker));
 
     protected abstract string DefaultLabel { get; }
 
-    /// <summary>Picks the rule that styles the key, whether the key is unusable, and the text used when the rule has none.</summary>
-    protected abstract (TelemetryRuleMatch Match, bool Disabled, string DefaultText) ChooseLook(
-        TelemetryDisplaySettings display, TravelReading reading, Func<string, TelemetryValue?> resolve);
+    /// <summary>
+    ///     The look of the key while it is available: its rule, the offset of its index behind the unavailable rules
+    ///     (so the sound of a look plays once when it becomes the active one) and the text used when it has none.
+    /// </summary>
+    protected abstract (TelemetryRule Rule, int IndexOffset, string DefaultText) AvailableLook(
+        TelemetryDisplaySettings display, TravelReading reading);
+
+    private (TelemetryRuleMatch Match, bool Disabled, string DefaultText) ChooseLook(
+        TelemetryDisplaySettings display, TravelReading reading, Func<string, TelemetryValue?> resolve)
+    {
+        // The rules say when the key is unavailable: the first matching one gives its look.
+        TelemetryRuleMatch unavailable = TelemetryRuleEvaluator.EvaluateWithPrimary(display, null, resolve);
+        if (unavailable.Index >= 0)
+        {
+            return (unavailable, true, UnavailableText);
+        }
+
+        (TelemetryRule rule, int offset, string defaultText) = AvailableLook(display, reading);
+        return (new TelemetryRuleMatch(rule ?? new TelemetryRule(), display.Rules.Count + offset, true), false, defaultText);
+    }
 
     public TelemetryEvaluation Evaluate(
         TelemetryDisplaySettings display, TelemetrySnapshot? snapshot, TelemetrySchema schema, DateTime nowUtc)
@@ -269,39 +288,29 @@ public abstract class TravelEvaluatorBase(TravelTracker tracker) : ITelemetryKey
 /// </summary>
 public sealed class TravelToggleEvaluator(TravelTracker tracker) : TravelEvaluatorBase(tracker), ITelemetryKeyPressHandler
 {
-    public const string UnavailableText = "Unavailable";
-
     protected override string DefaultLabel => "Travel";
 
     public void OnKeyPressed() => Tracker.Toggle(DateTime.UtcNow);
 
-    protected override (TelemetryRuleMatch Match, bool Disabled, string DefaultText) ChooseLook(
-        TelemetryDisplaySettings display, TravelReading reading, Func<string, TelemetryValue?> resolve)
-    {
-        TelemetryRuleMatch unavailable = TelemetryRuleEvaluator.EvaluateWithPrimary(display, null, resolve);
-        if (unavailable.Index >= 0)
-        {
-            return (unavailable, true, UnavailableText);
-        }
-
-        // The look indexes follow the rules so the sound of a look plays once when it becomes the active one.
-        return reading.State == TravelState.Running
-            ? (new TelemetryRuleMatch(display.StopRule ?? new TelemetryRule(), display.Rules.Count + 1, true), false, "Stop")
-            : (new TelemetryRuleMatch(display.StartRule ?? new TelemetryRule(), display.Rules.Count, true), false, "Start");
-    }
+    protected override (TelemetryRule Rule, int IndexOffset, string DefaultText) AvailableLook(
+        TelemetryDisplaySettings display, TravelReading reading) =>
+        reading.State == TravelState.Running
+            ? (display.StopRule, 1, "Stop")
+            : (display.StartRule, 0, "Start");
 }
 
 /// <summary>
-///     Travel Display key: shows the elapsed minutes and the estimated distance of the measurement. Pressing it
-///     only runs the active rule's press actions.
+///     Travel Display key: shows the elapsed minutes and the estimated distance of the measurement with one look
+///     and, like the Travel Timer, an <b>Unavailable</b> look chosen by rules. Pressing it only runs the press actions
+///     of the look (nothing while unavailable).
 /// </summary>
 public sealed class TravelDisplayEvaluator(TravelTracker tracker) : TravelEvaluatorBase(tracker)
 {
     protected override string DefaultLabel => "Travel";
 
-    protected override (TelemetryRuleMatch Match, bool Disabled, string DefaultText) ChooseLook(
-        TelemetryDisplaySettings display, TravelReading reading, Func<string, TelemetryValue?> resolve) =>
-        (TelemetryRuleEvaluator.EvaluateWithPrimary(display, null, resolve), false, "{elapsed}\n{distance}");
+    protected override (TelemetryRule Rule, int IndexOffset, string DefaultText) AvailableLook(
+        TelemetryDisplaySettings display, TravelReading reading) =>
+        (display.DefaultRule, 0, "{elapsed}\n{distance}");
 }
 
 /// <summary>

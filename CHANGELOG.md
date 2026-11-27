@@ -15,6 +15,14 @@ Notes:
 
 ---
 
+## v1.3.0.2 - Minor Release
+
+### Features / Improvements
+
+- `Travel Display` key: like the Travel Timer it now has one **Display** look and an **Unavailable** list of rules instead of rules and a default look. While an Unavailable rule matches, the key shows that rule's look and does nothing when pressed. The look has text, image, colors, format template, flash, sound and press actions. Rules saved on the key before this version are read as Unavailable rules, so remove them.
+
+---
+
 ## v1.3.0.1 - Minor Release
 
 ### Features / Improvements

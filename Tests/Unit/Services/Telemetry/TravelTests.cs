@@ -215,6 +215,35 @@ public sealed class TravelTests
     }
 
     [Fact]
+    public void Display_UsesItsLookUntilAnUnavailableRuleMatches()
+    {
+        using TravelTracker tracker = NewTracker();
+        TravelDisplayEvaluator display = new(tracker);
+        TelemetryDisplaySettings settings = Newtonsoft.Json.JsonConvert.DeserializeObject<TelemetryDisplaySettings>(
+            """
+            {"rules":[{"conditions":[{"fieldPath":"travel.state","op":"eq","value":"STOPPED"}],"text":"DONE"}],
+             "defaultRule":{"text":"{distance}","textColor":"#00FF00","soundPath":"d.wav"}}
+            """)!;
+
+        TelemetryEvaluation At(double seconds) =>
+            display.Evaluate(settings, null, TelemetrySchema.Bundled, s_t0.AddSeconds(seconds));
+
+        TelemetryEvaluation idle = At(0);
+        idle.Disabled.Should().BeFalse();
+        idle.Text.Should().Be(TelemetryTextFormatter.NoDataText);
+        idle.Match.Rule.TextColor.Should().Be("#00FF00");
+        idle.Match.Index.Should().Be(1);
+
+        tracker.Toggle(s_t0, 0);
+        At(1).Disabled.Should().BeFalse();
+
+        tracker.Toggle(s_t0.AddSeconds(2), 0);
+        TelemetryEvaluation stopped = At(3);
+        stopped.Disabled.Should().BeTrue();
+        stopped.Text.Should().Be("DONE");
+    }
+
+    [Fact]
     public void Evaluators_RulesCanTestTheStateAndTheMeasurement()
     {
         using TravelTracker tracker = NewTracker();

@@ -336,14 +336,21 @@
 
   function renderRules() {
     const list = document.getElementById('rulesList');
-    if (TIMER) {
-      const start = document.getElementById('startRule');
+    if (TRAVEL) {
+      const start = document.getElementById(TIMER ? 'startRule' : 'defaultRule');
       const stop = document.getElementById('stopRule');
-      if (!list || !start || !stop) {
+      if (!list || !start || (TIMER && !stop)) {
         return;
       }
 
       list.replaceChildren(...state.rules.map((rule, index) => renderRuleCard(rule, index, false)));
+      if (!TIMER) {
+        start.replaceChildren(renderRuleCard(state.defaultRule, -1, true, {
+          id: 'display', title: 'Display (shown while the key is available)', placeholder: '{elapsed}\\n{distance}'
+        }));
+        return;
+      }
+
       start.replaceChildren(renderRuleCard(state.startRule, -1, true, {
         id: 'start', title: 'Start (shown while a measurement can be started; pressing starts it)', placeholder: 'Start'
       }));
@@ -362,15 +369,15 @@
     defaults.replaceChildren(renderRuleCard(state.defaultRule, -1, true));
   }
 
-  // `section` (Travel Timer Start/Stop looks) is a card without conditions that still has sound and press actions.
+  // `section` (Travel Start/Stop/Display looks) is a card without conditions that still has sound and press actions.
   function renderRuleCard(rule, index, isDefault, section = null) {
     const idPrefix = section ? `rule-${section.id}` : isDefault ? 'rule-default' : `rule-${index}`;
     const title = section ? section.title : isDefault ? 'Default (no rule matches / no data)'
-      : TIMER ? `Unavailable when (rule ${index + 1})` : `Rule ${index + 1}`;
+      : TRAVEL ? `Unavailable when (rule ${index + 1})` : `Rule ${index + 1}`;
     const showSound = !isDefault || !!section;
     // Pressing an unavailable key does nothing, so its rules have no press actions.
-    const showPress = !(TIMER && !section);
-    const textPlaceholder = section?.placeholder || (TIMER ? 'Unavailable' : null);
+    const showPress = !(TRAVEL && !section);
+    const textPlaceholder = section?.placeholder || (TRAVEL ? 'Unavailable' : null);
 
     const header = el('div', {class: 'pi-rule__header'}, [el('span', {class: 'pi-rule__title', text: title})]);
     if (!isDefault) {
@@ -394,13 +401,11 @@
       card.appendChild(row('When', ADVANCED ? renderConditions(rule) : renderCondition(rule)));
     }
 
-    card.appendChild(row('Text', textInput(rule.text, textPlaceholder || (TRAVEL ? '{elapsed}\\n{distance}' : UEC ? '{value}\\n{change}' : '{label}\\n{value}'), (v) => {
+    card.appendChild(row('Text', textInput(rule.text, textPlaceholder || (UEC ? '{value}\\n{change}' : '{label}\\n{value}'), (v) => {
       rule.text = v;
       saveRules();
-    }), TIMER
+    }), TRAVEL
       ? `Use {state}, {elapsed} (min), {distance}, {label} or {value:attribute.path}; \\n starts a new line. Empty = ${textPlaceholder}.`
-      : TRAVEL
-      ? 'Use {elapsed} (min), {distance} (m, then km), {state}, {label} or {value:attribute.path}; \\n starts a new line. Empty = "{elapsed}\\n{distance}".'
       : UEC
       ? 'Use {value} (balance), {change} (earned/lost), {label} or {value:attribute.path}; \\n starts a new line. Empty = "{value}\\n{change}".'
       : DECEL
