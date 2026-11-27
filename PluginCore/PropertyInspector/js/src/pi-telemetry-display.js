@@ -47,8 +47,20 @@
     flags: [],
     defaultRule: {op: 'always'},
     startRule: {op: 'always'},
-    stopRule: {op: 'always'}
+    stopRule: {op: 'always'},
+    armedRule: {op: 'always'},
+    recordingRule: {op: 'always'},
+    savedRule: {op: 'always'},
+    discardedRule: {op: 'always'}
   };
+
+  // Deceleration page: looks of the recording states (no conditions and no press actions; the rules keep the press).
+  const DECEL_STATES = [
+    {key: 'armedRule', id: 'armed', title: 'Armed (waiting for the throttle to be released)', placeholder: 'Armed\\nrelease\\nthrottle'},
+    {key: 'recordingRule', id: 'recording', title: 'Recording (the ship is slowing down)', placeholder: 'REC\\n{speed}'},
+    {key: 'savedRule', id: 'saved', title: 'Saved (shown for a few seconds after a run was saved)', placeholder: 'Saved\\n{runs}'},
+    {key: 'discardedRule', id: 'discarded', title: 'Discarded (shown for a few seconds after a run was dropped)', placeholder: 'Discarded\\n{reason}'}
+  ];
 
   // Attributes the plugin reports plus the pseudo attributes of this page; flags are added for conditions.
   let baseFields = [];
@@ -115,6 +127,9 @@
     if (TIMER) {
       save('startRule', state.startRule);
       save('stopRule', state.stopRule);
+    }
+    if (DECEL) {
+      DECEL_STATES.forEach((s) => save(s.key, state[s.key]));
     }
   }
 
@@ -329,6 +344,19 @@
 
     list.replaceChildren(...state.rules.map((rule, index) => renderRuleCard(rule, index, false)));
     defaults.replaceChildren(renderRuleCard(state.defaultRule, -1, true));
+
+    if (DECEL) {
+      DECEL_STATES.forEach((s) => {
+        document.getElementById(s.key)?.replaceChildren(renderRuleCard(state[s.key], -1, true, {
+          id: s.id,
+          title: s.title,
+          placeholder: s.placeholder,
+          noPress: true,
+          hint: 'Use {state}, {speed} (m/s), {runs}, {reason}, {label} or {value:attribute.path}; \\n starts a new line. Empty = '
+            + s.placeholder + '.'
+        }));
+      });
+    }
   }
 
   // `section` (Travel Start/Stop/Display looks) is a card without conditions that still has sound and press actions.
@@ -338,7 +366,7 @@
       : TRAVEL ? `Unavailable when (rule ${index + 1})` : `Rule ${index + 1}`;
     const showSound = !isDefault || !!section;
     // Pressing an unavailable key does nothing, so its rules have no press actions.
-    const showPress = !(TRAVEL && !section);
+    const showPress = !(TRAVEL && !section) && !section?.noPress;
     const textPlaceholder = section?.placeholder || (TRAVEL ? 'Unavailable' : null);
 
     const header = el('div', {class: 'pi-rule__header'}, [el('span', {class: 'pi-rule__title', text: title})]);
@@ -366,7 +394,7 @@
     card.appendChild(row('Text', textInput(rule.text, textPlaceholder || (UEC ? '{value}\\n{change}' : '{label}\\n{value}'), (v) => {
       rule.text = v;
       saveRules();
-    }), TRAVEL
+    }), section?.hint ? section.hint : TRAVEL
       ? `Use {state}, {elapsed} (min), {distance}, {label} or {value:attribute.path}; \\n starts a new line. Empty = ${textPlaceholder}.`
       : UEC
       ? 'Use {value} (balance), {change} (earned/lost), {label} or {value:attribute.path}; \\n starts a new line. Empty = "{value}\\n{change}".'
@@ -910,6 +938,15 @@
     state.defaultRule.op = 'always';
     renderRules();
   });
+  if (DECEL) {
+    DECEL_STATES.forEach((s) => {
+      useSetting(s.key, (v) => {
+        state[s.key] = v && typeof v === 'object' ? v : {op: 'always'};
+        state[s.key].op = 'always';
+        renderRules();
+      });
+    });
+  }
   if (TIMER) {
     useSetting('startRule', (v) => {
       state.startRule = v && typeof v === 'object' ? v : {op: 'always'};

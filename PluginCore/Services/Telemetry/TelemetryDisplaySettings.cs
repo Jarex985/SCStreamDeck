@@ -210,6 +210,18 @@ public sealed class TelemetryDisplaySettings
     /// <summary>Used when no rule matches (and while there is no data).</summary>
     [JsonProperty("defaultRule")] public TelemetryRule DefaultRule { get; set; } = new();
 
+    /// <summary>Deceleration key: look while a recording is armed (waiting for the throttle to be released).</summary>
+    [JsonProperty("armedRule")] public TelemetryRule ArmedRule { get; set; } = new();
+
+    /// <summary>Deceleration key: look while a run is being recorded.</summary>
+    [JsonProperty("recordingRule")] public TelemetryRule RecordingRule { get; set; } = new();
+
+    /// <summary>Deceleration key: look shortly after a run was saved.</summary>
+    [JsonProperty("savedRule")] public TelemetryRule SavedRule { get; set; } = new();
+
+    /// <summary>Deceleration key: look shortly after a run was discarded.</summary>
+    [JsonProperty("discardedRule")] public TelemetryRule DiscardedRule { get; set; } = new();
+
     /// <summary>Travel Timer key: look and press actions while a measurement can be started.</summary>
     [JsonProperty("startRule")] public TelemetryRule StartRule { get; set; } = new();
 

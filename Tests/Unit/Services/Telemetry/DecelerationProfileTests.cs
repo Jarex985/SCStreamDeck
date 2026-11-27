@@ -203,6 +203,33 @@ public sealed class DecelerationProfileTests
     }
 
     [Fact]
+    public void Evaluator_RecordingStatesUseTheirOwnLookAndKeepThePressActionsOfTheRules()
+    {
+        using DecelerationProfileService service = new(new TelemetryService(new IdleSource()), () => Path.GetTempFileName());
+        DecelerationEvaluator evaluator = new(service);
+        TelemetryRule armed = new() { Text = "Go {state}", TemplateId = "armed-template" };
+        TelemetryRule normal = new() { Function = "v_ifcs_toggle_decoupled" };
+        TelemetryDisplaySettings settings = new()
+        {
+            FieldPath = DecelerationProfileService.SpeedPath, DefaultRule = normal, ArmedRule = armed
+        };
+        evaluator.Evaluate(settings, Snapshot(100, 0), TelemetrySchema.Bundled, DateTime.UtcNow);
+        evaluator.OnKeyPressed();
+
+        TelemetryEvaluation result = evaluator.Evaluate(settings, Snapshot(100, 0), TelemetrySchema.Bundled, DateTime.UtcNow);
+
+        result.Text.Should().Be("Go Armed");
+        result.Match.Rule.Should().BeSameAs(armed);
+        result.Match.Index.Should().Be(settings.Rules.Count);
+        result.PressRule.Should().BeSameAs(normal);
+
+        evaluator.OnKeyPressed();
+        service.Status(DateTime.UtcNow).Phase.Should().Be(DecelerationRecordingPhase.Idle);
+        evaluator.Evaluate(settings, Snapshot(100, 0), TelemetrySchema.Bundled, DateTime.UtcNow).Match.Rule
+            .Should().NotBeSameAs(armed);
+    }
+
+    [Fact]
     public void Evaluator_LiveModeKeepsTheOldBehaviorAndIgnoresPresses()
     {
         using DecelerationProfileService service = new(new TelemetryService(new IdleSource()), () => Path.GetTempFileName());

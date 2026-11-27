@@ -15,6 +15,14 @@ Notes:
 
 ---
 
+## v1.5.1.0 - Patch Release
+
+### Features / Improvements
+
+- `Deceleration` key: the recording states **Armed**, **Recording**, **Saved** and **Discarded** each have their own look in the Property Inspector (text, image, sound, format template, colors, flash and flags to set). The text can use `{state}`, `{speed}`, `{runs}` and `{reason}`. Pressing the key during these states still runs the press action of the rule that would otherwise apply.
+
+---
+
 ## v1.5.0.0 - Minor Release
 
 ### Features / Improvements

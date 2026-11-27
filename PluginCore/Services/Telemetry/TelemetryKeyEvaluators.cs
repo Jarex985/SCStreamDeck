@@ -6,9 +6,11 @@ namespace SCStreamDeck.Services.Telemetry;
 ///     Outcome of evaluating a key: the rule that applies and the text to draw. <paramref name="LineColors" />
 ///     optionally overrides the text color of individual lines (null entries keep the rule's text color).
 ///     <paramref name="Disabled" /> marks a key that is currently unusable: pressing it does nothing.
+///     <paramref name="PressRule" /> supplies the press actions when they do not come from the applied rule.
 /// </summary>
 public readonly record struct TelemetryEvaluation(
-    TelemetryRuleMatch Match, string Text, IReadOnlyList<string?>? LineColors = null, bool Disabled = false);
+    TelemetryRuleMatch Match, string Text, IReadOnlyList<string?>? LineColors = null, bool Disabled = false,
+    TelemetryRule? PressRule = null);
 
 /// <summary>
 ///     Implemented by evaluators whose key does something of its own when pressed (before any rule action runs).
@@ -109,12 +111,12 @@ public sealed class DecelerationEvaluator(DecelerationProfileService? profiles =
         _recordedMode = recorded;
 
         DecelerationEstimate? estimate;
-        string? statusText = null;
+        RecordingLook? recording = null;
         if (recorded)
         {
             _estimator.Reset();
             estimate = ProfileEstimateFor(snapshot, current);
-            statusText = RecordingText(snapshot, nowUtc);
+            recording = RecordingLookFor(display, snapshot, nowUtc);
         }
         else
         {
@@ -150,9 +152,24 @@ public sealed class DecelerationEvaluator(DecelerationProfileService? profiles =
             : match.Rule.Text;
 
         Dictionary<string, string> tokens = new(StringComparer.OrdinalIgnoreCase) { ["units"] = units, ["time"] = time };
+        if (recording is { } state)
+        {
+            // The look of the recording state replaces the rules; the press actions stay those of the rules.
+            foreach ((string name, string text) in state.Tokens)
+            {
+                tokens[name] = text;
+            }
+
+            string stateTemplate = string.IsNullOrEmpty(state.Rule.Text) ? state.DefaultText : state.Rule.Text;
+            return new TelemetryEvaluation(
+                new TelemetryRuleMatch(state.Rule, display.Rules.Count + state.IndexOffset, true),
+                TelemetryTextFormatter.Apply(stateTemplate, label, state.Tokens["speed"], path => TelemetryTextFormatter.FormatValue(Resolve(path), display.Decimals), tokens),
+                PressRule: match.Rule);
+        }
+
         return new TelemetryEvaluation(
             match,
-            statusText ?? TelemetryTextFormatter.Apply(template, label, value, path => TelemetryTextFormatter.FormatValue(Resolve(path), display.Decimals), tokens));
+            TelemetryTextFormatter.Apply(template, label, value, path => TelemetryTextFormatter.FormatValue(Resolve(path), display.Decimals), tokens));
     }
 
     // Ship speed uses the recorded profile unless the key was set to extrapolate live.
@@ -182,16 +199,25 @@ public sealed class DecelerationEvaluator(DecelerationProfileService? profiles =
             : null;
     }
 
-    // While arming or recording, and briefly afterwards, the key reports on the recording instead of the estimate.
-    private string? RecordingText(TelemetrySnapshot? snapshot, DateTime nowUtc)
+    // While arming or recording, and briefly afterwards, the key shows the look of that state instead of the estimate.
+    private RecordingLook? RecordingLookFor(TelemetryDisplaySettings display, TelemetrySnapshot? snapshot, DateTime nowUtc)
     {
         DecelerationRecordingStatus status = profiles!.Status(nowUtc);
+        Dictionary<string, string> tokens = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["speed"] = status.Speed.ToString("0", CultureInfo.InvariantCulture),
+            ["runs"] = Placeholder,
+            ["reason"] = status.Reason ?? string.Empty
+        };
+
         switch (status.Phase)
         {
             case DecelerationRecordingPhase.Armed:
-                return "Armed\nrelease\nthrottle";
+                tokens["state"] = "Armed";
+                return new RecordingLook(display.ArmedRule ?? new TelemetryRule(), 0, "Armed\nrelease\nthrottle", tokens);
             case DecelerationRecordingPhase.Recording:
-                return $"REC\n{status.Speed.ToString("0", CultureInfo.InvariantCulture)}";
+                tokens["state"] = "Recording";
+                return new RecordingLook(display.RecordingRule ?? new TelemetryRule(), 1, "REC\n{speed}", tokens);
         }
 
         if (status.Outcome == DecelerationRunOutcome.None || nowUtc - status.OutcomeAt > OutcomeDisplay)
@@ -201,12 +227,18 @@ public sealed class DecelerationEvaluator(DecelerationProfileService? profiles =
 
         if (status.Outcome == DecelerationRunOutcome.Discarded)
         {
-            return $"Discarded\n{status.Reason}";
+            tokens["state"] = "Discarded";
+            return new RecordingLook(display.DiscardedRule ?? new TelemetryRule(), 3, "Discarded\n{reason}", tokens);
         }
 
         int runs = profiles.RunCount(DecelerationProfileService.ShipKey(snapshot));
-        return $"Saved\n{runs} run{(runs == 1 ? string.Empty : "s")}";
+        tokens["state"] = "Saved";
+        tokens["runs"] = $"{runs} run{(runs == 1 ? string.Empty : "s")}";
+        return new RecordingLook(display.SavedRule ?? new TelemetryRule(), 2, "Saved\n{runs}", tokens);
     }
+
+    private readonly record struct RecordingLook(
+        TelemetryRule Rule, int IndexOffset, string DefaultText, Dictionary<string, string> Tokens);
 
     private static string UnitsText(double units, TelemetryDecelerationSettings options, bool approximate)
     {
